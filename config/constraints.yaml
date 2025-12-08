@@ -1,0 +1,46 @@
+# Hard Constraints and Boundaries
+# Non-negotiable rules that all content must follow
+
+content_constraints:
+  word_count:
+    minimum: 800
+    maximum: 2500
+    optimal: 1200-1800
+  
+  structure_requirements:
+    introduction: "Must include hook and preview of key points"
+    body: "Minimum 3 main sections with supporting evidence"
+    conclusion: "Must include actionable next steps"
+    
+  quality_gates:
+    readability: "Flesch-Kincaid grade level 8-12"
+    sources: "Minimum 3 credible sources cited"
+    examples: "At least 2 concrete examples or case studies"
+    
+formatting_rules:
+  headings: "Use H2 for main sections, H3 for subsections"
+  links: "All external links open in new tab"
+  images: "Include alt text for accessibility"
+  code: "Use syntax highlighting for code blocks"
+  
+never_do:
+  - "Make medical, legal, or financial advice claims"
+  - "Use clickbait headlines or misleading promises"
+  - "Include unverified statistics or 'facts'"
+  - "Write in all caps or excessive exclamation points"
+  - "Copy content without proper attribution"
+  - "Use trite phrases or cliches or re-use overused phrases"
+  - "Use terms that sound like AI like 'delve into'"
+  
+always_do:
+  - "Include a clear value proposition in the first paragraph"
+  - "Use active voice when possible"
+  - "Break up long paragraphs with subheadings"
+  - "End with a question or call-to-action"
+  - "Proofread for grammar and spelling errors"
+  
+brand_consistency:
+  author_bio: "Include consistent author bio at the end"
+  disclaimer: "Add appropriate disclaimers for advice content"
+  copyright: "Include copyright notice"
+  social_sharing: "Optimize for social media sharing"

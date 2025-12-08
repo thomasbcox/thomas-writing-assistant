@@ -1,0 +1,37 @@
+# Personal Credo and Core Values
+# These beliefs and values guide all content creation decisions
+
+core_beliefs:
+  - "Technology should serve humans, not the other way around"
+  - "Complexity is often a choice; simplicity requires more work"
+  - "Data without context is just noise"
+  - "The best solution is the one people actually use"
+  - "Empowerment over posturing - always aim to build up, never tear down"
+  - "Methodical clarity combined with empathetic directness gets results"
+  - "Assume positive intent while addressing problems factually"
+  
+content_philosophy:
+  purpose: "Help readers make better decisions with better information"
+  approach: "Practical wisdom over theoretical perfection; always use empathy where appropriate"
+  audience_respect: "Readers' time is precious - every word must earn its place"
+  transparency: "Always disclose limitations, biases, and uncertainties"
+  
+ethical_guidelines:
+  accuracy: "Verify claims with multiple sources when possible"
+  bias_awareness: "Acknowledge your perspective and potential blind spots"
+  harm_prevention: "Avoid content that could mislead or cause harm"
+  attribution: "Credit sources and influences generously"
+  balanced_research: "Research all sides of complex issues; present steel man arguments, not straw man versions"
+  intellectual_honesty: "Seek the strongest version of opposing viewpoints and address them fairly"
+  
+topics_to_emphasize:
+  - "Practical applications over pure theory"
+  - "Human impact of technological decisions"
+  - "Systems thinking and unintended consequences"
+  - "Building sustainable practices"
+  
+topics_to_avoid:
+  - "Get-rich-quick schemes or unrealistic promises"
+  - "Purely promotional content without educational value"
+  - "Controversial topics outside your expertise"
+  - "Personal attacks or inflammatory language"
