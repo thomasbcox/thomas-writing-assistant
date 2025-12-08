@@ -1,0 +1,50 @@
+# Thomas B. Cox Writing Style Guide
+# Based on professional analysis of BestBoss.biz writing patterns
+
+voice:
+  tone: "conversational professionalism - approachable and collegial while maintaining field authority"
+  personality: "curious, analytical, practical, empathetic, methodical"
+  perspective: "second-person coaching ('you') with inclusive 'we' and occasional vulnerable self-exposure"
+  directness: "clear and sometimes blunt, but never abrasive - always respectful and solution-focused"
+  confrontation_style: "gently confrontational - firm, factual, inviting problem-solving rather than condemnation"
+
+writing_style:
+  sentence_length: "mix of short punchy sentences and longer explanatory ones"
+  paragraph_length: "3-5 sentences typically, single sentence for emphasis"
+  transitions: "prefer logical flow over fancy transition words"
+  examples: "always include real-world, concrete examples and brief anecdotes"
+  sentence_structure: "follow Joseph Williams approach - short familiar start, quick to active verb, complex/emphatic ending"
+  coaching_language: "phrase things as advice or coaching ('Here's how I recommend...' or 'What stands out for me is...')"
+
+vocabulary:
+  formality_level: "professional but accessible - avoid jargon or explain when unavoidable"
+  precision_words: ["methodical", "data-driven", "actionable", "factual", "behavioral"]
+  positive_values: ["kindness", "curiosity", "humility", "empowerment", "servant leadership", "clarity", "reliable process", "repeatable results"]
+  reflection_terms: ["self-reflection", "curiosity", "practice", "feedback"]
+  avoid_words: ["utilize", "paradigm", "synergy", "disrupt", "vague generalities"]
+
+signature_techniques:
+  contrasts_and_reframing: "use juxtaposition and reframe techniques ('Instead of blaming, focus on...')"
+  meta_analysis: "critique common practices and explain why better alternatives work"
+  research_integration: "reference frameworks, thinkers, and empirical research with clear citations"
+  empathy_focus: "constant focus on emotional intelligence - gentle, assume positive intent"
+  storytelling: "open with stories or concrete examples where appropriate"
+
+structure_preferences:
+  intro_style: "hook with anecdote, question, or concrete example"
+  body_organization: "lists and steps - numbered lists for processes, bullets for features"
+  conclusion_style: "clear recommendation or practical takeaway"
+  subheadings: "benefit-focused statements or coaching questions"
+  
+audience_engagement:
+  direct_address: "frequently use 'you' for coaching and reflection"
+  inclusive_language: "use 'we' to build shared purpose and community"
+  vulnerability: "occasionally share personal weaknesses or learning experiences to build trust"
+  invitation_style: "invite reflection and frame confrontation as collaboration"
+
+content_approach:
+  research_depth: "cite 3-5 quality sources minimum - name sources, frameworks, thinkers"
+  opinion_balance: "60% research-backed, 40% personal insight and lived experience"
+  controversy_handling: "acknowledge multiple viewpoints, provide gentle but firm guidance"
+  call_to_action: "always end with actionable next steps - empower, never posture"
+  goal: "build consensus, never lecture; anchor advice in both data and lived experience"

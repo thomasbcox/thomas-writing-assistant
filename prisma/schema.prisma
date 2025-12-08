@@ -1,0 +1,119 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../node_modules/.prisma/client"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Concept {
+  id          String   @id @default(cuid())
+  identifier  String   @unique // zettel-{uuid} format for backward compatibility
+  title       String
+  description String?  @default("")
+  content     String
+  creator     String   // dc:creator
+  source      String   // dc:source
+  year        String   // dc:date
+  status      String   @default("active") // "active" or "trash"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  trashedAt   DateTime?
+
+  // Relations
+  outgoingLinks Link[] @relation("SourceConcept")
+  incomingLinks Link[] @relation("TargetConcept")
+
+  @@index([status])
+  @@index([identifier])
+}
+
+model Link {
+  id          String   @id @default(cuid())
+  sourceId    String
+  targetId    String
+  forwardName String  // Name from source to target (e.g., "is parent of")
+  reverseName String  // Name from target to source (e.g., "is child of")
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  source Concept @relation("SourceConcept", fields: [sourceId], references: [id], onDelete: Cascade)
+  target Concept @relation("TargetConcept", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, targetId])
+  @@index([sourceId])
+  @@index([targetId])
+}
+
+model LinkName {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isDefault Boolean  @default(false)
+  isDeleted Boolean  @default(false) // For tracking deleted default names
+  createdAt DateTime @default(now())
+
+  @@index([name])
+}
+
+model Capsule {
+  id           String   @id @default(cuid())
+  title        String
+  promise      String
+  cta          String
+  offerMapping String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  anchors Anchor[]
+
+  @@index([title])
+}
+
+model Anchor {
+  id          String   @id @default(cuid())
+  capsuleId   String
+  title       String
+  content     String
+  painPoints  String?  // JSON array as string
+  solutionSteps String? // JSON array as string
+  proof       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  capsule        Capsule          @relation(fields: [capsuleId], references: [id], onDelete: Cascade)
+  repurposedContent RepurposedContent[]
+
+  @@index([capsuleId])
+}
+
+model RepurposedContent {
+  id        String   @id @default(cuid())
+  anchorId  String
+  type      String   // "social_post", "email", "lead_magnet", "pinterest_pin", etc.
+  content   String
+  guidance  String?  // Metadata: describes the guidance/rule used to generate this content (read-only)
+  createdAt DateTime @default(now())
+
+  // Relations
+  anchor Anchor @relation(fields: [anchorId], references: [id], onDelete: Cascade)
+
+  @@index([anchorId])
+  @@index([type])
+}
+
+model MRUConcept {
+  id        String   @id @default(cuid())
+  conceptId String
+  lastUsed  DateTime @default(now())
+
+  @@unique([conceptId])
+  @@index([lastUsed])
+}

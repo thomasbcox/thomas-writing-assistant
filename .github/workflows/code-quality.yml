@@ -1,0 +1,59 @@
+name: Code Quality Checks
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  quality-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Generate Prisma Client
+        run: npm run db:generate
+      
+      - name: TypeScript Type Check
+        run: npm run check:types
+      
+      - name: ESLint Check
+        run: npm run check:lint
+      
+      - name: Run Tests
+        run: npm test -- --passWithNoTests
+      
+      - name: Code Quality Check
+        run: npm run check:quality
+      
+      - name: Check for 'any' types
+        run: |
+          ANY_COUNT=$(grep -r ": any\|as any\|any\[" src --include="*.ts" --include="*.tsx" | grep -v "test" | grep -v "node_modules" | wc -l | tr -d ' ')
+          if [ "$ANY_COUNT" -gt 0 ]; then
+            echo "❌ Found $ANY_COUNT 'any' types"
+            grep -r ": any\|as any\|any\[" src --include="*.ts" --include="*.tsx" | grep -v "test" | grep -v "node_modules"
+            exit 1
+          fi
+      
+      - name: Check for console statements
+        run: |
+          CONSOLE_COUNT=$(grep -r "console\\.log\\|console\\.error\\|console\\.warn" src --include="*.ts" --include="*.tsx" | grep -v "test" | grep -v "node_modules" | grep -v "logger" | wc -l | tr -d ' ')
+          if [ "$CONSOLE_COUNT" -gt 0 ]; then
+            echo "⚠️  Found $CONSOLE_COUNT console statements (should use logger)"
+            grep -r "console\\.log\\|console\\.error\\|console\\.warn" src --include="*.ts" --include="*.tsx" | grep -v "test" | grep -v "node_modules" | grep -v "logger"
+          fi
+
