@@ -127,11 +127,26 @@ export function SettingsTab() {
 
         {settings && (
           <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <h3 className="text-sm font-semibold text-blue-900 mb-2">Current Settings</h3>
-            <div className="text-sm text-blue-800 space-y-1">
-              <div>Provider: <strong>{settings.provider}</strong></div>
-              <div>Model: <strong>{settings.model}</strong></div>
-              <div>Temperature: <strong>{settings.temperature.toFixed(1)}</strong></div>
+            <h3 className="text-sm font-semibold text-blue-900 mb-3">Current Active Settings</h3>
+            <div className="text-sm text-blue-800 space-y-2">
+              <div className="flex items-center justify-between">
+                <span>Provider:</span>
+                <strong className="text-blue-900">{settings.provider === "openai" ? "OpenAI" : "Google Gemini"}</strong>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Model:</span>
+                <strong className="text-blue-900">{settings.model}</strong>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Temperature:</span>
+                <strong className="text-blue-900">{settings.temperature.toFixed(1)}</strong>
+              </div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-blue-200">
+              <p className="text-xs text-blue-700">
+                <strong>Note:</strong> If your preferred model is unavailable, the system will automatically use a fallback model. 
+                The model shown above is the one currently active.
+              </p>
             </div>
           </div>
         )}

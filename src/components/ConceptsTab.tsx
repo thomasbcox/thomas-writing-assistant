@@ -4,19 +4,14 @@ import { useState, useCallback } from "react";
 import { api } from "~/lib/trpc/react";
 import { ConceptEditor } from "./ConceptEditor";
 import { ConceptViewer } from "./ConceptViewer";
-import { ToastContainer, type ToastType } from "./ui/Toast";
+import { ToastContainer } from "./ui/Toast";
 import { ContextualHelp } from "./ui/ContextualHelp";
+import { useErrorHandler } from "~/hooks/useErrorHandler";
 import type { ConceptListItem } from "~/types/database";
 import { ConceptCreateForm } from "./ConceptCreateForm";
 import { ConceptList } from "./ConceptList";
 import { ConceptActions } from "./ConceptActions";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
-
-interface Toast {
-  id: string;
-  message: string;
-  type: ToastType;
-}
 
 export function ConceptsTab() {
   const [search, setSearch] = useState("");
@@ -25,17 +20,9 @@ export function ConceptsTab() {
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [purgeConfirm, setPurgeConfirm] = useState(false);
-  const [toasts, setToasts] = useState<Toast[]>([]);
   const [showCreateConceptForm, setShowCreateConceptForm] = useState<boolean>(false);
 
-  const addToast = useCallback((message: string, type: ToastType) => {
-    const id = Math.random().toString(36).substring(7);
-    setToasts((prev) => [...prev, { id, message, type }]);
-  }, []);
-
-  const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
+  const { handleError, showSuccess, toasts, removeToast } = useErrorHandler();
 
   const {
     data: concepts,
@@ -50,22 +37,32 @@ export function ConceptsTab() {
   const createMutation = api.concept.create.useMutation({
     onSuccess: () => {
       refetch();
-      addToast("Concept created successfully", "success");
+      showSuccess("Concept created successfully");
       setShowCreateConceptForm(false);
     },
     onError: (error) => {
-      addToast(error.message || "Failed to create concept", "error");
+      handleError(error, {
+        context: { operation: "create concept" },
+        recovery: async () => {
+          await refetch();
+        },
+      });
     },
   });
 
   const deleteMutation = api.concept.delete.useMutation({
     onSuccess: () => {
       refetch();
-      addToast("Concept deleted", "success");
+      showSuccess("Concept deleted successfully");
       setDeleteConfirm(null);
     },
     onError: (error) => {
-      addToast(error.message || "Failed to delete concept", "error");
+      handleError(error, {
+        context: { operation: "delete concept" },
+        recovery: async () => {
+          await refetch();
+        },
+      });
       setDeleteConfirm(null);
     },
   });
@@ -73,21 +70,31 @@ export function ConceptsTab() {
   const restoreMutation = api.concept.restore.useMutation({
     onSuccess: () => {
       refetch();
-      addToast("Concept restored", "success");
+      showSuccess("Concept restored successfully");
     },
     onError: (error) => {
-      addToast(error.message || "Failed to restore concept", "error");
+      handleError(error, {
+        context: { operation: "restore concept" },
+        recovery: async () => {
+          await refetch();
+        },
+      });
     },
   });
 
   const purgeMutation = api.concept.purgeTrash.useMutation({
     onSuccess: () => {
       refetch();
-      addToast("Trash purged successfully", "success");
+      showSuccess("Trash purged successfully");
       setPurgeConfirm(false);
     },
     onError: (error) => {
-      addToast(error.message || "Failed to purge trash", "error");
+      handleError(error, {
+        context: { operation: "purge trash" },
+        recovery: async () => {
+          await refetch();
+        },
+      });
       setPurgeConfirm(false);
     },
   });

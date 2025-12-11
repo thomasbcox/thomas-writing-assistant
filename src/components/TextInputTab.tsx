@@ -19,9 +19,11 @@ export function TextInputTab() {
   const [candidates, setCandidates] = useState<
     Array<{
       title: string;
+      coreDefinition: string;
+      managerialApplication: string;
       content: string;
-      summary: string;
       description?: string;
+      summary?: string;
     }>
   >([]);
   const [isGenerating, setIsGenerating] = useState(false);

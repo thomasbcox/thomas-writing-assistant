@@ -1,5 +1,7 @@
 # Writing Configuration Management
 
+**Last Updated**: 2025-12-11
+
 ## Overview
 
 The Writing Configuration system allows you to manage your writing style, core beliefs, and content constraints through a user-friendly UI. All changes are saved immediately and automatically reloaded - no server restart required.

@@ -1,36 +1,40 @@
-import { describe, it, expect, beforeEach } from "@jest/globals";
-import { jest } from "@jest/globals";
-import { render, screen, waitFor } from "@testing-library/react";
+/**
+ * Component tests for TextInputTab
+ * Last Updated: 2025-12-11
+ */
+
+/**
+ * Component tests for TextInputTab
+ * Last Updated: 2025-12-11
+ */
+
+import { describe, it, expect, beforeEach, jest } from "@jest/globals";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 import { TextInputTab } from "~/components/TextInputTab";
-// Mock tRPC hooks
-const mockGenerateCandidatesUseMutation = jest.fn();
-const mockExtractTextUseMutation = jest.fn();
+import {
+  mockConceptGenerateCandidatesUseMutation,
+  mockPDFExtractTextUseMutation,
+  resetAllTRPCMocks,
+} from "../utils/mock-trpc-hooks";
+import { renderWithTRPC } from "../utils/test-wrapper";
 
-jest.mock("~/lib/trpc/react", () => ({
-  api: {
-    concept: {
-      generateCandidates: {
-        useMutation: () => mockGenerateCandidatesUseMutation(),
-      },
-    },
-    pdf: {
-      extractText: {
-        useMutation: () => mockExtractTextUseMutation(),
-      },
-    },
-  },
-}));
+// Mock tRPC react module - replace api with our proxy-based mock
+jest.mock("~/lib/trpc/react", () => {
+  const actual = jest.requireActual("~/lib/trpc/react");
+  const { createMockTRPCAPI } = require("../utils/mock-trpc-hooks");
+  return {
+    ...actual,
+    api: createMockTRPCAPI(), // Use proxy-based mock that intercepts hook calls
+    TRPCReactProvider: actual.TRPCReactProvider, // Keep the real provider
+  };
+});
 
 describe("TextInputTab - User Flows", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    mockGenerateCandidatesUseMutation.mockReturnValue({
-      mutateAsync: jest.fn(() => Promise.resolve([])),
-      isPending: false,
-    });
-    mockExtractTextUseMutation.mockReturnValue({
+    resetAllTRPCMocks();
+    mockPDFExtractTextUseMutation.mockReturnValue({
       mutateAsync: jest.fn(() => Promise.resolve({ text: "extracted text" })),
       isPending: false,
     });
@@ -45,12 +49,12 @@ describe("TextInputTab - User Flows", () => {
         ])
       );
       
-      mockGenerateCandidatesUseMutation.mockReturnValue({
+      mockConceptGenerateCandidatesUseMutation.mockReturnValue({
         mutateAsync: mockMutateAsync,
         isPending: false,
       });
       
-      render(<TextInputTab />);
+      renderWithTRPC(<TextInputTab />);
       
       // Find text input
       const textInput = screen.getByLabelText(/paste text|or paste/i);
@@ -85,7 +89,7 @@ describe("TextInputTab - User Flows", () => {
         isPending: false, // Will be true during async operation
       });
       
-      render(<TextInputTab />);
+      renderWithTRPC(<TextInputTab />);
       
       // Enter text
       const textInput = screen.getByLabelText(/paste text|or paste/i);
@@ -106,12 +110,12 @@ describe("TextInputTab - User Flows", () => {
         Promise.reject(new Error("Generation failed"))
       );
       
-      mockGenerateCandidatesUseMutation.mockReturnValue({
+      mockConceptGenerateCandidatesUseMutation.mockReturnValue({
         mutateAsync: mockMutateAsync,
         isPending: false,
       });
       
-      render(<TextInputTab />);
+      renderWithTRPC(<TextInputTab />);
       
       // Enter text
       const textInput = screen.getByLabelText(/paste text|or paste/i);
@@ -133,7 +137,7 @@ describe("TextInputTab - User Flows", () => {
         isPending: false,
       });
       
-      render(<TextInputTab />);
+      renderWithTRPC(<TextInputTab />);
       
       // Generate button should be disabled
       const generateButton = screen.getByRole("button", { name: /generate concepts/i });
@@ -149,12 +153,12 @@ describe("TextInputTab - User Flows", () => {
       
       const mockMutateAsync = jest.fn(() => Promise.resolve(candidates));
       
-      mockGenerateCandidatesUseMutation.mockReturnValue({
+      mockConceptGenerateCandidatesUseMutation.mockReturnValue({
         mutateAsync: mockMutateAsync,
         isPending: false,
       });
       
-      render(<TextInputTab />);
+      renderWithTRPC(<TextInputTab />);
       
       // Enter text and generate
       const textInput = screen.getByLabelText(/paste text|or paste/i);
@@ -183,7 +187,7 @@ describe("TextInputTab - User Flows", () => {
         isPending: false,
       });
       
-      render(<TextInputTab />);
+      renderWithTRPC(<TextInputTab />);
       
       // Find file input
       const fileInput = screen.getByLabelText(/upload|file|pdf/i) as HTMLInputElement;
@@ -211,7 +215,7 @@ describe("TextInputTab - User Flows", () => {
         isPending: false,
       });
       
-      render(<TextInputTab />);
+      renderWithTRPC(<TextInputTab />);
       
       // Upload invalid file
       const fileInput = screen.getByLabelText(/upload|file|pdf/i) as HTMLInputElement;
@@ -231,12 +235,12 @@ describe("TextInputTab - User Flows", () => {
       const user = userEvent.setup();
       const mockMutateAsync = jest.fn(() => Promise.resolve([]));
       
-      mockGenerateCandidatesUseMutation.mockReturnValue({
+      mockConceptGenerateCandidatesUseMutation.mockReturnValue({
         mutateAsync: mockMutateAsync,
         isPending: false,
       });
       
-      render(<TextInputTab />);
+      renderWithTRPC(<TextInputTab />);
       
       // Find max candidates input
       const maxCandidatesInput = screen.getByLabelText(/max candidates|maximum/i);
@@ -264,12 +268,12 @@ describe("TextInputTab - User Flows", () => {
       const user = userEvent.setup();
       const mockMutateAsync = jest.fn(() => Promise.resolve([]));
       
-      mockGenerateCandidatesUseMutation.mockReturnValue({
+      mockConceptGenerateCandidatesUseMutation.mockReturnValue({
         mutateAsync: mockMutateAsync,
         isPending: false,
       });
       
-      render(<TextInputTab />);
+      renderWithTRPC(<TextInputTab />);
       
       // Find instructions input
       const instructionsInput = screen.getByLabelText(/instructions/i);

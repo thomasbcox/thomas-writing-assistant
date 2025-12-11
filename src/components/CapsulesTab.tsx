@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { api } from "~/lib/trpc/react";
 import { ToastContainer, type ToastType } from "./ui/Toast";
+import { translateError } from "~/lib/error-messages";
 import { AnchorEditor } from "./AnchorEditor";
 import { CapsuleInfoSection } from "./capsules/CapsuleInfoSection";
 import { PDFUploadSection } from "./capsules/PDFUploadSection";
@@ -39,7 +40,7 @@ export function CapsulesTab() {
       addToast("Derivatives regenerated successfully", "success");
     },
     onError: (error) => {
-      addToast(error.message || "Failed to regenerate derivatives", "error");
+      addToast(translateError(error, { operation: "regenerate derivatives" }), "error");
     },
   });
 
@@ -50,7 +51,7 @@ export function CapsulesTab() {
       addToast("Anchor updated successfully", "success");
     },
     onError: (error) => {
-      addToast(error.message || "Failed to update anchor", "error");
+      addToast(translateError(error, { operation: "update anchor" }), "error");
     },
   });
 
@@ -61,7 +62,7 @@ export function CapsulesTab() {
       addToast("Anchor deleted successfully", "success");
     },
     onError: (error) => {
-      addToast(error.message || "Failed to delete anchor", "error");
+      addToast(translateError(error, { operation: "delete anchor" }), "error");
     },
   });
 
@@ -71,7 +72,7 @@ export function CapsulesTab() {
       addToast("Derivative updated successfully", "success");
     },
     onError: (error) => {
-      addToast(error.message || "Failed to update derivative", "error");
+      addToast(translateError(error, { operation: "update derivative" }), "error");
     },
   });
 
@@ -81,7 +82,7 @@ export function CapsulesTab() {
       addToast("Derivative deleted successfully", "success");
     },
     onError: (error) => {
-      addToast(error.message || "Failed to delete derivative", "error");
+      addToast(translateError(error, { operation: "delete derivative" }), "error");
     },
   });
 

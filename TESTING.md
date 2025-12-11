@@ -1,5 +1,7 @@
 # Testing
 
+**Last Updated**: 2025-12-11
+
 ## Test Setup
 
 The project uses **Jest** for testing with full Prisma 7 support. Tests are located in `src/test/`.
@@ -71,14 +73,15 @@ describe("Router Name", () => {
 ## Test Coverage
 
 Current test status:
-- ✅ **105 tests** passing across **13 test suites**
-- ✅ **0 failures** - All tests stable
+- ✅ **152 tests** passing across **18 test suites**
+- ⚠️ **44 component tests** need tRPC provider setup improvements
 - ✅ Concept Router - Full CRUD operations, trash/restore, search, links, purgeTrash
 - ✅ Link Router - Link creation, retrieval, deletion, bidirectional links, updates
 - ✅ LinkName Router - CRUD operations, default/custom names, usage tracking, edge cases
 - ✅ Capsule Router - Capsule CRUD, anchors, repurposed content
 - ✅ AI Router - Settings management, provider switching
 - ✅ PDF Router - Text extraction, error handling
+- ✅ Config Router - Configuration management with hot reload
 - ✅ Logger - 100% coverage
 - ✅ Config Loader - Configuration management
 - ✅ LLM Client - Multi-provider support (OpenAI/Gemini)
@@ -91,14 +94,15 @@ Current test status:
 - **Routers**: 97.1% coverage (excellent)
 - **Logger**: 100% coverage (complete)
 - **Test Utils**: Well tested
-- **Services**: 33.55% coverage (LLM services require API keys or mocks)
+- **Services**: Good coverage (LLM services use mocks for testing)
 - **PDF Processing**: Tested and working
+- **Components**: Basic unit tests passing, flow tests need tRPC provider setup
 
 ### Test Statistics
 
-- **Total Tests**: 105 (all passing)
-- **Test Suites**: 13 (all passing)
-- **Test Time**: ~3-4 seconds
+- **Total Tests**: 197 (152 passing, 44 component tests need setup, 1 skipped)
+- **Test Suites**: 26 (18 passing, 7 component test suites need setup, 1 skipped)
+- **Test Time**: ~6-8 seconds
 
 ## Configuration
 

@@ -219,5 +219,40 @@ describe("Config Router", () => {
     const rawContent = await caller.config.getStyleGuideRaw();
     expect(rawContent.content).toContain("reload test tone");
   });
+
+  test("should get config status", async () => {
+    const status = await caller.config.getStatus();
+    
+    expect(status).toBeDefined();
+    expect(status.styleGuide).toBeDefined();
+    expect(status.credo).toBeDefined();
+    expect(status.constraints).toBeDefined();
+    
+    expect(typeof status.styleGuide.loaded).toBe("boolean");
+    expect(typeof status.styleGuide.isEmpty).toBe("boolean");
+    expect(typeof status.credo.loaded).toBe("boolean");
+    expect(typeof status.credo.isEmpty).toBe("boolean");
+    expect(typeof status.constraints.loaded).toBe("boolean");
+    expect(typeof status.constraints.isEmpty).toBe("boolean");
+  });
+
+  test("should reflect config status changes after update", async () => {
+    const testYaml = `voice:
+  tone: "status test"
+`;
+    
+    // Get initial status
+    const initialStatus = await caller.config.getStatus();
+    
+    // Update style guide
+    await caller.config.updateStyleGuide({ content: testYaml });
+    
+    // Get updated status
+    const updatedStatus = await caller.config.getStatus();
+    
+    // Style guide should now be loaded
+    expect(updatedStatus.styleGuide.loaded).toBe(true);
+    expect(updatedStatus.styleGuide.isEmpty).toBe(false);
+  });
 });
 

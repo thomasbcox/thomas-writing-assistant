@@ -1,95 +1,47 @@
-import { describe, it, expect, beforeEach } from "@jest/globals";
-import { jest } from "@jest/globals";
-import { render, screen, waitFor } from "@testing-library/react";
+/**
+ * Component tests for ConceptsTab
+ * Last Updated: 2025-12-11
+ */
+
+/**
+ * Component tests for ConceptsTab
+ * Last Updated: 2025-12-11
+ */
+
+import { describe, it, expect, beforeEach, jest } from "@jest/globals";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 import { ConceptsTab } from "~/components/ConceptsTab";
 import { createMockConcept } from "../utils/test-factories";
+import {
+  mockConceptListUseQuery,
+  mockConceptGetByIdUseQuery,
+  mockConceptCreateUseMutation,
+  mockConceptDeleteUseMutation,
+  mockConceptRestoreUseMutation,
+  mockConceptPurgeTrashUseMutation,
+  resetAllTRPCMocks,
+} from "../utils/mock-trpc-hooks";
+import { renderWithTRPC } from "../utils/test-wrapper";
 
-// Mock tRPC hooks - these will be set up in beforeEach
-const mockConceptListUseQuery = jest.fn();
-const mockConceptGetByIdUseQuery = jest.fn();
-const mockConceptCreateUseMutation = jest.fn();
-const mockConceptDeleteUseMutation = jest.fn();
-const mockConceptRestoreUseMutation = jest.fn();
-const mockConceptPurgeTrashUseMutation = jest.fn();
-
+// Mock tRPC react module - replace api with our proxy-based mock
 jest.mock("~/lib/trpc/react", () => {
   const actual = jest.requireActual("~/lib/trpc/react");
+  const { createMockTRPCAPI } = require("../utils/mock-trpc-hooks");
   return {
     ...actual,
-    api: {
-      ...actual.api,
-      concept: {
-        list: {
-          useQuery: (...args: unknown[]) => {
-            // @ts-expect-error - mock function
-            return mockConceptListUseQuery(...args);
-          },
-        },
-        getById: {
-          useQuery: (...args: unknown[]) => {
-            // @ts-expect-error - mock function
-            return mockConceptGetByIdUseQuery(...args);
-          },
-        },
-        create: {
-          useMutation: () => {
-            // @ts-expect-error - mock function
-            return mockConceptCreateUseMutation();
-          },
-        },
-        delete: {
-          useMutation: () => {
-            // @ts-expect-error - mock function
-            return mockConceptDeleteUseMutation();
-          },
-        },
-        restore: {
-          useMutation: () => {
-            // @ts-expect-error - mock function
-            return mockConceptRestoreUseMutation();
-          },
-        },
-        purgeTrash: {
-          useMutation: () => {
-            // @ts-expect-error - mock function
-            return mockConceptPurgeTrashUseMutation();
-          },
-        },
-      },
-    },
+    api: createMockTRPCAPI(), // Use proxy-based mock that intercepts hook calls
+    TRPCReactProvider: actual.TRPCReactProvider, // Keep the real provider
   };
 });
 
 describe("ConceptsTab - User Flows", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    // Set up default return values
-    mockConceptListUseQuery.mockReturnValue({
-      data: [],
-      isLoading: false,
-      refetch: jest.fn(),
-    });
+    resetAllTRPCMocks();
     mockConceptGetByIdUseQuery.mockReturnValue({
       data: null,
       isLoading: false,
-    });
-    mockConceptCreateUseMutation.mockReturnValue({
-      mutate: jest.fn(),
-      isPending: false,
-    });
-    mockConceptDeleteUseMutation.mockReturnValue({
-      mutate: jest.fn(),
-      isPending: false,
-    });
-    mockConceptRestoreUseMutation.mockReturnValue({
-      mutate: jest.fn(),
-      isPending: false,
-    });
-    mockConceptPurgeTrashUseMutation.mockReturnValue({
-      mutate: jest.fn(),
-      isPending: false,
     });
   });
 
@@ -110,7 +62,7 @@ describe("ConceptsTab - User Flows", () => {
         isPending: false,
       });
       
-      render(<ConceptsTab />);
+      renderWithTRPC(<ConceptsTab />);
       
       // Click create button
       const createButton = screen.getByRole("button", { name: /create.*concept/i });
@@ -151,7 +103,7 @@ describe("ConceptsTab - User Flows", () => {
         isPending: false,
       });
       
-      render(<ConceptsTab />);
+      renderWithTRPC(<ConceptsTab />);
       
       const createButton = screen.getByRole("button", { name: /create.*concept/i });
       await user.click(createButton);
@@ -184,7 +136,7 @@ describe("ConceptsTab - User Flows", () => {
         refetch: jest.fn(),
       });
       
-      render(<ConceptsTab />);
+      renderWithTRPC(<ConceptsTab />);
       
       // Find search input
       const searchInput = screen.getByPlaceholderText(/search/i);
@@ -253,7 +205,7 @@ describe("ConceptsTab - User Flows", () => {
         isLoading: false,
       });
       
-      render(<ConceptsTab />);
+      renderWithTRPC(<ConceptsTab />);
       
       // Find edit button (might be in ConceptActions)
       const editButton = screen.getByRole("button", { name: /edit/i });
@@ -288,7 +240,7 @@ describe("ConceptsTab - User Flows", () => {
         isPending: false,
       });
       
-      render(<ConceptsTab />);
+      renderWithTRPC(<ConceptsTab />);
       
       // Find delete button
       const deleteButton = screen.getByRole("button", { name: /delete/i });
@@ -322,7 +274,7 @@ describe("ConceptsTab - User Flows", () => {
       });
       
       // Show trash view
-      render(<ConceptsTab />);
+      renderWithTRPC(<ConceptsTab />);
       const trashToggle = screen.getByLabelText(/show trash|trash/i);
       await user.click(trashToggle);
       

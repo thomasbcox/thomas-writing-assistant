@@ -1,9 +1,15 @@
+/**
+ * ConfigTab component for managing writing configuration
+ * Last Updated: 2025-12-11
+ */
+
 "use client";
 
 import { useState, useEffect } from "react";
 import { api } from "~/lib/trpc/react";
 import { LoadingSpinner } from "./ui/LoadingSpinner";
 import { ToastContainer, type ToastType } from "./ui/Toast";
+import { translateError } from "~/lib/error-messages";
 
 interface Toast {
   id: string;
@@ -14,17 +20,34 @@ interface Toast {
 export function ConfigTab() {
   const [activeSection, setActiveSection] = useState<"style" | "credo" | "constraints">("style");
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const { data: configStatus, isLoading: statusLoading } = api.config.getStatus.useQuery();
 
   const addToast = (message: string, type: ToastType) => {
     const id = Math.random().toString(36).substring(7);
     setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 5000);
+    }, 10000); // 10 seconds for better UX
   };
 
   const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const getConfigStatusBadge = (status: { loaded: boolean; isEmpty: boolean } | undefined) => {
+    if (!status) return null;
+    if (status.loaded) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+          ✓ Loaded
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+        ⚠️ Using defaults
+      </span>
+    );
   };
 
   return (
@@ -32,7 +55,42 @@ export function ConfigTab() {
       <ToastContainer toasts={toasts} onRemove={removeToast} />
       
       <div className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Writing Configuration</h2>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Writing Configuration</h2>
+          {!statusLoading && configStatus && (
+            <div className="flex items-center gap-2">
+              {getConfigStatusBadge(configStatus.styleGuide)}
+              {getConfigStatusBadge(configStatus.credo)}
+              {getConfigStatusBadge(configStatus.constraints)}
+            </div>
+          )}
+        </div>
+
+        {/* Config Status Warning */}
+        {!statusLoading && configStatus && (
+          (configStatus.styleGuide.isEmpty || configStatus.credo.isEmpty || configStatus.constraints.isEmpty) && (
+            <div className="mb-6 p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-yellow-600" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3 flex-1">
+                  <h3 className="text-sm font-semibold text-yellow-800 mb-1">
+                    Configuration Incomplete
+                  </h3>
+                  <p className="text-sm text-yellow-700">
+                    {configStatus.styleGuide.isEmpty && "Style Guide is missing. "}
+                    {configStatus.credo.isEmpty && "Credo is missing. "}
+                    {configStatus.constraints.isEmpty && "Constraints are missing. "}
+                    Content generation will use default settings. Set up your writing style below for personalized content.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )
+        )}
         
         {/* Section Tabs */}
         <div className="flex gap-2 mb-6 border-b-2 border-gray-200">
@@ -87,7 +145,7 @@ function StyleGuideEditor({ onToast }: { onToast: (message: string, type: ToastT
       refetch();
     },
     onError: (error) => {
-      onToast(error.message || "Failed to update style guide", "error");
+      onToast(translateError(error, { operation: "update style guide" }), "error");
     },
   });
 
@@ -150,7 +208,7 @@ function CredoEditor({ onToast }: { onToast: (message: string, type: ToastType) 
       refetch();
     },
     onError: (error) => {
-      onToast(error.message || "Failed to update credo", "error");
+      onToast(translateError(error, { operation: "update credo" }), "error");
     },
   });
 
@@ -213,7 +271,7 @@ function ConstraintsEditor({ onToast }: { onToast: (message: string, type: Toast
       refetch();
     },
     onError: (error) => {
-      onToast(error.message || "Failed to update constraints", "error");
+      onToast(translateError(error, { operation: "update constraints" }), "error");
     },
   });
 

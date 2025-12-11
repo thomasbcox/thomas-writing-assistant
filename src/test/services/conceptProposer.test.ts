@@ -17,6 +17,8 @@ describe("conceptProposer", () => {
       concepts: [
         {
           title: "Test Concept",
+          coreDefinition: "Test core definition",
+          managerialApplication: "Test managerial application",
           content: "Test content",
           summary: "Test summary",
           description: "Test description",
@@ -39,8 +41,9 @@ describe("conceptProposer", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]?.title).toBe("Test Concept");
+    expect(result[0]?.coreDefinition).toBe("Test core definition");
+    expect(result[0]?.managerialApplication).toBe("Test managerial application");
     expect(result[0]?.content).toBe("Test content");
-    expect(result[0]?.summary).toBe("Test summary");
   });
 
   it("should handle empty concepts array", async () => {
@@ -65,18 +68,27 @@ describe("conceptProposer", () => {
       concepts: [
         {
           title: "Valid Concept",
+          coreDefinition: "Valid core definition",
+          managerialApplication: "Valid managerial application",
           content: "Valid content",
           summary: "Valid summary",
         },
         {
-          title: "", // Invalid: empty title - will be filtered
+          title: "Invalid Concept 1",
+          coreDefinition: "Some definition",
+          managerialApplication: "", // Invalid: empty managerialApplication - will be filtered
           content: "Some content",
-          summary: "Some summary",
         },
         {
-          // Invalid: missing title - will be filtered
+          title: "Invalid Concept 2",
+          coreDefinition: "", // Invalid: empty coreDefinition - will be filtered
+          managerialApplication: "Some application",
           content: "Some content",
-          summary: "Some summary",
+        },
+        {
+          // Invalid: missing required fields - will be filtered
+          title: "Invalid Concept 3",
+          content: "Some content",
         },
       ],
     };
@@ -94,13 +106,11 @@ describe("conceptProposer", () => {
       mockConfigLoader,
     );
 
-    // The filter checks for typeof title === "string" && typeof content === "string"
-    // Empty string is still a string, so it passes the type check
-    // But we expect at least the valid one
-    expect(result.length).toBeGreaterThanOrEqual(1);
-    const validConcept = result.find((c) => c.title === "Valid Concept");
-    expect(validConcept).toBeDefined();
-    expect(validConcept?.title).toBe("Valid Concept");
+    // Only the valid concept should pass
+    expect(result).toHaveLength(1);
+    expect(result[0]?.title).toBe("Valid Concept");
+    expect(result[0]?.coreDefinition).toBe("Valid core definition");
+    expect(result[0]?.managerialApplication).toBe("Valid managerial application");
   });
 
   it("should handle LLM errors gracefully", async () => {
@@ -128,6 +138,8 @@ describe("conceptProposer", () => {
       concepts: [
         {
           title: "Concept from Large Doc",
+          coreDefinition: "Core definition",
+          managerialApplication: "Managerial application",
           content: "Content",
           summary: "Summary",
         },
@@ -157,6 +169,8 @@ describe("conceptProposer", () => {
       concepts: [
         {
           title: "Concept",
+          coreDefinition: "Core definition",
+          managerialApplication: "Managerial application",
           content: "Content",
           summary: "Summary",
         },

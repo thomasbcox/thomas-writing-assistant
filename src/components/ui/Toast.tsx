@@ -11,7 +11,12 @@ interface ToastProps {
   onClose: () => void;
 }
 
-export function Toast({ message, type, duration = 3000, onClose }: ToastProps) {
+/**
+ * Toast component for user notifications
+ * Last Updated: 2025-12-11
+ */
+
+export function Toast({ message, type, duration = 10000, onClose }: ToastProps) {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();

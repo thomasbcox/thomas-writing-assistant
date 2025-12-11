@@ -1,56 +1,55 @@
-import { describe, it, expect, beforeEach } from "@jest/globals";
-import { jest } from "@jest/globals";
-import { render, screen, waitFor } from "@testing-library/react";
+/**
+ * Component tests for ConfigTab
+ * Last Updated: 2025-12-11
+ */
+
+/**
+ * Component tests for ConfigTab
+ * Last Updated: 2025-12-11
+ */
+
+import { describe, it, expect, beforeEach, jest } from "@jest/globals";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 import { ConfigTab } from "~/components/ConfigTab";
-// Mock tRPC hooks
-const mockGetStyleGuideRawUseQuery = jest.fn();
-const mockGetCredoRawUseQuery = jest.fn();
-const mockGetConstraintsRawUseQuery = jest.fn();
-const mockUpdateStyleGuideUseMutation = jest.fn();
-const mockUpdateCredoUseMutation = jest.fn();
-const mockUpdateConstraintsUseMutation = jest.fn();
+import {
+  mockConfigGetStyleGuideRawUseQuery,
+  mockConfigGetCredoRawUseQuery,
+  mockConfigGetConstraintsRawUseQuery,
+  mockConfigUpdateStyleGuideUseMutation,
+  mockConfigUpdateCredoUseMutation,
+  mockConfigUpdateConstraintsUseMutation,
+  resetAllTRPCMocks,
+} from "../utils/mock-trpc-hooks";
+import { renderWithTRPC } from "../utils/test-wrapper";
 
-jest.mock("~/lib/trpc/react", () => ({
-  api: {
-    config: {
-      getStyleGuideRaw: {
-        useQuery: (...args: unknown[]) => mockGetStyleGuideRawUseQuery(...args),
-      },
-      getCredoRaw: {
-        useQuery: (...args: unknown[]) => mockGetCredoRawUseQuery(...args),
-      },
-      getConstraintsRaw: {
-        useQuery: (...args: unknown[]) => mockGetConstraintsRawUseQuery(...args),
-      },
-      updateStyleGuide: {
-        useMutation: () => mockUpdateStyleGuideUseMutation(),
-      },
-      updateCredo: {
-        useMutation: () => mockUpdateCredoUseMutation(),
-      },
-      updateConstraints: {
-        useMutation: () => mockUpdateConstraintsUseMutation(),
-      },
-    },
-  },
-}));
+// Mock tRPC react module - replace api with our proxy-based mock
+jest.mock("~/lib/trpc/react", () => {
+  const actual = jest.requireActual("~/lib/trpc/react");
+  const { createMockTRPCAPI } = require("../utils/mock-trpc-hooks");
+  return {
+    ...actual,
+    api: createMockTRPCAPI(), // Use proxy-based mock that intercepts hook calls
+    TRPCReactProvider: actual.TRPCReactProvider, // Keep the real provider
+  };
+});
 
 describe("ConfigTab - User Flows", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    mockGetStyleGuideRawUseQuery.mockReturnValue({
-      data: "voice:\n  tone: test",
+    resetAllTRPCMocks();
+    // Override default config mocks for this test
+    mockConfigGetStyleGuideRawUseQuery.mockReturnValue({
+      data: { content: "voice:\n  tone: test" },
       isLoading: false,
       refetch: jest.fn(),
     });
-    mockGetCredoRawUseQuery.mockReturnValue({
-      data: "core_beliefs:\n  - Belief 1",
+    mockConfigGetCredoRawUseQuery.mockReturnValue({
+      data: { content: "core_beliefs:\n  - Belief 1" },
       isLoading: false,
       refetch: jest.fn(),
     });
-    mockGetConstraintsRawUseQuery.mockReturnValue({
+    mockConfigGetConstraintsRawUseQuery.mockReturnValue({
       data: { content: "never_do:\n  - Rule 1" },
       isLoading: false,
       refetch: jest.fn(),
@@ -61,7 +60,7 @@ describe("ConfigTab - User Flows", () => {
     it("allows user to switch between configuration sections", async () => {
       const user = userEvent.setup();
       
-      render(<ConfigTab />);
+      renderWithTRPC(<ConfigTab />);
       
       // Initially Style Guide should be active
       expect(screen.getByText(/style guide/i)).toBeInTheDocument();
@@ -92,18 +91,18 @@ describe("ConfigTab - User Flows", () => {
       const mockMutate = jest.fn();
       const mockRefetch = jest.fn();
       
-      mockGetStyleGuideRawUseQuery.mockReturnValue({
+      mockConfigGetStyleGuideRawUseQuery.mockReturnValue({
         data: { content: "voice:\n  tone: original" },
         isLoading: false,
         refetch: mockRefetch,
       });
       
-      mockUpdateStyleGuideUseMutation.mockReturnValue({
+      mockConfigUpdateStyleGuideUseMutation.mockReturnValue({
         mutate: mockMutate,
         isPending: false,
       });
       
-      render(<ConfigTab />);
+      renderWithTRPC(<ConfigTab />);
       
       // Find textarea
       const textarea = screen.getByRole("textbox");
@@ -122,7 +121,7 @@ describe("ConfigTab - User Flows", () => {
       });
       
       // Simulate success
-      const callbacks = mockUpdateStyleGuide().mutate.mock.calls[0];
+      const callbacks = mockMutate.mock.calls[0];
       if (callbacks && callbacks[1]?.onSuccess) {
         callbacks[1].onSuccess();
         
@@ -144,12 +143,12 @@ describe("ConfigTab - User Flows", () => {
         }
       });
       
-      mockUpdateStyleGuideUseMutation.mockReturnValue({
+      mockConfigUpdateStyleGuideUseMutation.mockReturnValue({
         mutate: mockMutate,
         isPending: false,
       });
       
-      render(<ConfigTab />);
+      renderWithTRPC(<ConfigTab />);
       
       // Enter invalid YAML
       const textarea = screen.getByRole("textbox");
@@ -167,12 +166,12 @@ describe("ConfigTab - User Flows", () => {
     });
 
     it("shows loading state during save", () => {
-      mockUpdateStyleGuideUseMutation.mockReturnValue({
+      mockConfigUpdateStyleGuideUseMutation.mockReturnValue({
         mutate: jest.fn(),
         isPending: true,
       });
       
-      render(<ConfigTab />);
+      renderWithTRPC(<ConfigTab />);
       
       // Save button should show loading state
       const saveButton = screen.getByRole("button", { name: /saving/i });
@@ -187,18 +186,18 @@ describe("ConfigTab - User Flows", () => {
       const mockMutate = jest.fn();
       const mockRefetch = jest.fn();
       
-      mockGetCredoRawUseQuery.mockReturnValue({
+      mockConfigGetCredoRawUseQuery.mockReturnValue({
         data: { content: "core_beliefs:\n  - Original belief" },
         isLoading: false,
         refetch: mockRefetch,
       });
       
-      mockUpdateCredoUseMutation.mockReturnValue({
+      mockConfigUpdateCredoUseMutation.mockReturnValue({
         mutate: mockMutate,
         isPending: false,
       });
       
-      render(<ConfigTab />);
+      renderWithTRPC(<ConfigTab />);
       
       // Switch to Credo tab
       const credoTab = screen.getByRole("button", { name: /credo/i });
@@ -227,18 +226,18 @@ describe("ConfigTab - User Flows", () => {
       const user = userEvent.setup();
       const mockMutate = jest.fn();
       
-      mockGetConstraintsRawUseQuery.mockReturnValue({
+      mockConfigGetConstraintsRawUseQuery.mockReturnValue({
         data: { content: "never_do:\n  - Original rule" },
         isLoading: false,
         refetch: jest.fn(),
       });
       
-      mockUpdateConstraintsUseMutation.mockReturnValue({
+      mockConfigUpdateConstraintsUseMutation.mockReturnValue({
         mutate: mockMutate,
         isPending: false,
       });
       
-      render(<ConfigTab />);
+      renderWithTRPC(<ConfigTab />);
       
       // Switch to Constraints tab
       const constraintsTab = screen.getByRole("button", { name: /constraints/i });
@@ -264,16 +263,16 @@ describe("ConfigTab - User Flows", () => {
 
   describe("Loading States", () => {
     it("shows loading spinner while fetching config", () => {
-      mockGetStyleGuideRawUseQuery.mockReturnValue({
+      mockConfigGetStyleGuideRawUseQuery.mockReturnValue({
         data: undefined,
         isLoading: true,
         refetch: jest.fn(),
       });
       
-      render(<ConfigTab />);
+      renderWithTRPC(<ConfigTab />);
       
-      // Loading spinner should appear
-      expect(screen.getByText(/loading/i)).toBeInTheDocument();
+      // Loading spinner should appear (check for aria-label)
+      expect(screen.getByLabelText(/loading/i)).toBeInTheDocument();
     });
   });
 });

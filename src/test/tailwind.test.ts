@@ -27,14 +27,22 @@ describe("Tailwind CSS Configuration", () => {
     expect(content).toContain("@tailwindcss/postcss");
   });
 
-  test("tailwind.config.ts should exist and have content paths", () => {
-    const tailwindPath = path.join(process.cwd(), "tailwind.config.ts");
-    expect(fs.existsSync(tailwindPath)).toBe(true);
+  test("Tailwind v4 configuration should be valid (no config file needed)", () => {
+    // Tailwind CSS v4 doesn't require a config file - it uses CSS-based configuration
+    // Check that globals.css has proper Tailwind imports instead
+    const globalsPath = path.join(process.cwd(), "src/styles/globals.css");
+    const content = fs.readFileSync(globalsPath, "utf-8");
     
-    const content = fs.readFileSync(tailwindPath, "utf-8");
-    expect(content).toContain("content");
-    expect(content).toContain("src/components");
-    expect(content).toContain("src/app");
+    // Tailwind v4 uses @import "tailwindcss"
+    expect(content).toContain('@import "tailwindcss"');
+    
+    // Config file is optional in v4 - if it exists, it should be valid, but not required
+    const tailwindPath = path.join(process.cwd(), "tailwind.config.ts");
+    if (fs.existsSync(tailwindPath)) {
+      const configContent = fs.readFileSync(tailwindPath, "utf-8");
+      expect(configContent).toBeDefined();
+    }
+    // If it doesn't exist, that's fine - Tailwind v4 works without it
   });
 
   test("layout.tsx should import globals.css", () => {

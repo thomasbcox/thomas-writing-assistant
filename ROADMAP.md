@@ -1,5 +1,7 @@
 # Roadmap & Status
 
+**Last Updated**: 2025-12-11
+
 ## 🎯 Vision Progress
 
 ### Core Vision Goals

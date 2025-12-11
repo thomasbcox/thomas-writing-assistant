@@ -1,5 +1,7 @@
 # Requirements vs Implementation Analysis
 
+**Last Updated**: 2025-12-11
+
 ## Overview
 
 This document compares the stated requirements (from README.md and ROADMAP.md) with the actual implementation status.

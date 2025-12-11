@@ -144,5 +144,10 @@ export const configRouter = createTRPCRouter({
         });
       }
     }),
+
+  getStatus: publicProcedure.query(async () => {
+    const loader = getConfigLoader();
+    return loader.getConfigStatus();
+  }),
 });
 

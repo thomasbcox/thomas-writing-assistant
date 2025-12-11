@@ -1,5 +1,7 @@
 # Google Gemini Integration
 
+**Last Updated**: 2025-12-11
+
 ## Overview
 
 The application now supports **both OpenAI and Google Gemini** as LLM providers. You can switch between them or let the system automatically choose based on available API keys.

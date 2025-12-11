@@ -1,5 +1,7 @@
 # Thomas Writing Assistant
 
+**Last Updated**: 2025-12-11
+
 An AI-powered writing assistant that helps create diverse content types while maintaining your authentic voice, values, and perspective across all writing.
 
 ## 🎯 Vision

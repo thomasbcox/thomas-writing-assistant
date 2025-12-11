@@ -31,6 +31,7 @@ never_do:
   - "Copy content without proper attribution"
   - "Use trite phrases or cliches or re-use overused phrases"
   - "Use terms that sound like AI like 'delve into'"
+  - "Do not use em dashes"
   
 always_do:
   - "Include a clear value proposition in the first paragraph"

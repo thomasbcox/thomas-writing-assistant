@@ -1,93 +1,41 @@
-import { describe, it, expect, beforeEach } from "@jest/globals";
-import { jest } from "@jest/globals";
-import { render, screen, waitFor } from "@testing-library/react";
+/**
+ * Component tests for CapsulesTab
+ * Last Updated: 2025-12-11
+ */
+
+import { describe, it, expect, beforeEach, jest } from "@jest/globals";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 import { CapsulesTab } from "~/components/CapsulesTab";
 import { createMockCapsule, createMockAnchor, createMockRepurposedContent } from "../utils/test-factories";
+import {
+  mockCapsuleListUseQuery,
+  mockCapsuleCreateUseMutation,
+  mockCreateAnchorFromPDFUseMutation,
+  mockRegenerateRepurposedContentUseMutation,
+  mockUpdateAnchorUseMutation,
+  mockDeleteAnchorUseMutation,
+  mockUpdateRepurposedContentUseMutation,
+  mockDeleteRepurposedContentUseMutation,
+  resetAllTRPCMocks,
+} from "../utils/mock-trpc-hooks";
+import { renderWithTRPC } from "../utils/test-wrapper";
 
-// Mock tRPC hooks
-const mockCapsuleListUseQuery = jest.fn();
-const mockCapsuleCreateUseMutation = jest.fn();
-const mockCapsuleGetByIdUseQuery = jest.fn();
-const mockCreateAnchorFromPDFUseMutation = jest.fn();
-const mockRegenerateRepurposedContentUseMutation = jest.fn();
-const mockUpdateAnchorUseMutation = jest.fn();
-const mockDeleteAnchorUseMutation = jest.fn();
-const mockUpdateRepurposedContentUseMutation = jest.fn();
-const mockDeleteRepurposedContentUseMutation = jest.fn();
-
-jest.mock("~/lib/trpc/react", () => ({
-  api: {
-    capsule: {
-      list: {
-        useQuery: (...args: unknown[]) => mockCapsuleListUseQuery(...args),
-      },
-      getById: {
-        useQuery: (...args: unknown[]) => mockCapsuleGetByIdUseQuery(...args),
-      },
-      create: {
-        useMutation: () => mockCapsuleCreateUseMutation(),
-      },
-      createAnchorFromPDF: {
-        useMutation: () => mockCreateAnchorFromPDFUseMutation(),
-      },
-      regenerateRepurposedContent: {
-        useMutation: () => mockRegenerateRepurposedContentUseMutation(),
-      },
-      updateAnchor: {
-        useMutation: () => mockUpdateAnchorUseMutation(),
-      },
-      deleteAnchor: {
-        useMutation: () => mockDeleteAnchorUseMutation(),
-      },
-      updateRepurposedContent: {
-        useMutation: () => mockUpdateRepurposedContentUseMutation(),
-      },
-      deleteRepurposedContent: {
-        useMutation: () => mockDeleteRepurposedContentUseMutation(),
-      },
-    },
-  },
-}));
+// Mock tRPC react module - replace api with our proxy-based mock
+jest.mock("~/lib/trpc/react", () => {
+  const actual = jest.requireActual("~/lib/trpc/react");
+  const { createMockTRPCAPI } = require("../utils/mock-trpc-hooks");
+  return {
+    ...actual,
+    api: createMockTRPCAPI(), // Use proxy-based mock that intercepts hook calls
+    TRPCReactProvider: actual.TRPCReactProvider, // Keep the real provider
+  };
+});
 
 describe("CapsulesTab - User Flows", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    // Reset default mocks
-    mockCapsuleListUseQuery.mockReturnValue({
-      data: [],
-      isLoading: false,
-      refetch: jest.fn(),
-    });
-    mockCapsuleCreateUseMutation.mockReturnValue({
-      mutate: jest.fn(),
-      isPending: false,
-    });
-    mockCreateAnchorFromPDFUseMutation.mockReturnValue({
-      mutate: jest.fn(),
-      isPending: false,
-    });
-    mockRegenerateRepurposedContentUseMutation.mockReturnValue({
-      mutate: jest.fn(),
-      isPending: false,
-    });
-    mockUpdateAnchorUseMutation.mockReturnValue({
-      mutate: jest.fn(),
-      isPending: false,
-    });
-    mockDeleteAnchorUseMutation.mockReturnValue({
-      mutate: jest.fn(),
-      isPending: false,
-    });
-    mockUpdateRepurposedContentUseMutation.mockReturnValue({
-      mutate: jest.fn(),
-      isPending: false,
-    });
-    mockDeleteRepurposedContentUseMutation.mockReturnValue({
-      mutate: jest.fn(),
-      isPending: false,
-    });
+    resetAllTRPCMocks();
   });
 
   describe("Create Capsule Flow", () => {
@@ -107,7 +55,7 @@ describe("CapsulesTab - User Flows", () => {
         isPending: false,
       });
       
-      render(<CapsulesTab />);
+      renderWithTRPC(<CapsulesTab />);
       
       // Click create button
       const createButton = screen.getByRole("button", { name: /create.*capsule/i });
@@ -156,7 +104,7 @@ describe("CapsulesTab - User Flows", () => {
         isPending: false,
       });
       
-      render(<CapsulesTab />);
+      renderWithTRPC(<CapsulesTab />);
       
       // Try to submit without filling fields
       const createButton = screen.getByRole("button", { name: /create.*capsule/i });
@@ -173,7 +121,7 @@ describe("CapsulesTab - User Flows", () => {
         isPending: true,
       });
       
-      render(<CapsulesTab />);
+      renderWithTRPC(<CapsulesTab />);
       
       // Should show loading state (if implemented in UI)
       const createButton = screen.getByRole("button", { name: /create.*capsule/i });
@@ -194,7 +142,7 @@ describe("CapsulesTab - User Flows", () => {
         isPending: false,
       });
       
-      render(<CapsulesTab />);
+      renderWithTRPC(<CapsulesTab />);
       
       await user.click(screen.getByRole("button", { name: /create.*capsule/i }));
       await user.type(screen.getByLabelText(/title/i), "Test");
@@ -225,7 +173,7 @@ describe("CapsulesTab - User Flows", () => {
         isPending: false,
       });
       
-      render(<CapsulesTab />);
+      renderWithTRPC(<CapsulesTab />);
       
       // Find file input (might be hidden)
       const fileInput = screen.getByLabelText(/upload|file|pdf/i) as HTMLInputElement;
@@ -245,7 +193,7 @@ describe("CapsulesTab - User Flows", () => {
         isPending: true,
       });
       
-      render(<CapsulesTab />);
+      renderWithTRPC(<CapsulesTab />);
       
       // Should show processing status
       expect(screen.queryByText(/processing|uploading/i)).toBeInTheDocument();
@@ -265,7 +213,7 @@ describe("CapsulesTab - User Flows", () => {
         refetch: jest.fn(),
       });
       
-      render(<CapsulesTab />);
+      renderWithTRPC(<CapsulesTab />);
       
       // Find capsule title
       const capsuleTitle = screen.getByText("Test Capsule");
@@ -298,7 +246,7 @@ describe("CapsulesTab - User Flows", () => {
         refetch: jest.fn(),
       });
       
-      render(<CapsulesTab />);
+      renderWithTRPC(<CapsulesTab />);
       
       // Expand capsule first - look for expand/collapse button or click capsule card
       const capsuleTitle = screen.getByText("Test Capsule");
@@ -342,7 +290,7 @@ describe("CapsulesTab - User Flows", () => {
         isPending: false,
       });
       
-      render(<CapsulesTab />);
+      renderWithTRPC(<CapsulesTab />);
       
       // Expand capsule
       const capsuleTitle = screen.getByText("Test Capsule");
@@ -377,7 +325,7 @@ describe("CapsulesTab - User Flows", () => {
         isPending: false,
       });
       
-      render(<CapsulesTab />);
+      renderWithTRPC(<CapsulesTab />);
       
       // Expand capsule
       const capsuleTitle = screen.getByText("Test Capsule");

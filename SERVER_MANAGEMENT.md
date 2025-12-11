@@ -1,5 +1,7 @@
 # Server Management
 
+**Last Updated**: 2025-12-11
+
 The server is managed using PM2, a production process manager for Node.js applications.
 
 ## Quick Start

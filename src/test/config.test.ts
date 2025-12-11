@@ -116,5 +116,47 @@ describe("Config Loader", () => {
       expect(prompt).toContain("Content Constraints and Rules:");
     }
   });
+
+  test("should return config status", () => {
+    const loader = getConfigLoader();
+    const status = loader.getConfigStatus();
+    
+    expect(status).toBeDefined();
+    expect(status.styleGuide).toBeDefined();
+    expect(status.credo).toBeDefined();
+    expect(status.constraints).toBeDefined();
+    
+    expect(typeof status.styleGuide.loaded).toBe("boolean");
+    expect(typeof status.styleGuide.isEmpty).toBe("boolean");
+    expect(typeof status.credo.loaded).toBe("boolean");
+    expect(typeof status.credo.isEmpty).toBe("boolean");
+    expect(typeof status.constraints.loaded).toBe("boolean");
+    expect(typeof status.constraints.isEmpty).toBe("boolean");
+  });
+
+  test("should correctly identify empty configs", () => {
+    const loader = getConfigLoader();
+    const status = loader.getConfigStatus();
+    
+    // If configs are empty, isEmpty should be true
+    const styleGuide = loader.getStyleGuide();
+    const credo = loader.getCredo();
+    const constraints = loader.getConstraints();
+    
+    if (Object.keys(styleGuide).length === 0) {
+      expect(status.styleGuide.isEmpty).toBe(true);
+      expect(status.styleGuide.loaded).toBe(false);
+    }
+    
+    if (Object.keys(credo).length === 0) {
+      expect(status.credo.isEmpty).toBe(true);
+      expect(status.credo.loaded).toBe(false);
+    }
+    
+    if (Object.keys(constraints).length === 0) {
+      expect(status.constraints.isEmpty).toBe(true);
+      expect(status.constraints.loaded).toBe(false);
+    }
+  });
 });
 

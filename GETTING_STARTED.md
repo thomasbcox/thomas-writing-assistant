@@ -1,5 +1,7 @@
 # Getting Started
 
+**Last Updated**: 2025-12-11
+
 Quick start guide for the Thomas Writing Assistant.
 
 ## Prerequisites

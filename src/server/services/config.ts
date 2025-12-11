@@ -132,6 +132,42 @@ export class ConfigLoader {
 
     return prompt;
   }
+
+  /**
+   * Get status of all config files
+   * Returns whether each config is loaded (not empty)
+   */
+  getConfigStatus(): {
+    styleGuide: { loaded: boolean; isEmpty: boolean };
+    credo: { loaded: boolean; isEmpty: boolean };
+    constraints: { loaded: boolean; isEmpty: boolean };
+  } {
+    const configDir = path.join(process.cwd(), "config");
+    
+    const checkConfig = (filePath: string, config: Record<string, unknown>) => {
+      const exists = fs.existsSync(filePath);
+      const isEmpty = Object.keys(config).length === 0;
+      return {
+        loaded: exists && !isEmpty,
+        isEmpty: !exists || isEmpty,
+      };
+    };
+
+    return {
+      styleGuide: checkConfig(
+        path.join(configDir, "style_guide.yaml"),
+        this.styleGuide,
+      ),
+      credo: checkConfig(
+        path.join(configDir, "credo.yaml"),
+        this.credo,
+      ),
+      constraints: checkConfig(
+        path.join(configDir, "constraints.yaml"),
+        this.constraints,
+      ),
+    };
+  }
 }
 
 // Singleton instance

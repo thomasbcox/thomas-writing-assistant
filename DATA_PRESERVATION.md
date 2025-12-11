@@ -1,5 +1,7 @@
 # Data Preservation Guide
 
+**Last Updated**: 2025-12-11
+
 ## Current Status
 
 ✅ **Your data is safe!** The database file (`dev.db`) is:

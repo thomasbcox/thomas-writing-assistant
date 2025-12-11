@@ -6,9 +6,11 @@ import { ToastContainer, useToast } from "./ui/Toast";
 
 interface ConceptCandidate {
   title: string;
+  coreDefinition: string;
+  managerialApplication: string;
   content: string;
-  summary: string;
-  description?: string;
+  description?: string; // For backward compatibility
+  summary?: string; // For backward compatibility
 }
 
 interface ConceptCandidateListProps {
@@ -59,10 +61,12 @@ export function ConceptCandidateList({
 
   const handleUseCandidate = (candidate: ConceptCandidate, index: number) => {
     setEditingIndex(index);
+    // Use coreDefinition as description, and combine all parts for content
+    const fullContent = `# ${candidate.title}\n\n## Core Definition\n${candidate.coreDefinition}\n\n## Managerial Application\n${candidate.managerialApplication}\n\n## Full Content\n${candidate.content}`;
     setFormData({
       title: candidate.title,
-      description: candidate.description ?? "",
-      content: candidate.content,
+      description: candidate.coreDefinition || candidate.description || "",
+      content: fullContent,
       creator: defaultCreator || "",
       source: "Unknown", // Default to "Unknown" instead of empty string
       year: defaultYear || new Date().getFullYear().toString(), // Default to current year
@@ -87,14 +91,27 @@ export function ConceptCandidateList({
         {candidates.map((candidate, index) => (
           <div key={index} className="border rounded-lg p-4">
             <div className="flex justify-between items-start mb-5">
-              <div>
-                <h3 className="font-semibold text-lg">{candidate.title}</h3>
-                {candidate.description && (
+              <div className="flex-1">
+                <h3 className="font-semibold text-lg text-gray-900">{candidate.title}</h3>
+                {candidate.coreDefinition && (
+                  <div className="mt-2">
+                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Core Definition</div>
+                    <p className="text-sm text-gray-700 leading-relaxed">{candidate.coreDefinition}</p>
+                  </div>
+                )}
+                {candidate.managerialApplication && (
+                  <div className="mt-3">
+                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Managerial Application</div>
+                    <p className="text-sm text-blue-700 font-medium leading-relaxed">{candidate.managerialApplication}</p>
+                  </div>
+                )}
+                {/* Fallback for old format */}
+                {!candidate.coreDefinition && candidate.description && (
                   <p className="text-sm text-gray-600 italic mt-1">
                     {candidate.description}
                   </p>
                 )}
-                {candidate.summary && (
+                {!candidate.managerialApplication && candidate.summary && (
                   <p className="text-sm text-gray-700 mt-2">{candidate.summary}</p>
                 )}
               </div>
