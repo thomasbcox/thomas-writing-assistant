@@ -32,11 +32,16 @@ describe("TextInputForm", () => {
       />,
     );
 
-    expect(screen.getByText(/Or Paste Text/i)).toBeInTheDocument();
-    expect(screen.getByText(/Instructions/i)).toBeInTheDocument();
-    expect(screen.getByText(/Max Concepts/i)).toBeInTheDocument();
-    expect(screen.getByText(/Default Creator/i)).toBeInTheDocument();
-    expect(screen.getByText(/Default Year/i)).toBeInTheDocument();
+    // @ts-expect-error - jest-dom matcher
+        expect(screen.getByText(/Or Paste Text/i)).toBeInTheDocument();
+    // @ts-expect-error - jest-dom matcher
+        expect(screen.getByText(/Instructions/i)).toBeInTheDocument();
+    // @ts-expect-error - jest-dom matcher
+        expect(screen.getByText(/Max Concepts/i)).toBeInTheDocument();
+    // @ts-expect-error - jest-dom matcher
+        expect(screen.getByText(/Default Creator/i)).toBeInTheDocument();
+    // @ts-expect-error - jest-dom matcher
+        expect(screen.getByText(/Default Year/i)).toBeInTheDocument();
   });
 
   it("should display character count for text", () => {
@@ -76,6 +81,7 @@ describe("TextInputForm", () => {
     );
 
     const textInput = screen.getByPlaceholderText(/Paste your text here/i);
+    // @ts-expect-error - jest-dom matcher
     expect(textInput).toBeDisabled();
   });
 });

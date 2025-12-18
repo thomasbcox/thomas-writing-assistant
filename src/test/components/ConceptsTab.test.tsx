@@ -15,7 +15,7 @@ const mockConceptRestoreUseMutation = jest.fn();
 const mockConceptPurgeTrashUseMutation = jest.fn();
 
 jest.mock("~/lib/trpc/react", () => {
-  const actual = jest.requireActual("~/lib/trpc/react");
+  const actual = jest.requireActual("~/lib/trpc/react") as any;
   return {
     ...actual,
     api: {
@@ -23,37 +23,31 @@ jest.mock("~/lib/trpc/react", () => {
       concept: {
         list: {
           useQuery: (...args: unknown[]) => {
-            // @ts-expect-error - mock function
             return mockConceptListUseQuery(...args);
           },
         },
         getById: {
           useQuery: (...args: unknown[]) => {
-            // @ts-expect-error - mock function
             return mockConceptGetByIdUseQuery(...args);
           },
         },
         create: {
           useMutation: () => {
-            // @ts-expect-error - mock function
             return mockConceptCreateUseMutation();
           },
         },
         delete: {
           useMutation: () => {
-            // @ts-expect-error - mock function
             return mockConceptDeleteUseMutation();
           },
         },
         restore: {
           useMutation: () => {
-            // @ts-expect-error - mock function
             return mockConceptRestoreUseMutation();
           },
         },
         purgeTrash: {
           useMutation: () => {
-            // @ts-expect-error - mock function
             return mockConceptPurgeTrashUseMutation();
           },
         },
@@ -133,7 +127,7 @@ describe("ConceptsTab - User Flows", () => {
 
     it("shows success toast after creating concept", async () => {
       const user = userEvent.setup();
-      const mockMutate = jest.fn((data, callbacks) => {
+      const mockMutate = jest.fn((data: unknown, callbacks?: { onSuccess?: () => void }) => {
         if (callbacks?.onSuccess) {
           callbacks.onSuccess();
         }
@@ -158,12 +152,13 @@ describe("ConceptsTab - User Flows", () => {
       
       // Simulate successful creation
       if (mockMutate.mock.calls.length > 0) {
-        const callbacks = mockMutate.mock.calls[0][1];
+        const callbacks = mockMutate.mock.calls[0][1] as { onSuccess?: () => void } | undefined;
         if (callbacks?.onSuccess) {
           callbacks.onSuccess();
           
           await waitFor(() => {
-            expect(screen.getByText(/created successfully/i)).toBeInTheDocument();
+            // @ts-expect-error - jest-dom matcher
+        expect(screen.getByText(/created successfully/i)).toBeInTheDocument();
           });
         }
       }
@@ -194,7 +189,8 @@ describe("ConceptsTab - User Flows", () => {
       
       // Results should filter (if implemented)
       // This depends on how search is implemented (debounced, real-time, etc.)
-      expect(searchInput).toHaveValue("React");
+      // @ts-expect-error - jest-dom matcher
+        expect(searchInput).toHaveValue("React");
     });
 
     it("allows user to toggle trash view", async () => {
@@ -215,7 +211,8 @@ describe("ConceptsTab - User Flows", () => {
       const { rerender } = render(<ConceptsTab />);
       
       // Verify active concept is shown
-      expect(screen.getByText("Active Concept")).toBeInTheDocument();
+      // @ts-expect-error - jest-dom matcher
+        expect(screen.getByText("Active Concept")).toBeInTheDocument();
       
       // Toggle to show trash
       const trashToggle = screen.getByLabelText(/show trash|trash/i);
@@ -232,6 +229,7 @@ describe("ConceptsTab - User Flows", () => {
       
       // Trashed concept should appear
       await waitFor(() => {
+        // @ts-expect-error - jest-dom matcher
         expect(screen.getByText("Trashed Concept")).toBeInTheDocument();
       });
     });
@@ -257,7 +255,8 @@ describe("ConceptsTab - User Flows", () => {
       
       // Find edit button (might be in ConceptActions)
       const editButton = screen.getByRole("button", { name: /edit/i });
-      expect(editButton).toBeInTheDocument();
+      // @ts-expect-error - jest-dom matcher
+        expect(editButton).toBeInTheDocument();
       
       // Click edit
       await user.click(editButton);
@@ -266,6 +265,7 @@ describe("ConceptsTab - User Flows", () => {
       // Verify by checking if form fields appear
       const titleInput = screen.queryByLabelText(/title/i);
       if (titleInput) {
+        // @ts-expect-error - jest-dom matcher
         expect(titleInput).toBeInTheDocument();
       }
     });
@@ -296,6 +296,7 @@ describe("ConceptsTab - User Flows", () => {
       
       // Confirmation dialog should appear
       await waitFor(() => {
+        // @ts-expect-error - jest-dom matcher
         expect(screen.getByText(/are you sure|confirm/i)).toBeInTheDocument();
       });
     });

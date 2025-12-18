@@ -99,6 +99,44 @@ export class ConfigLoader {
     return this.constraints;
   }
 
+  getConfigStatus(): {
+    styleGuide: { loaded: boolean; isEmpty: boolean };
+    credo: { loaded: boolean; isEmpty: boolean };
+    constraints: { loaded: boolean; isEmpty: boolean };
+  } {
+    const configDir = path.join(process.cwd(), "config");
+    
+    const styleGuidePath = path.join(configDir, "style_guide.yaml");
+    const styleGuideExists = fs.existsSync(styleGuidePath);
+    const styleGuideLoaded = styleGuideExists && Object.keys(this.styleGuide).length > 0;
+    const styleGuideEmpty = !styleGuideLoaded || Object.keys(this.styleGuide).length === 0;
+
+    const credoPath = path.join(configDir, "credo.yaml");
+    const credoExists = fs.existsSync(credoPath);
+    const credoLoaded = credoExists && Object.keys(this.credo).length > 0;
+    const credoEmpty = !credoLoaded || Object.keys(this.credo).length === 0;
+
+    const constraintsPath = path.join(configDir, "constraints.yaml");
+    const constraintsExists = fs.existsSync(constraintsPath);
+    const constraintsLoaded = constraintsExists && Object.keys(this.constraints).length > 0;
+    const constraintsEmpty = !constraintsLoaded || Object.keys(this.constraints).length === 0;
+
+    return {
+      styleGuide: {
+        loaded: styleGuideLoaded,
+        isEmpty: styleGuideEmpty,
+      },
+      credo: {
+        loaded: credoLoaded,
+        isEmpty: credoEmpty,
+      },
+      constraints: {
+        loaded: constraintsLoaded,
+        isEmpty: constraintsEmpty,
+      },
+    };
+  }
+
   getSystemPrompt(context?: string): string {
     let prompt = "";
 

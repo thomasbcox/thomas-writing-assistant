@@ -64,7 +64,8 @@ describe("ConfigTab - User Flows", () => {
       render(<ConfigTab />);
       
       // Initially Style Guide should be active
-      expect(screen.getByText(/style guide/i)).toBeInTheDocument();
+      // @ts-expect-error - jest-dom matcher
+        expect(screen.getByText(/style guide/i)).toBeInTheDocument();
       
       // Click Credo tab
       const credoTab = screen.getByRole("button", { name: /credo/i });
@@ -72,6 +73,7 @@ describe("ConfigTab - User Flows", () => {
       
       // Credo content should be visible
       await waitFor(() => {
+        // @ts-expect-error - jest-dom matcher
         expect(screen.getByText(/credo.*values/i)).toBeInTheDocument();
       });
       
@@ -81,6 +83,7 @@ describe("ConfigTab - User Flows", () => {
       
       // Constraints content should be visible
       await waitFor(() => {
+        // @ts-expect-error - jest-dom matcher
         expect(screen.getByText(/constraints.*rules/i)).toBeInTheDocument();
       });
     });
@@ -122,23 +125,26 @@ describe("ConfigTab - User Flows", () => {
       });
       
       // Simulate success
-      const callbacks = mockUpdateStyleGuide().mutate.mock.calls[0];
-      if (callbacks && callbacks[1]?.onSuccess) {
-        callbacks[1].onSuccess();
+      if (mockMutate.mock.calls.length > 0) {
+        const callbacks = mockMutate.mock.calls[0][1] as { onSuccess?: () => void } | undefined;
+        if (callbacks?.onSuccess) {
+          callbacks.onSuccess();
         
         // Success toast should appear
         await waitFor(() => {
+          // @ts-expect-error - jest-dom matcher
           expect(screen.getByText(/updated.*successfully/i)).toBeInTheDocument();
         });
         
         // Refetch should be called
         expect(mockRefetch).toHaveBeenCalled();
+        }
       }
     });
 
     it("shows error for invalid YAML", async () => {
       const user = userEvent.setup();
-      const mockMutate = jest.fn((data, callbacks) => {
+      const mockMutate = jest.fn((data: unknown, callbacks?: { onError?: (error: Error) => void }) => {
         if (callbacks?.onError) {
           callbacks.onError(new Error("Invalid YAML: syntax error"));
         }
@@ -162,6 +168,7 @@ describe("ConfigTab - User Flows", () => {
       
       // Error should be shown
       await waitFor(() => {
+        // @ts-expect-error - jest-dom matcher
         expect(screen.getByText(/invalid yaml|syntax error/i)).toBeInTheDocument();
       });
     });
@@ -176,7 +183,9 @@ describe("ConfigTab - User Flows", () => {
       
       // Save button should show loading state
       const saveButton = screen.getByRole("button", { name: /saving/i });
+      // @ts-expect-error - jest-dom matcher
       expect(saveButton).toBeDisabled();
+      // @ts-expect-error - jest-dom matcher
       expect(saveButton).toHaveTextContent(/saving/i);
     });
   });
@@ -273,7 +282,8 @@ describe("ConfigTab - User Flows", () => {
       render(<ConfigTab />);
       
       // Loading spinner should appear
-      expect(screen.getByText(/loading/i)).toBeInTheDocument();
+      // @ts-expect-error - jest-dom matcher
+        expect(screen.getByText(/loading/i)).toBeInTheDocument();
     });
   });
 });

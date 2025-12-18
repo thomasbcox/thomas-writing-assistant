@@ -139,8 +139,8 @@ describe("CapsulesTab - User Flows", () => {
       
       // Simulate success callback if provided
       const mutateCall = mockMutate.mock.calls[0];
-      if (mutateCall && mutateCall[1]?.onSuccess) {
-        mutateCall[1].onSuccess();
+      if (mutateCall && mutateCall[1] && typeof mutateCall[1] === 'object' && 'onSuccess' in mutateCall[1]) {
+        (mutateCall[1] as { onSuccess: () => void }).onSuccess();
         await waitFor(() => {
           expect(mockRefetch).toHaveBeenCalled();
         });
@@ -182,7 +182,7 @@ describe("CapsulesTab - User Flows", () => {
 
     it("displays error toast on creation failure", async () => {
       const user = userEvent.setup();
-      const mockMutate = jest.fn((data, callbacks) => {
+      const mockMutate = jest.fn((data: unknown, callbacks?: { onError?: (error: Error) => void }) => {
         // Simulate error
         if (callbacks?.onError) {
           callbacks.onError(new Error("Failed to create capsule"));
@@ -248,7 +248,7 @@ describe("CapsulesTab - User Flows", () => {
       render(<CapsulesTab />);
       
       // Should show processing status
-      expect(screen.queryByText(/processing|uploading/i)).toBeInTheDocument();
+        expect(screen.queryByText(/processing|uploading/i)).toBeInTheDocument();
     });
   });
 
@@ -355,7 +355,7 @@ describe("CapsulesTab - User Flows", () => {
       // AnchorEditor should open (if modal)
       // This would require checking if AnchorEditor renders
       // For now, verify edit button exists and is clickable
-      expect(editButton).toBeInTheDocument();
+        expect(editButton).toBeInTheDocument();
     });
 
     it("shows confirmation dialog before deleting anchor", async () => {

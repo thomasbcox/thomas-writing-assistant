@@ -1,0 +1,18 @@
+[
+  [
+    {
+      "id": "cmirmnc020001f3oogo82vl4l",
+      "name": "child of",
+      "isDefault": 0,
+      "isDeleted": 0,
+      "createdAt": "2025-12-04T16:05:19.106+00:00"
+    },
+    {
+      "id": "cmirmnc050002f3oo2anfqyw8",
+      "name": "parent of",
+      "isDefault": 0,
+      "isDeleted": 0,
+      "createdAt": "2025-12-04T16:05:19.109+00:00"
+    }
+  ]
+]

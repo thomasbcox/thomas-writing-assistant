@@ -1,0 +1,13 @@
+{
+  "exportDate": "2025-12-15T13:37:36Z",
+  "databaseFile": "./dev.db",
+  "tables": {
+    "Concept": 7,
+    "Link": 0,
+    "LinkName": 2,
+    "Capsule": 1,
+    "Anchor": 1,
+    "RepurposedContent": 15,
+    "MRUConcept": 0
+  }
+}

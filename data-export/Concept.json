@@ -1,0 +1,102 @@
+[
+  [
+    {
+      "id": "cmj1t7vje0000fsoo5l85jnou",
+      "identifier": "zettel-3fb00b2d",
+      "title": "The OODA Loop",
+      "description": "A decision-making model for competitive, dynamic environments.",
+      "content": "Decades ago, USAF Col. John Boyd revolutionized air combat by understanding—more deeply than anyone before him—how competitive, dynamic environments actually work. His brainchild was the “OODA Loop.”\n\nAs a manager and leader (or fighter pilot) you are constantly bombarded with novel situations and novel stimuli. You will naturally perform four steps:\n1. Observe the environment, taking in what is true.*\n2. Orient yourself to what those observations mean (“making meaning”).\n3. Decide what to do about the situation and the meaning you made.\n4. Act on the decision you just made, thus creating changes in the environment that you (and others) must now Observe all over again.\n\n* If you’re in ‘saboteur mode’ you cannot see the truth.\n\nAll results come from actions (i.e. behavior). But your ability to Become a Best Boss depends on your ability to sort out (Orient), in real time, what’s going on—so that you behave (Act) as a Best Boss would behave, and get Best Boss results.",
+      "creator": "Thomas B. Cox",
+      "source": "John Boyd, OODA Loop",
+      "year": "2025",
+      "status": "active",
+      "createdAt": "2025-12-11T19:06:57.002+00:00",
+      "updatedAt": "2025-12-11T19:06:57.002+00:00",
+      "trashedAt": null
+    },
+    {
+      "id": "cmj1t8ktm0001fsoo1cl98j3d",
+      "identifier": "zettel-25965d2e",
+      "title": "Psychological Safety",
+      "description": "The belief that one will not be punished for speaking up.",
+      "content": "“Psychological Safety is a belief that one will not be punished or humiliated for speaking up with ideas, questions, concerns, or mistakes.” - Amy Edmondson, 2014\n\nNormally, when you’re new or low-status, speaking up can mark you as:\n● ignorant (so don’t ask questions)\n● incompetent (so don’t admit mistakes or any lack of ability / weakness)\n● intrusive (so don’t offer new ideas)\n● negative (so don’t say anything that might sound critical of the current state)\n\nThis is also known as “impression management.” You mastered this in grade school. The above behaviors rob our teammates of opportunities to prevent and fix mistakes, learn, and innovate.",
+      "creator": "Amy Edmondson",
+      "source": "Psychological Safety",
+      "year": "2014",
+      "status": "active",
+      "createdAt": "2025-12-11T19:07:29.770+00:00",
+      "updatedAt": "2025-12-11T19:07:29.770+00:00",
+      "trashedAt": null
+    },
+    {
+      "id": "cmj1t9bmt0002fsoo1334k611",
+      "identifier": "zettel-3a914984",
+      "title": "Creating Psychological Safety",
+      "description": "Actionable steps for leaders to build safety in teams.",
+      "content": "How Leaders Create Psychological Safety\n1. Model Curiosity. This creates the need for speaking up.\n2. Establish Your Own Fallibility. This creates the safety for speaking up.\n3. Frame the Work as a Learning Problem not an Execution Problem. This creates the rationale for speaking up. “What is this problem/error trying to teach us?”\n4. Conversational turn-taking - everyone gets a voice and a say.\n5. Sensitivity to emotions - emotional wisdom is tapped; people feel heard.",
+      "creator": "Amy Edmondson",
+      "source": "Psychological Safety",
+      "year": "2014",
+      "status": "active",
+      "createdAt": "2025-12-11T19:08:04.517+00:00",
+      "updatedAt": "2025-12-11T19:08:04.517+00:00",
+      "trashedAt": null
+    },
+    {
+      "id": "cmj1tank70003fsoogdr1jz29",
+      "identifier": "zettel-872b322d",
+      "title": "Positive Intelligence (PQ)",
+      "description": "Managing the inner Saboteur to access the inner Sage.",
+      "content": "All humans engage in some level of self-sabotage. On your journey to become a Best Boss, you’ll make more progress faster when you practice overcoming your self-sabotage patterns.\n\nAll humans also have access to a peak level of mental performance, our inner Sage, where we are patient, curious, calm, empathic, decisive, focused. Followers love a leader who routinely channels this inner Sage. They love it even more when this leader helps them channel their own Sage.\n\nThe saboteur lives in three places in the brain - the amygdala, the limbic system, and the medial prefrontal cortex. When the brain stem (reptilian brain) or amygdala is active, we are either angry or scared. We blame or hide. All higher functions go offline. You cannot lead when your brain has been hijacked by your amygdala.\n\nFortunately one can deliberately use practices called PQ Reps that shift brain activity out of these Saboteur regions and into the Sage areas (the empathy circuits, mirror neurons, and the Task-Positive Network or TPN).",
+      "creator": "Shirzad Chamine",
+      "source": "Positive Intelligence (book)",
+      "year": "2012",
+      "status": "active",
+      "createdAt": "2025-12-11T19:09:06.631+00:00",
+      "updatedAt": "2025-12-11T19:09:06.631+00:00",
+      "trashedAt": null
+    },
+    {
+      "id": "cmj1tbffh0004fsooy9fx3yeq",
+      "identifier": "zettel-03f4aa2a",
+      "title": "Three Pillars of Trust",
+      "description": "The fundamental components required to build trust.",
+      "content": "1. Competence (Ability to Deliver Results or Value; Expertise [domain specific])\n2. Integrity (Consistency, Dependability, Reliability, Predictability [words = actions])\n3. Benevolence (includes Openness, Transparency, Generosity, Vulnerability, and Selflessness)\n\nWhen you find trust is lacking, use the Pillars of Trust to ask, “what is missing?” or “where is the discomfort?”\n\nDoes the untrusting person need a greater sense that their trustee needs more competence? Or is there a sense that the trustee is in it for themselves or has a hidden agenda? Or is there a sense that the trustee isn’t keeping their word, is late, is disorganized, etc.?",
+      "creator": "C. Shawn Burke",
+      "source": "Trust in Leadership",
+      "year": "2007",
+      "status": "active",
+      "createdAt": "2025-12-11T19:09:42.749+00:00",
+      "updatedAt": "2025-12-11T19:09:42.749+00:00",
+      "trashedAt": null
+    },
+    {
+      "id": "cmj1tegne0005fsoovj90wn86",
+      "identifier": "zettel-09fc355f",
+      "title": "Johari Window",
+      "description": "A framework for understanding self-awareness and relationships.",
+      "content": "The Johari window can help people better understand their relationship with themselves and others. Teams bond by learning about one another. We trust people more when they are open and vulnerable with us.\n\nWhen you listen vulnerably, you let in other people’s insights. You start to see yourself more as others see you. This can be uncomfortable at first. It makes you look courageous, and models courage for others. If you need others to listen to you, start by listening vulnerably to them.\n\nWhen you share transparently, you let others see parts of you that you might have previously hidden. Feelings, thoughts, beliefs, concerns. As long as you share without blame, shame, or criticism, you increase others’ trust in you... and you model for others that they can admit mistakes, admit ignorance, and ask for help.",
+      "creator": "Joseph Luft and Harrington Ingham",
+      "source": "unknown",
+      "year": "1955",
+      "status": "active",
+      "createdAt": "2025-12-11T19:12:04.298+00:00",
+      "updatedAt": "2025-12-11T19:12:04.298+00:00",
+      "trashedAt": null
+    },
+    {
+      "id": "cmj1tgc2p0006fsootd85m4ev",
+      "identifier": "zettel-a1c12d3e",
+      "title": "Eustress and Peak Performance",
+      "description": "The relationship between stress and performance.",
+      "content": "The Yerkes–Dodson law states that performance goes up with physiological or mental arousal (eustress), but only up to a point. Go too high (distress) and performance drops.\n\nWhen a person is in the grip of their Saboteurs (PQ) they experience more subjective stress; when they are in their Sage brain their subjective stress is much lower and they can perform better.",
+      "creator": "Yerkes RM, Dodson JD",
+      "source": "\"The relation of strength of stimulus to rapidity of habit-formation\". Journal of Comparative Neurology and Psychology.",
+      "year": "1908",
+      "status": "active",
+      "createdAt": "2025-12-11T19:13:31.681+00:00",
+      "updatedAt": "2025-12-11T19:13:31.681+00:00",
+      "trashedAt": null
+    }
+  ]
+]

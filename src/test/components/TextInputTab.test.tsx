@@ -39,7 +39,7 @@ describe("TextInputTab - User Flows", () => {
   describe("Generate Concepts from Text Flow", () => {
     it("allows user to paste text and generate concepts", async () => {
       const user = userEvent.setup();
-      const mockMutateAsync = jest.fn(() => 
+      const mockMutateAsync = jest.fn((...args: unknown[]) => 
         Promise.resolve([
           { title: "Concept 1", content: "Content 1", summary: "Summary 1" },
         ])
@@ -97,7 +97,8 @@ describe("TextInputTab - User Flows", () => {
       
       // Should show loading state (ConceptGenerationStatus component)
       // The button should show "Generating..." or be disabled
-      expect(screen.getByText(/generating/i)).toBeInTheDocument();
+      // @ts-expect-error - jest-dom matcher
+        expect(screen.getByText(/generating/i)).toBeInTheDocument();
     });
 
     it("shows error toast on generation failure", async () => {
@@ -123,6 +124,7 @@ describe("TextInputTab - User Flows", () => {
       
       // Error toast should appear
       await waitFor(() => {
+        // @ts-expect-error - jest-dom matcher
         expect(screen.getByText(/error|failed/i)).toBeInTheDocument();
       });
     });
@@ -137,6 +139,7 @@ describe("TextInputTab - User Flows", () => {
       
       // Generate button should be disabled
       const generateButton = screen.getByRole("button", { name: /generate concepts/i });
+      // @ts-expect-error - jest-dom matcher
       expect(generateButton).toBeDisabled();
     });
 
@@ -147,7 +150,7 @@ describe("TextInputTab - User Flows", () => {
         { title: "Concept 2", content: "Content 2", summary: "Summary 2" },
       ];
       
-      const mockMutateAsync = jest.fn(() => Promise.resolve(candidates));
+      const mockMutateAsync = jest.fn((...args: unknown[]) => Promise.resolve(candidates));
       
       mockGenerateCandidatesUseMutation.mockReturnValue({
         mutateAsync: mockMutateAsync,
@@ -165,7 +168,9 @@ describe("TextInputTab - User Flows", () => {
       
       // Candidates should appear
       await waitFor(() => {
+        // @ts-expect-error - jest-dom matcher
         expect(screen.getByText("Concept 1")).toBeInTheDocument();
+        // @ts-expect-error - jest-dom matcher
         expect(screen.getByText("Concept 2")).toBeInTheDocument();
       });
     });
@@ -221,6 +226,7 @@ describe("TextInputTab - User Flows", () => {
       
       // Error should be shown
       await waitFor(() => {
+        // @ts-expect-error - jest-dom matcher
         expect(screen.getByText(/error|invalid/i)).toBeInTheDocument();
       });
     });
@@ -229,7 +235,7 @@ describe("TextInputTab - User Flows", () => {
   describe("Configuration Options", () => {
     it("allows user to set max candidates", async () => {
       const user = userEvent.setup();
-      const mockMutateAsync = jest.fn(() => Promise.resolve([]));
+      const mockMutateAsync = jest.fn((...args: unknown[]) => Promise.resolve([]));
       
       mockGenerateCandidatesUseMutation.mockReturnValue({
         mutateAsync: mockMutateAsync,
@@ -262,7 +268,7 @@ describe("TextInputTab - User Flows", () => {
 
     it("allows user to add instructions", async () => {
       const user = userEvent.setup();
-      const mockMutateAsync = jest.fn(() => Promise.resolve([]));
+      const mockMutateAsync = jest.fn((...args: unknown[]) => Promise.resolve([]));
       
       mockGenerateCandidatesUseMutation.mockReturnValue({
         mutateAsync: mockMutateAsync,
