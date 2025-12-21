@@ -4,6 +4,7 @@ import { useState } from "react";
 import { api } from "~/lib/trpc/react";
 import { LoadingSpinner } from "./ui/LoadingSpinner";
 import { useTimer } from "~/hooks/useTimer";
+import { ToastContainer, useToast } from "./ui/Toast";
 
 interface LinkProposerProps {
   conceptId: string;
@@ -14,11 +15,16 @@ export function LinkProposer({ conceptId, conceptTitle }: LinkProposerProps) {
   const [isLoading, setIsLoading] = useState(false);
   const utils = api.useUtils();
   const { elapsedSeconds, formattedTime, showCounter } = useTimer(isLoading);
+  const { toasts, addToast, removeToast } = useToast();
 
   const { data: linkNamePairs, error: linkNamePairsError } = api.linkName.getAll.useQuery();
   
   if (linkNamePairsError) {
     console.error("Error loading link name pairs:", linkNamePairsError);
+    // Show error toast if not already shown
+    if (!toasts.some(t => t.message.includes("link name pairs"))) {
+      addToast("Failed to load link name pairs. Please refresh the page.", "error");
+    }
   }
 
   const createLinkMutation = api.link.create.useMutation({
@@ -26,6 +32,12 @@ export function LinkProposer({ conceptId, conceptTitle }: LinkProposerProps) {
       // Invalidate queries to refresh the UI
       void utils.link.getByConcept.invalidate({ conceptId });
       void utils.link.getAll.invalidate();
+      addToast("Link created successfully!", "success");
+    },
+    onError: (error) => {
+      const errorMessage = error.message || "Failed to create link. Please try again.";
+      addToast(errorMessage, "error");
+      console.error("Error creating link:", error);
     },
   });
 
@@ -33,15 +45,27 @@ export function LinkProposer({ conceptId, conceptTitle }: LinkProposerProps) {
     { conceptId, maxProposals: 5 },
     { enabled: false },
   );
-  
-  if (proposalsError) {
-    console.error("Error loading link proposals:", proposalsError);
-  }
 
   const handlePropose = async () => {
     setIsLoading(true);
-    await refetch();
-    setIsLoading(false);
+    try {
+      const result = await refetch();
+      if (result.error) {
+        const errorMessage = result.error.message || "Failed to propose links. Please try again.";
+        addToast(errorMessage, "error");
+        console.error("Error proposing links:", result.error);
+      } else if (result.data && Array.isArray(result.data) && result.data.length === 0) {
+        addToast("No link proposals found for this concept.", "info");
+      } else if (result.data && Array.isArray(result.data) && result.data.length > 0) {
+        addToast(`Found ${result.data.length} link proposal${result.data.length !== 1 ? "s" : ""}`, "success");
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to propose links. Please try again.";
+      addToast(errorMessage, "error");
+      console.error("Error proposing links:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleConfirm = (targetId: string, linkNameId: string) => {
@@ -193,6 +217,7 @@ function LinkProposalCard({
           }}
           disabled={!selectedLinkNameId || !proposal.target || isCreatingLink}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          title={!selectedLinkNameId ? "Please select a link name pair" : !proposal.target ? "Missing target concept" : ""}
         >
           {isCreatingLink && <LoadingSpinner size="sm" />}
           <span>{isCreatingLink ? "Confirming..." : "Confirm Link"}</span>

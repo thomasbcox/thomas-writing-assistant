@@ -9,7 +9,7 @@ import { MockLLMClient } from "../mocks/llm-client";
 import { MockConfigLoader } from "../mocks/config-loader";
 import { createTestDb, cleanupTestData, migrateTestDb } from "../test-utils";
 import type { ReturnType } from "~/server/db";
-import { concept, link } from "~/server/schema";
+import { concept, link, linkName } from "~/server/schema";
 import { createId } from "@paralleldrive/cuid2";
 
 type Database = ReturnType<typeof import("~/server/db").db>;
