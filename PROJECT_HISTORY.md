@@ -525,7 +525,7 @@ try {
 
 ---
 
-## Hydration Error Fix (January 2025)
+## Hydration Error Fix (December 2025)
 
 ### Browser Extension Hydration Mismatch
 **Issue**: React hydration warning for `cz-shortcut-listen="true"` attribute
