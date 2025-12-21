@@ -57,9 +57,13 @@ export function LinkProposer({ conceptId, conceptTitle }: LinkProposerProps) {
       <button
         onClick={handlePropose}
         disabled={isLoading}
-        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
       >
-        {isLoading ? "Proposing..." : "Propose Links"}
+        {isLoading && <LoadingSpinner size="sm" />}
+        <span>
+          {isLoading ? "Proposing Links..." : "Propose Links"}
+          {isLoading && showCounter && ` (${formattedTime})`}
+        </span>
       </button>
 
       {proposals && Array.isArray(proposals) && proposals.length > 0 && linkNamePairs && Array.isArray(linkNamePairs) && linkNamePairs.length > 0 && (
@@ -71,6 +75,7 @@ export function LinkProposer({ conceptId, conceptTitle }: LinkProposerProps) {
               proposal={proposal}
               linkNamePairs={linkNamePairs}
               onConfirm={handleConfirm}
+              isCreatingLink={createLinkMutation.isPending}
             />
           ))}
         </div>
