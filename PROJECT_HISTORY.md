@@ -334,7 +334,7 @@ The project began as a migration from a Python/Flask application to a modern Nex
 
 ---
 
-## Current State (December 2024)
+## Current State (December 2025)
 
 ### Tech Stack
 - **Framework**: Next.js 16 with App Router
