@@ -192,7 +192,7 @@ The project began as a migration from a Python/Flask application to a modern Nex
 ## Patterns & Practices Established
 
 ### Pre-Commit Hooks
-**When**: December 2024 (after security and config incidents)
+**When**: December 2025 (after security and config incidents)
 
 **Checks Implemented**:
 1. **Secret Detection**: Blocks API keys, tokens (AIzaSy..., sk-...)
@@ -412,11 +412,11 @@ The project began as a migration from a Python/Flask application to a modern Nex
 
 ---
 
-## Major Migration: Prisma to Drizzle ORM (December 2024)
+## Major Migration: Prisma to Drizzle ORM (December 2025)
 
 ### Decision: Replace Prisma with Drizzle ORM
 
-**Timeline**: December 18, 2024
+**Timeline**: December 18, 2025
 
 **Context**: Prisma had been causing persistent issues:
 - Testing complexity with adapter initialization
