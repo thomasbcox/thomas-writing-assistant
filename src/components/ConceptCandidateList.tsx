@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { api } from "~/lib/trpc/react";
 import { ToastContainer, useToast } from "./ui/Toast";
+import { LoadingSpinner } from "./ui/LoadingSpinner";
 
 interface ConceptCandidate {
   title: string;
@@ -185,9 +186,11 @@ export function ConceptCandidateList({
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleCreate(index)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    disabled={createMutation.isPending}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    Create Concept
+                    {createMutation.isPending && <LoadingSpinner size="sm" />}
+                    <span>{createMutation.isPending ? "Creating..." : "Create Concept"}</span>
                   </button>
                   <button
                     onClick={() => setEditingIndex(null)}

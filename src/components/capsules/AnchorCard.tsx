@@ -5,6 +5,7 @@ import type { AnchorWithRepurposed } from "~/types/database";
 import { safeJsonParseArray } from "~/lib/json-utils";
 import { DerivativeList } from "./DerivativeList";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { LoadingSpinner } from "../ui/LoadingSpinner";
 
 interface AnchorCardProps {
   anchor: AnchorWithRepurposed;
@@ -86,9 +87,10 @@ export function AnchorCard({
               <button
                 onClick={() => setShowRegenerateConfirm(true)}
                 disabled={isRegenerating}
-                className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400"
+                className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                {isRegenerating ? "Regenerating..." : "Regenerate"}
+                {isRegenerating && <LoadingSpinner size="sm" />}
+                <span>{isRegenerating ? "Regenerating..." : "Regenerate"}</span>
               </button>
             )}
           </div>

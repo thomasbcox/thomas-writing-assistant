@@ -169,7 +169,10 @@ export function TextInputTab() {
           className="px-8 py-4 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg text-base flex items-center gap-2"
         >
           {isGenerating && <LoadingSpinner size="sm" />}
-          {isGenerating ? `Generating... ${elapsedTime > 0 ? `(${elapsedTime}s)` : ""}` : "Generate Concepts"}
+          <span>
+            {isGenerating ? "Generating Concepts..." : "Generate Concepts"}
+            {isGenerating && elapsedTime >= 5 && ` (${elapsedTime}s)`}
+          </span>
         </button>
 
         <ConceptGenerationStatus

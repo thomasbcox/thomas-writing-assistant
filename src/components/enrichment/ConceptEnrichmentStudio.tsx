@@ -14,6 +14,7 @@ import {
 } from "~/lib/api/enrichment";
 import { EnrichmentChatPanel } from "./EnrichmentChatPanel";
 import { EnrichmentEditorPanel } from "./EnrichmentEditorPanel";
+import { LoadingSpinner } from "../ui/LoadingSpinner";
 import type { ConceptFormData } from "~/server/services/conceptEnricher";
 
 // Use API types for component state
@@ -327,9 +328,14 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
           <button
             onClick={handleSave}
             disabled={createMutation.isPending || updateMutation.isPending}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            {isNewConcept ? "Save as Concept" : "Save Changes"}
+            {(createMutation.isPending || updateMutation.isPending) && <LoadingSpinner size="sm" />}
+            <span>
+              {createMutation.isPending || updateMutation.isPending
+                ? isNewConcept ? "Creating..." : "Saving..."
+                : isNewConcept ? "Save as Concept" : "Save Changes"}
+            </span>
           </button>
         </div>
       </div>

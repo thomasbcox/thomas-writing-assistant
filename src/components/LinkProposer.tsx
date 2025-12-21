@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { api } from "~/lib/trpc/react";
+import { LoadingSpinner } from "./ui/LoadingSpinner";
+import { useTimer } from "~/hooks/useTimer";
 
 interface LinkProposerProps {
   conceptId: string;
@@ -11,6 +13,7 @@ interface LinkProposerProps {
 export function LinkProposer({ conceptId, conceptTitle }: LinkProposerProps) {
   const [isLoading, setIsLoading] = useState(false);
   const utils = api.useUtils();
+  const { elapsedSeconds, formattedTime, showCounter } = useTimer(isLoading);
 
   const { data: linkNamePairs, error: linkNamePairsError } = api.linkName.getAll.useQuery();
   
@@ -97,12 +100,14 @@ interface LinkProposalCardProps {
     isSymmetric: boolean;
   }>;
   onConfirm: (targetId: string, linkNameId: string) => void;
+  isCreatingLink: boolean;
 }
 
 function LinkProposalCard({
   proposal,
   linkNamePairs,
   onConfirm,
+  isCreatingLink,
 }: LinkProposalCardProps) {
   // Find a matching LinkName pair based on the proposed forward_name, or default to first pair
   const defaultPair = (linkNamePairs && Array.isArray(linkNamePairs)) 
@@ -181,10 +186,11 @@ function LinkProposalCard({
               console.error("Cannot confirm link: missing linkNameId or targetId", { selectedLinkNameId, targetId: proposal.target });
             }
           }}
-          disabled={!selectedLinkNameId || !proposal.target}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={!selectedLinkNameId || !proposal.target || isCreatingLink}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
-          Confirm Link
+          {isCreatingLink && <LoadingSpinner size="sm" />}
+          <span>{isCreatingLink ? "Confirming..." : "Confirm Link"}</span>
         </button>
       </div>
     </div>
