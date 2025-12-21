@@ -4,7 +4,7 @@
 
 ---
 
-## Project Genesis (December 2024)
+## Project Genesis (December 2025)
 
 ### Initial Vision
 The project began as a migration from a Python/Flask application to a modern Next.js-based writing assistant. The core vision was to create an AI-powered writing tool that:
@@ -99,7 +99,7 @@ The project began as a migration from a Python/Flask application to a modern Nex
 
 ## Critical Incidents & Lessons Learned
 
-### Incident 1: API Key Exposure (December 2024)
+### Incident 1: API Key Exposure (December 2025)
 **What Happened**: Google Gemini API key was hardcoded in `GEMINI_INTEGRATION.md` and committed to git history
 
 **Impact**: 
@@ -121,7 +121,7 @@ The project began as a migration from a Python/Flask application to a modern Nex
 
 **Pattern Established**: Never commit secrets, even in documentation. Always use placeholders.
 
-### Incident 2: Configuration File Overwriting (December 2024)
+### Incident 2: Configuration File Overwriting (December 2025)
 **What Happened**: Configuration files (`style_guide.yaml`, `credo.yaml`, `constraints.yaml`) were accidentally overwritten with minimal placeholder content ("tone: updated", "Updated constraint")
 
 **Impact**: 
@@ -147,7 +147,7 @@ The project began as a migration from a Python/Flask application to a modern Nex
 ## Infrastructure Evolution
 
 ### Server Management Requirements
-**Timeline**: December 2024
+**Timeline**: December 2025
 
 **Requirement Established**: Server must always be running
 - Auto-start on system boot
@@ -208,7 +208,7 @@ The project began as a migration from a Python/Flask application to a modern Nex
 **Pattern**: Automated quality gates at commit time for critical issues.
 
 ### Configuration Protection
-**When**: December 2024 (after config overwrite incident)
+**When**: December 2025 (after config overwrite incident)
 
 **Mechanisms**:
 - API-level validation (minimum length, placeholder detection)
@@ -230,7 +230,7 @@ The project began as a migration from a Python/Flask application to a modern Nex
 **Pattern**: Structured logging for better debugging and AI-assisted analysis.
 
 ### Health Monitoring
-**When**: December 2024
+**When**: December 2025
 
 **Implementation**: `/api/health` endpoint with system status
 
