@@ -6,6 +6,8 @@ import { capsuleRouter } from "~/server/api/routers/capsule";
 import { aiRouter } from "~/server/api/routers/ai";
 import { pdfRouter } from "~/server/api/routers/pdf";
 import { configRouter } from "~/server/api/routers/config";
+import { enrichmentRouter } from "~/server/api/routers/enrichment";
+import { dataQualityRouter } from "~/server/api/routers/dataQuality";
 
 /**
  * This is the primary router for your server.
@@ -20,6 +22,8 @@ export const appRouter = createTRPCRouter({
   ai: aiRouter,
   pdf: pdfRouter,
   config: configRouter,
+  enrichment: enrichmentRouter,
+  dataQuality: dataQualityRouter,
 });
 
 // export type definition of API
@@ -33,4 +37,3 @@ export type AppRouter = typeof appRouter;
  *       ^? Post[]
  */
 export const createCaller = createCallerFactory(appRouter);
-

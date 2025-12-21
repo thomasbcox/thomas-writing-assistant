@@ -1,21 +1,24 @@
 /**
  * Data quality router - provides data validation and quality reports
- * Last Updated: 2025-12-11
+ * Uses Drizzle ORM for database access
  */
 
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 import { generateDataQualityReport } from "~/lib/data-validation";
-import { db } from "~/server/db";
+import { eq } from "drizzle-orm";
+import { concept, link, capsule, anchor } from "~/server/schema";
 
 export const dataQualityRouter = createTRPCRouter({
-  getReport: publicProcedure.query(async () => {
+  getReport: publicProcedure.query(async ({ ctx }) => {
     // Fetch all data
-    const concepts = await db.concept.findMany({
-      where: { status: "active" },
-    });
-    const links = await db.link.findMany();
-    const capsules = await db.capsule.findMany();
-    const anchors = await db.anchor.findMany();
+    const concepts = await ctx.db
+      .select()
+      .from(concept)
+      .where(eq(concept.status, "active"));
+
+    const links = await ctx.db.select().from(link);
+    const capsules = await ctx.db.select().from(capsule);
+    const anchors = await ctx.db.select().from(anchor);
 
     // Create a set of concept IDs for quick lookup
     const conceptIds = new Set(concepts.map((c) => c.id));
@@ -32,4 +35,3 @@ export const dataQualityRouter = createTRPCRouter({
     return report;
   }),
 });
-

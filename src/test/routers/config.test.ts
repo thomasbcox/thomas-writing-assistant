@@ -4,6 +4,7 @@ import {
   createTestCaller,
   cleanupTestData,
   migrateTestDb,
+  closeTestDb,
 } from "../test-utils";
 import fs from "fs";
 import path from "path";
@@ -56,7 +57,7 @@ describe("Config Router", () => {
 
   afterAll(async () => {
     await cleanupTestData(db);
-    await db.$disconnect();
+    closeTestDb(db);
     
     // Final restore of original files
     const files = ["style_guide.yaml", "credo.yaml", "constraints.yaml"];

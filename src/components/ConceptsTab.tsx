@@ -28,6 +28,18 @@ export function ConceptsTab() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [showCreateConceptForm, setShowCreateConceptForm] = useState<boolean>(false);
 
+  // Clear all tab state
+  const handleClear = () => {
+    setSearch("");
+    setShowTrash(false);
+    setEditingId(null);
+    setViewingId(null);
+    setDeleteConfirm(null);
+    setPurgeConfirm(false);
+    setShowCreateConceptForm(false);
+    addToast("Tab cleared", "success");
+  };
+
   const addToast = useCallback((message: string, type: ToastType) => {
     const id = Math.random().toString(36).substring(7);
     setToasts((prev) => [...prev, { id, message, type }]);
@@ -111,7 +123,15 @@ export function ConceptsTab() {
   return (
     <>
       <ToastContainer toasts={toasts} onRemove={removeToast} />
-      
+      <div className="flex justify-end mb-2">
+        <button
+          onClick={handleClear}
+          className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm"
+          title="Clear all selections and forms"
+        >
+          Clear
+        </button>
+      </div>
       <div className="space-y-8">
         <div className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-10">
           <div className="flex items-center justify-between mb-6">

@@ -1,22 +1,25 @@
-import { PrismaClient } from "@prisma/client";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+/**
+ * Test utilities for database operations
+ * Uses Drizzle ORM for database access
+ */
+
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import Database from "better-sqlite3";
 import { createCallerFactory } from "~/server/api/trpc";
 import { appRouter } from "~/server/api/root";
-import { unlinkSync, existsSync } from "fs";
-import { join } from "path";
+import * as schema from "~/server/schema";
+import type { ReturnType } from "~/server/db";
+
+type Database = ReturnType<typeof import("~/server/db").db>;
 
 /**
  * Create a test database instance
  * Uses an in-memory database for fast, isolated tests
  */
-export function createTestDb() {
+export function createTestDb(): Database {
   // Use in-memory database for tests (fastest and most isolated)
-  const adapter = new PrismaBetterSqlite3({ url: ":memory:" });
-  const db = new PrismaClient({
-    adapter,
-    log: [], // Disable logging in tests
-  });
-
+  const sqlite = new Database(":memory:");
+  const db = drizzle(sqlite, { schema });
   return db;
 }
 
@@ -24,24 +27,15 @@ export function createTestDb() {
  * Create a test database with a file (for tests that need persistence)
  */
 export function createTestDbFile(testDbPath: string = "./test.db") {
-  // Clean up any existing test database
-  if (existsSync(testDbPath)) {
-    unlinkSync(testDbPath);
-  }
-
-  const adapter = new PrismaBetterSqlite3({ url: testDbPath });
-  const db = new PrismaClient({
-    adapter,
-    log: [],
-  });
-
+  const sqlite = new Database(testDbPath);
+  const db = drizzle(sqlite, { schema });
   return { db, dbPath: testDbPath };
 }
 
 /**
  * Create a test tRPC caller with a test database
  */
-export function createTestCaller(testDb: PrismaClient) {
+export function createTestCaller(testDb: Database) {
   // Create context with test database
   const createContext = async () => {
     return {
@@ -57,94 +51,101 @@ export function createTestCaller(testDb: PrismaClient) {
 /**
  * Clean up test data from database
  */
-export async function cleanupTestData(db: PrismaClient) {
+export async function cleanupTestData(db: Database) {
   // Delete in reverse order of dependencies
-  await db.link.deleteMany({});
-  await db.repurposedContent.deleteMany({});
-  await db.anchor.deleteMany({});
-  await db.capsule.deleteMany({});
-  await db.concept.deleteMany({});
-  await db.linkName.deleteMany({});
-  await db.mRUConcept.deleteMany({});
+  await db.delete(schema.link);
+  await db.delete(schema.repurposedContent);
+  await db.delete(schema.anchor);
+  await db.delete(schema.capsule);
+  await db.delete(schema.concept);
+  await db.delete(schema.linkName);
+  await db.delete(schema.mruConcept);
+  
+  // Recreate default link name pairs after cleanup
+  const sqlite = (db as any).session?.client as Database | undefined;
+  if (sqlite) {
+    const defaultPairs = [
+      { forward: "references", reverse: "referenced by", symmetric: false },
+      { forward: "builds on", reverse: "built on by", symmetric: false },
+      { forward: "related to", reverse: "related to", symmetric: true },
+      { forward: "relates to", reverse: "related from", symmetric: false },
+    ];
+
+    for (const pair of defaultPairs) {
+      const id = `ln_${pair.forward.replace(/\s+/g, "_")}`;
+      sqlite
+        .prepare(
+          "INSERT OR IGNORE INTO LinkName (id, forwardName, reverseName, isSymmetric, isDefault, isDeleted, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        )
+        .run(
+          id,
+          pair.forward,
+          pair.reverse,
+          pair.symmetric ? 1 : 0,
+          1, // isDefault
+          0, // isDeleted
+          Date.now(),
+        );
+    }
+  }
 }
 
 /**
  * Initialize test database schema
  * Run migrations or create tables manually
  */
-export async function initTestDb(db: PrismaClient) {
+export async function initTestDb(db: Database) {
   // For in-memory databases, we need to create the schema
-  // We'll use raw SQL to create tables based on Prisma schema
-  
-  // Note: In a real scenario, you might want to run migrations
-  // For now, we'll let Prisma handle it through the adapter
-  
-  // The adapter should handle schema creation automatically
-  // But we can verify by trying a simple query
-  try {
-    await db.$queryRaw`SELECT 1`;
-  } catch (error) {
-    // If schema doesn't exist, we need to create it
-    // For SQLite, we can execute the migration SQL
-    throw new Error(
-      "Test database schema not initialized. Consider running migrations or creating schema manually."
-    );
-  }
-}
+  // We'll use raw SQL to create tables based on Drizzle schema
 
-/**
- * Helper to run migrations on test database
- * This would typically use Prisma migrate programmatically
- */
-export async function migrateTestDb(db: PrismaClient) {
-  // For in-memory databases, we can't use file-based migrations
-  // Instead, we'll create tables directly using raw SQL
-  // This is based on the Prisma schema
-  
   const schemaSQL = `
     CREATE TABLE IF NOT EXISTS "Concept" (
       "id" TEXT NOT NULL PRIMARY KEY,
       "identifier" TEXT NOT NULL UNIQUE,
       "title" TEXT NOT NULL,
-      "description" TEXT,
+      "description" TEXT NOT NULL DEFAULT '',
       "content" TEXT NOT NULL,
       "creator" TEXT NOT NULL,
       "source" TEXT NOT NULL,
       "year" TEXT NOT NULL,
       "status" TEXT NOT NULL DEFAULT 'active',
-      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "trashedAt" DATETIME
+      "createdAt" INTEGER NOT NULL,
+      "updatedAt" INTEGER NOT NULL,
+      "trashedAt" INTEGER
     );
     
     CREATE INDEX IF NOT EXISTS "Concept_status_idx" ON "Concept"("status");
     CREATE INDEX IF NOT EXISTS "Concept_identifier_idx" ON "Concept"("identifier");
     
+    CREATE TABLE IF NOT EXISTS "LinkName" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "forwardName" TEXT NOT NULL UNIQUE,
+      "reverseName" TEXT NOT NULL,
+      "isSymmetric" INTEGER NOT NULL DEFAULT 0,
+      "isDefault" INTEGER NOT NULL DEFAULT 0,
+      "isDeleted" INTEGER NOT NULL DEFAULT 0,
+      "createdAt" INTEGER NOT NULL
+    );
+    
+    CREATE INDEX IF NOT EXISTS "LinkName_forwardName_idx" ON "LinkName"("forwardName");
+    CREATE INDEX IF NOT EXISTS "LinkName_reverseName_idx" ON "LinkName"("reverseName");
+    
     CREATE TABLE IF NOT EXISTS "Link" (
       "id" TEXT NOT NULL PRIMARY KEY,
       "sourceId" TEXT NOT NULL,
       "targetId" TEXT NOT NULL,
-      "forwardName" TEXT NOT NULL,
-      "reverseName" TEXT NOT NULL,
+      "linkNameId" TEXT NOT NULL,
       "notes" TEXT,
-      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "createdAt" INTEGER NOT NULL,
       FOREIGN KEY ("sourceId") REFERENCES "Concept"("id") ON DELETE CASCADE,
       FOREIGN KEY ("targetId") REFERENCES "Concept"("id") ON DELETE CASCADE,
+      FOREIGN KEY ("linkNameId") REFERENCES "LinkName"("id") ON DELETE RESTRICT,
       UNIQUE("sourceId", "targetId")
     );
     
     CREATE INDEX IF NOT EXISTS "Link_sourceId_idx" ON "Link"("sourceId");
     CREATE INDEX IF NOT EXISTS "Link_targetId_idx" ON "Link"("targetId");
-    
-    CREATE TABLE IF NOT EXISTS "LinkName" (
-      "id" TEXT NOT NULL PRIMARY KEY,
-      "name" TEXT NOT NULL UNIQUE,
-      "isDefault" INTEGER NOT NULL DEFAULT 0,
-      "isDeleted" INTEGER NOT NULL DEFAULT 0,
-      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-    );
-    
-    CREATE INDEX IF NOT EXISTS "LinkName_name_idx" ON "LinkName"("name");
+    CREATE INDEX IF NOT EXISTS "Link_linkNameId_idx" ON "Link"("linkNameId");
     
     CREATE TABLE IF NOT EXISTS "Capsule" (
       "id" TEXT NOT NULL PRIMARY KEY,
@@ -152,8 +153,8 @@ export async function migrateTestDb(db: PrismaClient) {
       "promise" TEXT NOT NULL,
       "cta" TEXT NOT NULL,
       "offerMapping" TEXT,
-      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      "createdAt" INTEGER NOT NULL,
+      "updatedAt" INTEGER NOT NULL
     );
     
     CREATE INDEX IF NOT EXISTS "Capsule_title_idx" ON "Capsule"("title");
@@ -166,8 +167,8 @@ export async function migrateTestDb(db: PrismaClient) {
       "painPoints" TEXT,
       "solutionSteps" TEXT,
       "proof" TEXT,
-      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "createdAt" INTEGER NOT NULL,
+      "updatedAt" INTEGER NOT NULL,
       FOREIGN KEY ("capsuleId") REFERENCES "Capsule"("id") ON DELETE CASCADE
     );
     
@@ -178,7 +179,8 @@ export async function migrateTestDb(db: PrismaClient) {
       "anchorId" TEXT NOT NULL,
       "type" TEXT NOT NULL,
       "content" TEXT NOT NULL,
-      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "guidance" TEXT,
+      "createdAt" INTEGER NOT NULL,
       FOREIGN KEY ("anchorId") REFERENCES "Anchor"("id") ON DELETE CASCADE
     );
     
@@ -188,7 +190,7 @@ export async function migrateTestDb(db: PrismaClient) {
     CREATE TABLE IF NOT EXISTS "MRUConcept" (
       "id" TEXT NOT NULL PRIMARY KEY,
       "conceptId" TEXT NOT NULL UNIQUE,
-      "lastUsed" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      "lastUsed" INTEGER NOT NULL
     );
     
     CREATE INDEX IF NOT EXISTS "MRUConcept_lastUsed_idx" ON "MRUConcept"("lastUsed");
@@ -200,8 +202,33 @@ export async function migrateTestDb(db: PrismaClient) {
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
 
+  // Get the underlying SQLite database from Drizzle
+  // Drizzle wraps better-sqlite3, we need to access it
+  const sqlite = (db as any).session?.client as Database | undefined;
+  
+  if (!sqlite) {
+    throw new Error("Could not access SQLite database from Drizzle instance");
+  }
+
   for (const statement of statements) {
-    await db.$executeRawUnsafe(statement);
+    sqlite.exec(statement);
   }
 }
 
+/**
+ * Helper to run migrations on test database
+ * This creates tables directly using raw SQL
+ */
+export async function migrateTestDb(db: Database) {
+  await initTestDb(db);
+}
+
+/**
+ * Close a test database connection
+ */
+export function closeTestDb(db: Database) {
+  const sqlite = (db as any).session?.client as Database | undefined;
+  if (sqlite && typeof sqlite.close === "function") {
+    sqlite.close();
+  }
+}

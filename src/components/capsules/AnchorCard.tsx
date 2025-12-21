@@ -48,7 +48,7 @@ export function AnchorCard({
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <h4 className="font-semibold text-gray-900">{anchor.title}</h4>
-            {painPoints.length > 0 && (
+            {Array.isArray(painPoints) && painPoints.length > 0 && (
               <div className="mt-2">
                 <p className="text-xs font-medium text-gray-700">Pain Points:</p>
                 <ul className="text-xs text-gray-600 mt-1">

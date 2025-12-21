@@ -1,6 +1,7 @@
 /**
  * REST API route for blog post generation
  * POST /api/blog-posts/generate - Generate a blog post from concepts
+ * Uses Drizzle ORM for database access
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -10,6 +11,8 @@ import { generateBlogPost } from "~/server/services/blogPostGenerator";
 import { getLLMClient } from "~/server/services/llm/client";
 import { getConfigLoader } from "~/server/services/config";
 import type { ConceptReference } from "~/server/services/blogPostGenerator";
+import { eq, and, inArray } from "drizzle-orm";
+import { concept } from "~/server/schema";
 
 const generateBlogPostSchema = z.object({
   title: z.string().optional(),
@@ -29,20 +32,22 @@ export async function POST(request: NextRequest) {
     const input = generateBlogPostSchema.parse(body);
 
     // Fetch the concepts
-    const concepts = await db.concept.findMany({
-      where: {
-        id: { in: input.conceptIds },
-        status: "active", // Only use active concepts
-      },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        content: true,
-        creator: true,
-        source: true,
-      },
-    });
+    const concepts = await db
+      .select({
+        id: concept.id,
+        title: concept.title,
+        description: concept.description,
+        content: concept.content,
+        creator: concept.creator,
+        source: concept.source,
+      })
+      .from(concept)
+      .where(
+        and(
+          inArray(concept.id, input.conceptIds),
+          eq(concept.status, "active"),
+        )!,
+      );
 
     if (concepts.length === 0) {
       return NextResponse.json(
@@ -59,19 +64,24 @@ export async function POST(request: NextRequest) {
     }
 
     // Map to ConceptReference format
-    const conceptReferences: ConceptReference[] = concepts.map((concept) => ({
-      id: concept.id,
-      title: concept.title,
-      description: concept.description ?? "",
-      content: concept.content ?? "",
-      creator: concept.creator ?? undefined,
-      source: concept.source ?? undefined,
+    const conceptReferences: ConceptReference[] = concepts.map((c) => ({
+      id: c.id,
+      title: c.title,
+      description: c.description ?? "",
+      content: c.content ?? "",
+      creator: c.creator ?? undefined,
+      source: c.source ?? undefined,
     }));
 
     // Generate the blog post
     const llmClient = getLLMClient();
     const configLoader = getConfigLoader();
-    const blogPost = await generateBlogPost(input, conceptReferences, llmClient, configLoader);
+    const blogPost = await generateBlogPost(
+      input,
+      conceptReferences,
+      llmClient,
+      configLoader,
+    );
 
     return NextResponse.json(blogPost);
   } catch (error) {

@@ -4,6 +4,7 @@ import {
   createTestCaller,
   cleanupTestData,
   migrateTestDb,
+  closeTestDb,
 } from "./test-utils";
 import { logServiceError } from "~/lib/logger";
 
@@ -22,7 +23,7 @@ describe("Service Error Logging", () => {
 
   afterAll(async () => {
     await cleanupTestData(db);
-    await db.$disconnect();
+    closeTestDb(db);
   });
 
   describe("linkProposer error logging", () => {

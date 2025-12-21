@@ -1,6 +1,7 @@
 /**
  * REST API route to create anchor from PDF
  * POST /api/capsules/[id]/anchors/from-pdf
+ * Uses Drizzle ORM for database access
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -9,6 +10,8 @@ import { handleApiError, parseJsonBody, getDb } from "~/server/api/helpers";
 import { extractAnchorMetadata } from "~/server/services/anchorExtractor";
 import { getLLMClient } from "~/server/services/llm/client";
 import { getConfigLoader } from "~/server/services/config";
+import { eq } from "drizzle-orm";
+import { capsule, anchor, repurposedContent } from "~/server/schema";
 
 const createAnchorFromPDFSchema = z.object({
   fileData: z.string(), // Base64 encoded PDF
@@ -28,20 +31,23 @@ export async function POST(
 
     // Step 1: Extract text from PDF
     const pdfParseModule = await import("pdf-parse");
-    
+
     type PDFParseModule = {
       default?: {
         PDFParse?: new (options: { data: Buffer }) => PDFParser;
       };
       PDFParse?: new (options: { data: Buffer }) => PDFParser;
     };
-    
+
     interface PDFParser {
       getText(): Promise<{ text: string; total: number }>;
     }
-    
+
     const module = pdfParseModule as unknown as PDFParseModule;
-    const PDFParse = module.default?.PDFParse || module.PDFParse || (pdfParseModule as unknown as new (options: { data: Buffer }) => PDFParser);
+    const PDFParse =
+      module.default?.PDFParse ||
+      module.PDFParse ||
+      (pdfParseModule as unknown as new (options: { data: Buffer }) => PDFParser);
 
     const pdfBuffer = Buffer.from(input.fileData, "base64");
     const parser = new PDFParse({ data: pdfBuffer });
@@ -55,28 +61,53 @@ export async function POST(
       );
     }
 
+    // Verify capsule exists
+    const foundCapsule = await db.query.capsule.findFirst({
+      where: eq(capsule.id, capsuleId),
+    });
+
+    if (!foundCapsule) {
+      return NextResponse.json(
+        { error: "Capsule not found" },
+        { status: 404 },
+      );
+    }
+
     const llmClient = getLLMClient();
     const configLoader = getConfigLoader();
 
     // Step 2: Extract metadata from PDF text
-    const metadata = await extractAnchorMetadata(pdfText, llmClient, configLoader);
+    const metadata = await extractAnchorMetadata(
+      pdfText,
+      llmClient,
+      configLoader,
+    );
 
-    // Step 3: Create anchor (use pdfText as content)
-    const anchor = await db.anchor.create({
-      data: {
+    // Step 3: Create anchor
+    const [newAnchor] = await db
+      .insert(anchor)
+      .values({
         capsuleId,
         title: metadata.title,
         content: pdfText,
-        painPoints: metadata.painPoints.length > 0 ? JSON.stringify(metadata.painPoints) : null,
-        solutionSteps: metadata.solutionSteps.length > 0 ? JSON.stringify(metadata.solutionSteps) : null,
-        proof: metadata.proof,
-      },
-    });
+        painPoints:
+          metadata.painPoints.length > 0
+            ? JSON.stringify(metadata.painPoints)
+            : null,
+        solutionSteps:
+          metadata.solutionSteps.length > 0
+            ? JSON.stringify(metadata.solutionSteps)
+            : null,
+        proof: metadata.proof ?? null,
+      })
+      .returning();
 
     // Generate repurposed content if requested
-    let repurposedContent = [];
+    const savedRepurposed = [];
     if (input.autoRepurpose) {
-      const { repurposeAnchorContent } = await import("~/server/services/repurposer");
+      const { repurposeAnchorContent } = await import(
+        "~/server/services/repurposer"
+      );
       const repurposed = await repurposeAnchorContent(
         metadata.title,
         pdfText,
@@ -86,35 +117,43 @@ export async function POST(
         configLoader,
       );
 
-      // Save repurposed content to database
+      // Save repurposed content
       for (const item of repurposed) {
-        const created = await db.repurposedContent.create({
-          data: {
-            anchorId: anchor.id,
+        const [saved] = await db
+          .insert(repurposedContent)
+          .values({
+            anchorId: newAnchor.id,
             type: item.type,
             content: item.content,
             guidance: item.guidance ?? null,
-          },
-        });
-        repurposedContent.push(created);
+          })
+          .returning();
+        savedRepurposed.push(saved);
       }
     }
 
-    return NextResponse.json({
-      anchor: {
-        ...anchor,
-        repurposedContent,
+    // Get full anchor with repurposed content
+      const fullAnchor = await db.query.anchor.findFirst({
+      where: eq(anchor.id, newAnchor.id),
+      with: {
+        repurposedContent: true,
       },
-      repurposedContent,
-      metadata: {
-        title: metadata.title,
-        painPoints: metadata.painPoints,
-        solutionSteps: metadata.solutionSteps,
-        proof: metadata.proof,
+    });
+
+    return NextResponse.json(
+      {
+        anchor: fullAnchor!,
+        repurposedContent: savedRepurposed,
+        metadata: {
+          title: metadata.title,
+          painPoints: metadata.painPoints,
+          solutionSteps: metadata.solutionSteps,
+          proof: metadata.proof,
+        },
       },
-    }, { status: 201 });
+      { status: 201 },
+    );
   } catch (error) {
     return handleApiError(error);
   }
 }
-

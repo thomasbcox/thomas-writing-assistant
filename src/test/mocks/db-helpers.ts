@@ -61,6 +61,5 @@ export function createMockDbStructure(vi: any) {
       delete: jest.fn(),
       count: jest.fn(),
     },
-    $disconnect: jest.fn(),
   };
 }

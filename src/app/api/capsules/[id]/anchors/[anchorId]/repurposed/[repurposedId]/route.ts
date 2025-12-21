@@ -2,11 +2,14 @@
  * REST API routes for individual repurposed content
  * PUT /api/capsules/[id]/anchors/[anchorId]/repurposed/[repurposedId] - Update repurposed content
  * DELETE /api/capsules/[id]/anchors/[anchorId]/repurposed/[repurposedId] - Delete repurposed content
+ * Uses Drizzle ORM for database access
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb, handleApiError, parseJsonBody } from "~/server/api/helpers";
+import { eq } from "drizzle-orm";
+import { repurposedContent } from "~/server/schema";
 
 const updateRepurposedSchema = z.object({
   type: z.string().min(1).optional(),
@@ -25,17 +28,34 @@ export async function PUT(
     const body = await parseJsonBody(request);
     const input = updateRepurposedSchema.parse(body);
 
-    const updateData: Record<string, unknown> = {};
+    const foundRepurposed = await (db.query as any).repurposedContent.findFirst({
+      where: eq(repurposedContent.id, repurposedId),
+    });
+
+    if (!foundRepurposed) {
+      return NextResponse.json(
+        { error: "Repurposed content not found" },
+        { status: 404 },
+      );
+    }
+
+    const updateData: {
+      type?: string;
+      content?: string;
+      guidance?: string | null;
+    } = {};
+
     if (input.type !== undefined) updateData.type = input.type;
     if (input.content !== undefined) updateData.content = input.content;
     if (input.guidance !== undefined) updateData.guidance = input.guidance;
 
-    const repurposed = await db.repurposedContent.update({
-      where: { id: repurposedId },
-      data: updateData,
-    });
+    const [updatedRepurposed] = await db
+      .update(repurposedContent)
+      .set(updateData)
+      .where(eq(repurposedContent.id, repurposedId))
+      .returning();
 
-    return NextResponse.json(repurposed);
+    return NextResponse.json(updatedRepurposed);
   } catch (error) {
     return handleApiError(error);
   }
@@ -50,13 +70,23 @@ export async function DELETE(
     const db = getDb();
     const { repurposedId } = await params;
 
-    await db.repurposedContent.delete({
-      where: { id: repurposedId },
+    const foundRepurposed = await (db.query as any).repurposedContent.findFirst({
+      where: eq(repurposedContent.id, repurposedId),
     });
+
+    if (!foundRepurposed) {
+      return NextResponse.json(
+        { error: "Repurposed content not found" },
+        { status: 404 },
+      );
+    }
+
+    await db
+      .delete(repurposedContent)
+      .where(eq(repurposedContent.id, repurposedId));
 
     return NextResponse.json({ success: true });
   } catch (error) {
     return handleApiError(error);
   }
 }
-

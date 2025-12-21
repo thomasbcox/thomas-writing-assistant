@@ -412,6 +412,141 @@ The project began as a migration from a Python/Flask application to a modern Nex
 
 ---
 
-**Last Updated**: December 2024
+## Major Migration: Prisma to Drizzle ORM (December 2024)
+
+### Decision: Replace Prisma with Drizzle ORM
+
+**Timeline**: December 18, 2024
+
+**Context**: Prisma had been causing persistent issues:
+- Testing complexity with adapter initialization
+- Prisma 7 adapter system added complexity
+- Mocking difficulties in test environment
+- Large bundle size
+- Migration tool complexity
+
+**Decision**: Complete migration from Prisma to Drizzle ORM
+
+**Rationale**:
+- **Simpler Testing**: Drizzle works directly with better-sqlite3, no adapter issues
+- **Lighter Weight**: ~90% smaller bundle size than Prisma
+- **Better TypeScript**: Native TypeScript-first design with better inference
+- **More Control**: Direct SQL access when needed, less abstraction
+- **Active Development**: Modern, well-maintained, growing ecosystem
+
+**Migration Approach**:
+- **Delete and Recreate**: Rather than edit existing code, rewrote from requirements
+- **Schema Conversion**: Converted Prisma schema to Drizzle schema definitions
+- **Complete Rewrite**: All routers, API routes, services, and tests rewritten
+- **Test Infrastructure**: Updated test utilities to use Drizzle's in-memory database
+
+**Files Changed**:
+- Created `src/server/schema.ts` - Drizzle schema definitions
+- Rewrote `src/server/db.ts` - Drizzle database connection
+- Rewrote all 8 tRPC routers
+- Rewrote all 21 REST API routes
+- Updated all service files using database
+- Updated all test utilities and test files
+- Removed Prisma dependencies from `package.json`
+- Deleted Prisma schema and migration files
+
+**Benefits Realized**:
+- ✅ No more adapter initialization errors in tests
+- ✅ Real in-memory databases work perfectly for testing
+- ✅ Simpler, more maintainable code
+- ✅ Better TypeScript inference
+- ✅ Faster test execution
+
+**Tradeoffs**:
+- Lost Prisma's migration history (kept for reference)
+- Need to use Drizzle Kit for migrations going forward
+- Some API route tests need updates (mocks still expect Prisma-style API)
+
+**Pattern Established**: When a tool causes persistent pain, consider alternatives. Sometimes a complete migration is cleaner than incremental fixes.
+
+---
+
+## Error Handling Improvements (January 2025)
+
+### Link Router Error Handling Refactoring
+**Decision**: Implement production-ready error handling patterns in the link router
+
+**Context**: The link router had been using temporary workarounds for Drizzle relation errors, with `error: any` types, `console.error` logging, and unsafe non-null assertions. An assessment revealed multiple maturity issues.
+
+**Changes Implemented**:
+1. **Type Safety**: Replaced `error: any` with `error: unknown` and proper type checking
+2. **Structured Logging**: Replaced `console.error` with `logServiceError` for consistent logging
+3. **Specific Error Catching**: Only catch specific Drizzle relation errors, re-throw unexpected errors
+4. **Removed Unsafe Assertions**: Replaced `fullLink!` with proper validation
+5. **Fallback Error Handling**: Added error handling for fallback paths
+6. **Standardized Patterns**: All methods use optimized batched queries (3 queries) instead of N+1
+
+**Helper Function**: Created `isDrizzleRelationError()` to identify specific Drizzle relation errors that should trigger fallback:
+- `referencedTable` errors
+- `relation` errors  
+- `Cannot read properties of undefined` errors
+
+**Error Handling Pattern**:
+```typescript
+try {
+  // Try Drizzle relational API
+} catch (error: unknown) {
+  if (!isDrizzleRelationError(error)) {
+    // Re-throw unexpected errors with proper logging
+    logServiceError(error, "operation", { context });
+    throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", ... });
+  }
+  
+  // Use fallback for expected errors
+  try {
+    // Optimized batched fallback
+  } catch (fallbackError: unknown) {
+    // Both paths failed - log and throw
+  }
+}
+```
+
+**Impact**: 
+- Improved type safety and error visibility
+- Better debugging with structured logs
+- Prevents masking of critical errors
+- Consistent error handling across all link operations
+- Production-ready error handling patterns
+
+**Files Modified**:
+- `src/server/api/routers/link.ts` - Complete error handling refactor
+- `src/test/link.test.ts` - Updated tests to match new patterns
+- `docs/error-handling-assessment.md` - Detailed assessment and recommendations
+- `docs/error-handling-improvements.md` - Implementation summary
+
+**Pattern Established**: Error handling should be assessed for maturity and best practices. Type safety, structured logging, and specific error catching are essential for production code.
+
+---
+
+---
+
+## Hydration Error Fix (January 2025)
+
+### Browser Extension Hydration Mismatch
+**Issue**: React hydration warning for `cz-shortcut-listen="true"` attribute
+
+**Root Cause**: Browser extension (likely ColorZilla) injecting attributes into `<body>` tag after server render but before React hydration.
+
+**Solution**: Added `suppressHydrationWarning` to `<body>` tag in `src/app/layout.tsx`
+
+**Analysis**:
+- ✅ All components using `Date.now()`/`Math.random()` are `"use client"` - no SSR issues
+- ✅ No server/client code mismatches found
+- ✅ Warning is purely from browser extension, not our code
+- ✅ `suppressHydrationWarning` is the recommended React solution for this scenario
+
+**Files Modified**:
+- `src/app/layout.tsx` - Added `suppressHydrationWarning` to body tag
+
+**Pattern Established**: Use `suppressHydrationWarning` for unavoidable external factors (browser extensions), but verify no actual code bugs are being hidden.
+
+---
+
+**Last Updated**: January 2025
 
 *This document is maintained as an ongoing narrative. Major changes, decisions, and incidents should be added here to preserve institutional memory.*

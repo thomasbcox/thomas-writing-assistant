@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import React from "react";
 import { ConceptsTab } from "~/components/ConceptsTab";
 import { LinksTab } from "~/components/LinksTab";
 import { TextInputTab } from "~/components/TextInputTab";
@@ -24,6 +25,15 @@ export default function Home() {
     { id: "config", label: "Writing Config" },
     { id: "settings", label: "AI Settings" },
   ];
+
+  // Keep all tabs mounted but hidden - this preserves their state
+  const renderTab = (tabId: Tab, component: React.ReactNode) => {
+    return (
+      <div key={tabId} className={activeTab === tabId ? "" : "hidden"}>
+        {component}
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -55,41 +65,41 @@ export default function Home() {
         </div>
 
         <div className="mt-6">
-          {activeTab === "dashboard" && (
+          {renderTab("dashboard", (
             <ErrorBoundary>
               <Dashboard onNavigate={(tab) => setActiveTab(tab as Tab)} />
             </ErrorBoundary>
-          )}
-          {activeTab === "concepts" && (
+          ))}
+          {renderTab("concepts", (
             <ErrorBoundary>
               <ConceptsTab />
             </ErrorBoundary>
-          )}
-          {activeTab === "links" && (
+          ))}
+          {renderTab("links", (
             <ErrorBoundary>
               <LinksTab />
             </ErrorBoundary>
-          )}
-          {activeTab === "text-input" && (
+          ))}
+          {renderTab("text-input", (
             <ErrorBoundary>
               <TextInputTab />
             </ErrorBoundary>
-          )}
-          {activeTab === "capsules" && (
+          ))}
+          {renderTab("capsules", (
             <ErrorBoundary>
               <CapsulesTab />
             </ErrorBoundary>
-          )}
-          {activeTab === "config" && (
+          ))}
+          {renderTab("config", (
             <ErrorBoundary>
               <ConfigTab />
             </ErrorBoundary>
-          )}
-          {activeTab === "settings" && (
+          ))}
+          {renderTab("settings", (
             <ErrorBoundary>
               <SettingsTab />
             </ErrorBoundary>
-          )}
+          ))}
         </div>
       </div>
     </div>

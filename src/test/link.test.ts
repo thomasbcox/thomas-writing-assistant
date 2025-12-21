@@ -4,6 +4,7 @@ import {
   createTestCaller,
   cleanupTestData,
   migrateTestDb,
+  closeTestDb,
 } from "./test-utils";
 
 describe("Link Router", () => {
@@ -20,7 +21,7 @@ describe("Link Router", () => {
 
   afterAll(async () => {
     await cleanupTestData(db);
-    await db.$disconnect();
+    closeTestDb(db);
   });
 
   test("should create a link between two concepts", async () => {
@@ -43,19 +44,28 @@ describe("Link Router", () => {
       year: "2024",
     });
 
+    // Get or create a link name pair
+    const linkNames = await caller.linkName.getAll();
+    const linkNamePair = linkNames.find((ln) => ln.forwardName === "references") || linkNames[0];
+    
+    if (!linkNamePair) {
+      throw new Error("No link name pairs available for test");
+    }
+
     // Create link
     const link = await caller.link.create({
       sourceId: source.id,
       targetId: target.id,
-      forwardName: "references",
-      reverseName: "referenced by",
+      linkNameId: linkNamePair.id,
     });
 
     expect(link.id).toBeDefined();
     expect(link.sourceId).toBe(source.id);
     expect(link.targetId).toBe(target.id);
-    expect(link.forwardName).toBe("references");
-    expect(link.reverseName).toBe("referenced by");
+    expect(link.linkNameId).toBe(linkNamePair.id);
+    expect(link.linkName).toBeDefined();
+    expect(link.linkName.forwardName).toBe("references");
+    expect(link.linkName.reverseName).toBe("referenced by");
   });
 
   test("should update existing link if it already exists", async () => {
@@ -77,24 +87,44 @@ describe("Link Router", () => {
       year: "2024",
     });
 
+    // Get link name pairs
+    const linkNames = await caller.linkName.getAll();
+    const referencesPair = linkNames.find((ln) => ln.forwardName === "references") || linkNames[0];
+    const buildsOnPair = linkNames.find((ln) => ln.forwardName === "builds on");
+    
+    if (!referencesPair || !buildsOnPair) {
+      // Create builds on pair if it doesn't exist
+      const newPair = await caller.linkName.create({
+        forwardName: "builds on",
+        reverseName: "built on by",
+      });
+      const linkNames2 = await caller.linkName.getAll();
+      const buildsOnPair2 = linkNames2.find((ln) => ln.id === newPair.id);
+      if (!buildsOnPair2) throw new Error("Failed to create link name pair");
+    }
+
+    const linkNamesFinal = await caller.linkName.getAll();
+    const referencesPairFinal = linkNamesFinal.find((ln) => ln.forwardName === "references") || linkNamesFinal[0];
+    const buildsOnPairFinal = linkNamesFinal.find((ln) => ln.forwardName === "builds on") || linkNamesFinal[1];
+
     // Create first link
     const link1 = await caller.link.create({
       sourceId: source.id,
       targetId: target.id,
-      forwardName: "references",
+      linkNameId: referencesPairFinal.id,
     });
 
-    // Update the same link
+    // Update the same link with different linkNameId
     const link2 = await caller.link.create({
       sourceId: source.id,
       targetId: target.id,
-      forwardName: "builds on",
-      reverseName: "built by",
+      linkNameId: buildsOnPairFinal.id,
     });
 
     expect(link2.id).toBe(link1.id);
-    expect(link2.forwardName).toBe("builds on");
-    expect(link2.reverseName).toBe("built by");
+    expect(link2.linkNameId).toBe(buildsOnPairFinal.id);
+    expect(link2.linkName.forwardName).toBe("builds on");
+    expect(link2.linkName.reverseName).toBe("built on by");
   });
 
   test("should update existing link with notes", async () => {
@@ -116,11 +146,15 @@ describe("Link Router", () => {
       year: "2024",
     });
 
+    // Get link name pair
+    const linkNames = await caller.linkName.getAll();
+    const linkNamePair = linkNames.find((ln) => ln.forwardName === "references") || linkNames[0];
+
     // Create link with notes
     const link1 = await caller.link.create({
       sourceId: source.id,
       targetId: target.id,
-      forwardName: "references",
+      linkNameId: linkNamePair.id,
       notes: "Initial notes",
     });
 
@@ -128,7 +162,7 @@ describe("Link Router", () => {
     const link2 = await caller.link.create({
       sourceId: source.id,
       targetId: target.id,
-      forwardName: "references",
+      linkNameId: linkNamePair.id,
       notes: "Updated notes",
     });
 
@@ -155,10 +189,13 @@ describe("Link Router", () => {
       year: "2024",
     });
 
+    const linkNames = await caller.linkName.getAll();
+    const linkNamePair = linkNames.find((ln) => ln.forwardName === "references") || linkNames[0];
+
     await caller.link.create({
       sourceId: source.id,
       targetId: target.id,
-      forwardName: "references",
+      linkNameId: linkNamePair.id,
     });
 
     const links = await caller.link.getAll();
@@ -166,6 +203,7 @@ describe("Link Router", () => {
     expect(links.length).toBeGreaterThan(0);
     expect(links[0]?.source).toBeDefined();
     expect(links[0]?.target).toBeDefined();
+    expect(links[0]?.linkName).toBeDefined();
   });
 
   test("should return outgoing and incoming links for a concept", async () => {
@@ -196,18 +234,26 @@ describe("Link Router", () => {
       year: "2024",
     });
 
+    // Get link name pair
+    const linkNames = await caller.linkName.getAll();
+    const linkNamePair = linkNames.find((ln) => ln.forwardName === "references") || linkNames[0];
+    
+    if (!linkNamePair) {
+      throw new Error("No link name pairs available for test");
+    }
+
     // Concept 1 -> Concept 2 (outgoing from concept1)
     await caller.link.create({
       sourceId: concept1.id,
       targetId: concept2.id,
-      forwardName: "references",
+      linkNameId: linkNamePair.id,
     });
 
     // Concept 3 -> Concept 1 (incoming to concept1)
     await caller.link.create({
       sourceId: concept3.id,
       targetId: concept1.id,
-      forwardName: "references",
+      linkNameId: linkNamePair.id,
     });
 
     const result = await caller.link.getByConcept({ conceptId: concept1.id });
@@ -237,10 +283,13 @@ describe("Link Router", () => {
       year: "2024",
     });
 
+    const linkNames = await caller.linkName.getAll();
+    const linkNamePair = linkNames.find((ln) => ln.forwardName === "references") || linkNames[0];
+
     await caller.link.create({
       sourceId: source.id,
       targetId: target.id,
-      forwardName: "references",
+      linkNameId: linkNamePair.id,
     });
 
     await caller.link.delete({

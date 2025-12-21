@@ -1,52 +1,82 @@
+/**
+ * Capsule Router - tRPC procedures for capsule content management
+ * Uses Drizzle ORM for database access
+ */
+
 import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
+import { eq, desc, sql } from "drizzle-orm";
+import { capsule, anchor, repurposedContent } from "~/server/schema";
 import { extractAnchorMetadata } from "~/server/services/anchorExtractor";
 import { repurposeAnchorContent } from "~/server/services/repurposer";
 import { getLLMClient } from "~/server/services/llm/client";
 import { getConfigLoader } from "~/server/services/config";
 import { logServiceError } from "~/lib/logger";
 import { safeJsonParseArray } from "~/lib/json-utils";
-import type { AnchorWithRepurposed } from "~/types/database";
 
 export const capsuleRouter = createTRPCRouter({
-  list: publicProcedure.query(async ({ ctx }) => {
-    const capsules = await ctx.db.capsule.findMany({
-      include: {
-        anchors: {
-          include: {
-            repurposedContent: true,
+  list: publicProcedure
+    .input(
+      z.object({
+        summary: z.boolean().optional().default(false), // If true, only return counts, not full nested data
+      }).optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const summaryOnly = input?.summary ?? false;
+
+      if (summaryOnly) {
+        // Lightweight query for dashboard - only get capsules with anchors (no repurposedContent)
+        // Load anchors without their nested repurposedContent relation
+        const capsules = await ctx.db.query.capsule.findMany({
+          with: {
+            anchors: {
+              // Don't include repurposedContent relation
+            },
+          },
+          orderBy: [desc(capsule.createdAt)],
+        });
+
+        return capsules;
+      }
+
+      // Full query with all nested data for detailed views
+      const capsules = await ctx.db.query.capsule.findMany({
+        with: {
+          anchors: {
+            with: {
+              repurposedContent: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        orderBy: [desc(capsule.createdAt)],
+      });
 
-    return capsules;
-  }),
+      return capsules;
+    }),
 
   getById: publicProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      const capsule = await ctx.db.capsule.findUnique({
-        where: { id: input.id },
-        include: {
+      const foundCapsule = await ctx.db.query.capsule.findFirst({
+        where: eq(capsule.id, input.id),
+        with: {
           anchors: {
-            include: {
+            with: {
               repurposedContent: true,
             },
           },
         },
       });
 
-      if (!capsule) {
+      if (!foundCapsule) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Capsule not found",
         });
       }
 
-      return capsule;
+      return foundCapsule;
     }),
 
   create: publicProcedure
@@ -59,16 +89,17 @@ export const capsuleRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const capsule = await ctx.db.capsule.create({
-        data: {
+      const [newCapsule] = await ctx.db
+        .insert(capsule)
+        .values({
           title: input.title,
           promise: input.promise,
           cta: input.cta,
-          offerMapping: input.offerMapping,
-        },
-      });
+          offerMapping: input.offerMapping ?? null,
+        })
+        .returning();
 
-      return capsule;
+      return newCapsule;
     }),
 
   createAnchor: publicProcedure
@@ -83,8 +114,9 @@ export const capsuleRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const anchor = await ctx.db.anchor.create({
-        data: {
+      const [newAnchor] = await ctx.db
+        .insert(anchor)
+        .values({
           capsuleId: input.capsuleId,
           title: input.title,
           content: input.content,
@@ -92,11 +124,11 @@ export const capsuleRouter = createTRPCRouter({
           solutionSteps: input.solutionSteps
             ? JSON.stringify(input.solutionSteps)
             : null,
-          proof: input.proof,
-        },
-      });
+          proof: input.proof ?? null,
+        })
+        .returning();
 
-      return anchor;
+      return newAnchor;
     }),
 
   createRepurposedContent: publicProcedure
@@ -109,16 +141,17 @@ export const capsuleRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const repurposed = await ctx.db.repurposedContent.create({
-        data: {
+      const [newRepurposed] = await ctx.db
+        .insert(repurposedContent)
+        .values({
           anchorId: input.anchorId,
           type: input.type,
           content: input.content,
-          guidance: input.guidance,
-        },
-      });
+          guidance: input.guidance ?? null,
+        })
+        .returning();
 
-      return repurposed;
+      return newRepurposed;
     }),
 
   createAnchorFromPDF: publicProcedure
@@ -127,28 +160,31 @@ export const capsuleRouter = createTRPCRouter({
         capsuleId: z.string(),
         fileData: z.string(), // Base64 encoded PDF file
         fileName: z.string().optional(),
-        autoRepurpose: z.boolean().default(true), // Whether to automatically generate repurposed content
+        autoRepurpose: z.boolean().default(true),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       try {
         // Step 1: Extract text from PDF
         const pdfParseModule = await import("pdf-parse");
-        
+
         type PDFParseModule = {
           default?: {
             PDFParse?: new (options: { data: Buffer }) => PDFParser;
           };
           PDFParse?: new (options: { data: Buffer }) => PDFParser;
         };
-        
+
         interface PDFParser {
           getText(): Promise<{ text: string; total: number }>;
           getInfo(): Promise<{ info: unknown; metadata: unknown }>;
         }
-        
+
         const module = pdfParseModule as unknown as PDFParseModule;
-        const PDFParse = module.default?.PDFParse || module.PDFParse || (pdfParseModule as unknown as new (options: { data: Buffer }) => PDFParser);
+        const PDFParse =
+          module.default?.PDFParse ||
+          module.PDFParse ||
+          (pdfParseModule as unknown as new (options: { data: Buffer }) => PDFParser);
 
         const pdfBuffer = Buffer.from(input.fileData, "base64");
         const parser = new PDFParse({ data: pdfBuffer });
@@ -163,36 +199,47 @@ export const capsuleRouter = createTRPCRouter({
         }
 
         // Step 2: Verify capsule exists
-        const capsule = await ctx.db.capsule.findUnique({
-          where: { id: input.capsuleId },
+        const foundCapsule = await ctx.db.query.capsule.findFirst({
+          where: eq(capsule.id, input.capsuleId),
         });
 
-        if (!capsule) {
+        if (!foundCapsule) {
           throw new TRPCError({
             code: "NOT_FOUND",
             message: "Capsule not found",
           });
         }
 
-        // Step 3: Extract metadata (title, pain points, solution steps) using AI
+        // Step 3: Extract metadata using AI
         const llmClient = getLLMClient();
         const configLoader = getConfigLoader();
-        const metadata = await extractAnchorMetadata(pdfText, llmClient, configLoader);
+        const metadata = await extractAnchorMetadata(
+          pdfText,
+          llmClient,
+          configLoader,
+        );
 
         // Step 4: Create anchor
-        const anchor = await ctx.db.anchor.create({
-          data: {
+        const [newAnchor] = await ctx.db
+          .insert(anchor)
+          .values({
             capsuleId: input.capsuleId,
             title: metadata.title,
             content: pdfText,
-            painPoints: metadata.painPoints.length > 0 ? JSON.stringify(metadata.painPoints) : null,
-            solutionSteps: metadata.solutionSteps.length > 0 ? JSON.stringify(metadata.solutionSteps) : null,
-            proof: metadata.proof,
-          },
-        });
+            painPoints:
+              metadata.painPoints.length > 0
+                ? JSON.stringify(metadata.painPoints)
+                : null,
+            solutionSteps:
+              metadata.solutionSteps.length > 0
+                ? JSON.stringify(metadata.solutionSteps)
+                : null,
+            proof: metadata.proof ?? null,
+          })
+          .returning();
 
         // Step 5: Generate repurposed content if requested
-        let repurposedContent = [];
+        const savedRepurposed = [];
         if (input.autoRepurpose) {
           const repurposed = await repurposeAnchorContent(
             metadata.title,
@@ -203,27 +250,32 @@ export const capsuleRouter = createTRPCRouter({
             configLoader,
           );
 
-          // Save repurposed content to database
+          // Save repurposed content
           for (const item of repurposed) {
-            const saved = await ctx.db.repurposedContent.create({
-              data: {
-                anchorId: anchor.id,
+            const [saved] = await ctx.db
+              .insert(repurposedContent)
+              .values({
+                anchorId: newAnchor.id,
                 type: item.type,
                 content: item.content,
-                guidance: item.guidance,
-              },
-            });
-            repurposedContent.push(saved);
+                guidance: item.guidance ?? null,
+              })
+              .returning();
+            savedRepurposed.push(saved);
           }
         }
 
         // Return anchor with repurposed content
+        const fullAnchor = await ctx.db.query.anchor.findFirst({
+          where: eq(anchor.id, newAnchor.id),
+          with: {
+            repurposedContent: true,
+          },
+        });
+
         return {
-          anchor: {
-            ...anchor,
-            repurposedContent,
-          } as AnchorWithRepurposed,
-          repurposedContent,
+          anchor: fullAnchor!,
+          repurposedContent: savedRepurposed,
           metadata: {
             title: metadata.title,
             painPoints: metadata.painPoints,
@@ -275,35 +327,56 @@ export const capsuleRouter = createTRPCRouter({
       if (data.title !== undefined) updateData.title = data.title;
       if (data.content !== undefined) updateData.content = data.content;
       if (data.painPoints !== undefined) {
-        updateData.painPoints = data.painPoints.length > 0 ? JSON.stringify(data.painPoints) : null;
+        updateData.painPoints =
+          data.painPoints.length > 0 ? JSON.stringify(data.painPoints) : null;
       }
       if (data.solutionSteps !== undefined) {
-        updateData.solutionSteps = data.solutionSteps.length > 0 ? JSON.stringify(data.solutionSteps) : null;
+        updateData.solutionSteps =
+          data.solutionSteps.length > 0
+            ? JSON.stringify(data.solutionSteps)
+            : null;
       }
       if (data.proof !== undefined) updateData.proof = data.proof || null;
 
-      const anchor = await ctx.db.anchor.update({
-        where: { id },
-        data: updateData,
-      });
+      const [updatedAnchor] = await ctx.db
+        .update(anchor)
+        .set(updateData)
+        .where(eq(anchor.id, id))
+        .returning();
 
-      return anchor;
+      if (!updatedAnchor) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Anchor not found",
+        });
+      }
+
+      return updatedAnchor;
     }),
 
   deleteAnchor: publicProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      // Delete repurposed content first (cascade)
-      await ctx.db.repurposedContent.deleteMany({
-        where: { anchorId: input.id },
-      });
+      // Delete repurposed content first (cascade handled by DB)
+      await ctx.db
+        .delete(repurposedContent)
+        .where(eq(repurposedContent.anchorId, input.id));
 
       // Delete anchor
-      const anchor = await ctx.db.anchor.delete({
-        where: { id: input.id },
+      const foundAnchor = await ctx.db.query.anchor.findFirst({
+        where: eq(anchor.id, input.id),
       });
 
-      return anchor;
+      if (!foundAnchor) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Anchor not found",
+        });
+      }
+
+      await ctx.db.delete(anchor).where(eq(anchor.id, input.id));
+
+      return foundAnchor;
     }),
 
   updateRepurposedContent: publicProcedure
@@ -317,22 +390,41 @@ export const capsuleRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
 
-      const repurposed = await ctx.db.repurposedContent.update({
-        where: { id },
-        data,
-      });
+      const [updatedRepurposed] = await ctx.db
+        .update(repurposedContent)
+        .set(data)
+        .where(eq(repurposedContent.id, id))
+        .returning();
 
-      return repurposed;
+      if (!updatedRepurposed) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Repurposed content not found",
+        });
+      }
+
+      return updatedRepurposed;
     }),
 
   deleteRepurposedContent: publicProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const repurposed = await ctx.db.repurposedContent.delete({
-        where: { id: input.id },
+      const foundRepurposed = await ctx.db.query.repurposedContent.findFirst({
+        where: eq(repurposedContent.id, input.id),
       });
 
-      return repurposed;
+      if (!foundRepurposed) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Repurposed content not found",
+        });
+      }
+
+      await ctx.db
+        .delete(repurposedContent)
+        .where(eq(repurposedContent.id, input.id));
+
+      return foundRepurposed;
     }),
 
   regenerateRepurposedContent: publicProcedure
@@ -344,11 +436,11 @@ export const capsuleRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       try {
         // Get the anchor
-        const anchor = await ctx.db.anchor.findUnique({
-          where: { id: input.anchorId },
+        const foundAnchor = await ctx.db.query.anchor.findFirst({
+          where: eq(anchor.id, input.anchorId),
         });
 
-        if (!anchor) {
+        if (!foundAnchor) {
           throw new TRPCError({
             code: "NOT_FOUND",
             message: "Anchor not found",
@@ -356,15 +448,17 @@ export const capsuleRouter = createTRPCRouter({
         }
 
         // Parse pain points and solution steps
-        const painPoints = safeJsonParseArray<string>(anchor.painPoints, []) ?? [];
-        const solutionSteps = safeJsonParseArray<string>(anchor.solutionSteps, []) ?? [];
+        const painPoints =
+          safeJsonParseArray<string>(foundAnchor.painPoints, []) ?? [];
+        const solutionSteps =
+          safeJsonParseArray<string>(foundAnchor.solutionSteps, []) ?? [];
 
         // Generate new repurposed content
         const llmClient = getLLMClient();
         const configLoader = getConfigLoader();
         const repurposed = await repurposeAnchorContent(
-          anchor.title,
-          anchor.content,
+          foundAnchor.title,
+          foundAnchor.content,
           Array.isArray(painPoints) ? painPoints : null,
           Array.isArray(solutionSteps) ? solutionSteps : null,
           llmClient,
@@ -372,21 +466,22 @@ export const capsuleRouter = createTRPCRouter({
         );
 
         // Delete existing repurposed content
-        await ctx.db.repurposedContent.deleteMany({
-          where: { anchorId: input.anchorId },
-        });
+        await ctx.db
+          .delete(repurposedContent)
+          .where(eq(repurposedContent.anchorId, input.anchorId));
 
         // Save new repurposed content
         const savedRepurposed = [];
         for (const item of repurposed) {
-          const saved = await ctx.db.repurposedContent.create({
-            data: {
+          const [saved] = await ctx.db
+            .insert(repurposedContent)
+            .values({
               anchorId: input.anchorId,
               type: item.type,
               content: item.content,
-              guidance: item.guidance,
-            },
-          });
+              guidance: item.guidance ?? null,
+            })
+            .returning();
           savedRepurposed.push(saved);
         }
 
@@ -407,4 +502,3 @@ export const capsuleRouter = createTRPCRouter({
       }
     }),
 });
-

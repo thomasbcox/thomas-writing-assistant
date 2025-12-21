@@ -1,3 +1,8 @@
+/**
+ * Database type definitions
+ * Uses Drizzle ORM types
+ */
+
 import type {
   Concept,
   Link,
@@ -5,7 +10,7 @@ import type {
   Capsule,
   Anchor,
   RepurposedContent,
-} from "@prisma/client";
+} from "~/server/schema";
 
 export type ConceptWithLinks = Concept & {
   outgoingLinks: Array<Link & { target: Concept }>;
@@ -13,8 +18,9 @@ export type ConceptWithLinks = Concept & {
 };
 
 export type LinkWithConcepts = Link & {
-  source: Concept;
-  target: Concept;
+  source: Concept | null;
+  target: Concept | null;
+  linkName: LinkName | null;
 };
 
 export type CapsuleWithAnchors = Capsule & {
@@ -31,6 +37,12 @@ export type LinkListItem = LinkWithConcepts;
 
 export type CapsuleListItem = CapsuleWithAnchors;
 
-// Re-export Prisma types for convenience
-export type { Anchor, RepurposedContent } from "@prisma/client";
-
+// Re-export Drizzle types for convenience
+export type {
+  Concept,
+  Link,
+  LinkName,
+  Capsule,
+  Anchor,
+  RepurposedContent,
+} from "~/server/schema";

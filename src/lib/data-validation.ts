@@ -1,9 +1,14 @@
 /**
  * Data validation utilities for checking data quality
- * Last Updated: 2025-12-11
+ * Uses Drizzle ORM types
  */
 
-import type { Concept, Link, Capsule, Anchor } from "@prisma/client";
+import type {
+  Concept,
+  Link,
+  Capsule,
+  Anchor,
+} from "~/server/schema";
 
 export interface ValidationIssue {
   type: "missing" | "invalid" | "incomplete" | "orphaned";
@@ -81,7 +86,11 @@ export function validateConcept(concept: Concept): ValidationIssue[] {
 /**
  * Validate a link for data quality issues
  */
-export function validateLink(link: Link, sourceExists: boolean, targetExists: boolean): ValidationIssue[] {
+export function validateLink(
+  link: Link,
+  sourceExists: boolean,
+  targetExists: boolean,
+): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
 
   // Check for orphaned links (source or target doesn't exist)
@@ -226,7 +235,11 @@ export function generateDataQualityReport(
   // Validate links
   links.forEach((link) => {
     issues.push(
-      ...validateLink(link, conceptExists(link.sourceId), conceptExists(link.targetId)),
+      ...validateLink(
+        link,
+        conceptExists(link.sourceId),
+        conceptExists(link.targetId),
+      ),
     );
   });
 
@@ -252,6 +265,3 @@ export function generateDataQualityReport(
     issues,
   };
 }
-
-
-

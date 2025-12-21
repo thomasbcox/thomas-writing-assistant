@@ -1,11 +1,15 @@
 /**
  * Health check API endpoint
  * GET /api/health - Returns system health status
+ * Uses Drizzle ORM for database access
  */
 
 import { NextResponse } from "next/server";
 import { getDb, handleApiError } from "~/server/api/helpers";
 import { getConfigLoader } from "~/server/services/config";
+import { concept } from "~/server/schema";
+import type Database from "better-sqlite3";
+import { logServiceError } from "~/lib/logger";
 
 interface HealthCheck {
   status: "healthy" | "degraded" | "unhealthy";
@@ -55,22 +59,95 @@ export async function GET() {
     responseTime: serverResponseTime,
   };
 
-  // Check database
+  // Check database with timeout - verify tables exist
   try {
     const dbStartTime = Date.now();
-    await getDb().concept.count();
-    const dbResponseTime = Date.now() - dbStartTime;
-    checks.database = {
-      status: "healthy",
-      message: "Database is connected",
-      responseTime: dbResponseTime,
-    };
+    const db = getDb();
+    
+    // Use raw SQLite to check if tables exist
+    const sqlite = (db as any).$client || (db as any).session?.client as InstanceType<typeof Database> | undefined;
+    if (sqlite) {
+      // First verify database is accessible
+      sqlite.prepare("SELECT 1").get();
+      
+      // Then check if required tables exist
+      const requiredTables = ["Concept", "Link", "Capsule", "Anchor", "RepurposedContent", "LinkName", "MRUConcept"];
+      const missingTables: string[] = [];
+      
+      for (const tableName of requiredTables) {
+        const result = sqlite
+          .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?")
+          .get(tableName) as { name: string } | undefined;
+        
+        if (!result) {
+          missingTables.push(tableName);
+        }
+      }
+      
+      const dbResponseTime = Date.now() - dbStartTime;
+      
+      if (missingTables.length > 0) {
+        checks.database = {
+          status: "unhealthy",
+          message: `Missing tables: ${missingTables.join(", ")}`,
+          responseTime: dbResponseTime,
+        };
+        issues.push(`Database: Missing required tables: ${missingTables.join(", ")}`);
+      } else if (dbResponseTime > 1000) {
+        // Database is slow but working
+        checks.database = {
+          status: "degraded",
+          message: `Database is connected but slow (${dbResponseTime}ms)`,
+          responseTime: dbResponseTime,
+        };
+        issues.push(`Database response time is high: ${dbResponseTime}ms`);
+      } else {
+        checks.database = {
+          status: "healthy",
+          message: "Database is connected and all tables exist",
+          responseTime: dbResponseTime,
+        };
+      }
+    } else {
+      // Fallback to Drizzle query with timeout - this will fail if tables don't exist
+      const dbCheckPromise = db.select().from(concept).limit(1);
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Database query timeout (2s)")), 2000)
+      );
+      
+      await Promise.race([dbCheckPromise, timeoutPromise]);
+      const dbResponseTime = Date.now() - dbStartTime;
+      checks.database = {
+        status: "healthy",
+        message: "Database is connected",
+        responseTime: dbResponseTime,
+      };
+    }
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Database connection failed";
+    const isMissingTable = errorMessage.includes("no such table") || errorMessage.includes("does not exist");
+    const isInvalidUrl = errorMessage.includes("Invalid DATABASE_URL");
+    
+    // Log the error for debugging
+    logServiceError(error, "Health check - Database", {
+      errorMessage,
+      isMissingTable,
+      isInvalidUrl,
+    });
+    
     checks.database = {
       status: "unhealthy",
-      message: error instanceof Error ? error.message : "Database connection failed",
+      message: isInvalidUrl
+        ? "Database URL format is invalid - check .env file"
+        : isMissingTable 
+        ? `Database schema not initialized: ${errorMessage}` 
+        : errorMessage,
     };
-    issues.push("Database connection failed");
+    issues.push(
+      isInvalidUrl
+        ? "Database: Invalid DATABASE_URL format in .env file - must be 'file:./dev.db' for SQLite"
+        : `Database: ${isMissingTable ? "Schema not initialized - run 'npm run db:push'" : errorMessage}`
+    );
   }
 
   // Check configuration files
@@ -103,6 +180,11 @@ export async function GET() {
       checks.config.status = "degraded";
     }
   } catch (error) {
+    // Log config loading errors
+    logServiceError(error, "Health check - Configuration", {
+      errorMessage: error instanceof Error ? error.message : "Unknown error",
+    });
+    
     checks.config = {
       status: "unhealthy",
       styleGuide: { loaded: false, isEmpty: true },
@@ -116,7 +198,6 @@ export async function GET() {
   // Check API endpoints (test a few critical ones)
   try {
     // We're already in an API route, so API is working
-    // Could test other endpoints, but that's expensive
     checks.api = {
       status: "healthy",
       message: "API endpoints are responding",

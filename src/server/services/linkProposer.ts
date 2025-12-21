@@ -1,12 +1,18 @@
-import { db } from "~/server/db";
+/**
+ * Link Proposer Service
+ * Uses Drizzle ORM for database access
+ */
+
 import { getLLMClient } from "./llm/client";
 import { getConfigLoader } from "./config";
 import { logServiceError, logger } from "~/lib/logger";
 import type { LLMClient } from "./llm/client";
 import type { ConfigLoader } from "./config";
+import type { ReturnType } from "~/server/db";
+import { eq, and, not, notInArray, inArray } from "drizzle-orm";
+import { concept, link, linkName } from "~/server/schema";
 
-// Use typeof db to get PrismaClient type
-type PrismaClient = typeof db;
+type Database = ReturnType<typeof import("~/server/db").db>;
 
 export interface LinkProposal {
   source: string;
@@ -20,89 +26,115 @@ export interface LinkProposal {
 export async function proposeLinksForConcept(
   conceptId: string,
   maxProposals: number = 5,
-  database?: PrismaClient,
+  database?: Database,
   llmClient?: LLMClient,
   configLoader?: ConfigLoader,
 ): Promise<LinkProposal[]> {
   const startTime = Date.now();
-  // Use provided instances or fall back to singletons/db for backward compatibility
+  const { db } = await import("~/server/db");
   const dbInstance = database ?? db;
   const client = llmClient ?? getLLMClient();
   const config = configLoader ?? getConfigLoader();
-  
-  logger.info({
-    service: "linkProposer",
-    operation: "proposeLinksForConcept",
-    conceptId,
-    maxProposals,
-  }, "Starting link proposal generation");
 
-  const targetConcept = await dbInstance.concept.findUnique({
-    where: { id: conceptId },
+  logger.info(
+    {
+      service: "linkProposer",
+      operation: "proposeLinksForConcept",
+      conceptId,
+      maxProposals,
+    },
+    "Starting link proposal generation",
+  );
+
+  const targetConcept = await dbInstance.query.concept.findFirst({
+    where: eq(concept.id, conceptId),
   });
 
   if (!targetConcept) {
-    logger.warn({
-      service: "linkProposer",
-      operation: "proposeLinksForConcept",
-      conceptId,
-    }, "Target concept not found");
+    logger.warn(
+      {
+        service: "linkProposer",
+        operation: "proposeLinksForConcept",
+        conceptId,
+      },
+      "Target concept not found",
+    );
     return [];
   }
 
-  logger.debug({
-    service: "linkProposer",
-    operation: "proposeLinksForConcept",
-    conceptId,
-    conceptTitle: targetConcept.title,
-  }, "Target concept loaded");
-
-  // Get all concepts except this one and already-linked ones
-  logger.debug({
-    service: "linkProposer",
-    operation: "proposeLinksForConcept",
-    conceptId,
-  }, "Querying existing links");
-
-  const existingLinks = await dbInstance.link.findMany({
-    where: { sourceId: conceptId },
-  });
-
-  const linkedIds = new Set(existingLinks.map((link: { targetId: string }) => link.targetId));
-
-  logger.debug({
-    service: "linkProposer",
-    operation: "proposeLinksForConcept",
-    conceptId,
-    existingLinksCount: existingLinks.length,
-    linkedIdsCount: linkedIds.size,
-  }, "Existing links loaded");
-
-  const allLinkedIds = Array.from(linkedIds);
-  const candidates = await dbInstance.concept.findMany({
-    where: {
-      AND: [
-        { id: { not: conceptId } },
-        ...(allLinkedIds.length > 0 ? [{ id: { notIn: allLinkedIds } }] : []),
-        { status: "active" },
-      ],
-    },
-    take: 20, // Limit for token efficiency
-  });
-
-  logger.debug({
-    service: "linkProposer",
-    operation: "proposeLinksForConcept",
-    conceptId,
-    candidatesCount: candidates.length,
-  }, "Candidate concepts loaded");
-
-  if (candidates.length === 0) {
-    logger.info({
+  logger.debug(
+    {
       service: "linkProposer",
       operation: "proposeLinksForConcept",
       conceptId,
-    }, "No candidate concepts available for linking");
+      conceptTitle: targetConcept.title,
+    },
+    "Target concept loaded",
+  );
+
+  // Get all concepts except this one and already-linked ones
+  logger.debug(
+    {
+      service: "linkProposer",
+      operation: "proposeLinksForConcept",
+      conceptId,
+    },
+    "Querying existing links",
+  );
+
+  const existingLinks = await dbInstance
+    .select()
+    .from(link)
+    .where(eq(link.sourceId, conceptId));
+
+  const linkedIds = new Set(existingLinks.map((l) => l.targetId));
+
+  logger.debug(
+    {
+      service: "linkProposer",
+      operation: "proposeLinksForConcept",
+      conceptId,
+      existingLinksCount: existingLinks.length,
+      linkedIdsCount: linkedIds.size,
+    },
+    "Existing links loaded",
+  );
+
+  const allLinkedIds = Array.from(linkedIds);
+  const conditions = [
+    not(eq(concept.id, conceptId)),
+    eq(concept.status, "active"),
+  ];
+
+  if (allLinkedIds.length > 0) {
+    conditions.push(notInArray(concept.id, allLinkedIds));
+  }
+
+  const candidates = await dbInstance
+    .select()
+    .from(concept)
+    .where(and(...conditions)!)
+    .limit(20); // Limit for token efficiency
+
+  logger.debug(
+    {
+      service: "linkProposer",
+      operation: "proposeLinksForConcept",
+      conceptId,
+      candidatesCount: candidates.length,
+    },
+    "Candidate concepts loaded",
+  );
+
+  if (candidates.length === 0) {
+    logger.info(
+      {
+        service: "linkProposer",
+        operation: "proposeLinksForConcept",
+        conceptId,
+      },
+      "No candidate concepts available for linking",
+    );
     return [];
   }
 
@@ -117,19 +149,22 @@ export async function proposeLinksForConcept(
   );
 
   const totalDuration = Date.now() - startTime;
-  logger.info({
-    service: "linkProposer",
-    operation: "proposeLinksForConcept",
-    conceptId,
-    totalDuration,
-    proposalsGenerated: proposals.length,
-    proposalsDetails: proposals.map((p) => ({
-      target: p.target,
-      targetTitle: p.target_title,
-      forwardName: p.forward_name,
-      confidence: p.confidence,
-    })),
-  }, "Link proposals generated successfully");
+  logger.info(
+    {
+      service: "linkProposer",
+      operation: "proposeLinksForConcept",
+      conceptId,
+      totalDuration,
+      proposalsGenerated: proposals.length,
+      proposalsDetails: proposals.map((p) => ({
+        target: p.target,
+        targetTitle: p.target_title,
+        forwardName: p.forward_name,
+        confidence: p.confidence,
+      })),
+    },
+    "Link proposals generated successfully",
+  );
 
   return proposals;
 }
@@ -150,7 +185,7 @@ async function proposeLinksWithLLM(
   maxProposals: number,
   llmClient: LLMClient,
   configLoader: ConfigLoader,
-  database: PrismaClient,
+  database: Database,
 ): Promise<LinkProposal[]> {
   // Build candidate descriptions
   const candidateDescriptions = candidates.map((candidate, i) => ({
@@ -160,9 +195,10 @@ async function proposeLinksWithLLM(
   }));
 
   // Get available link names
-  const linkNames = await database.linkName.findMany({
-    where: { isDeleted: false },
-  });
+  const linkNames = await database
+    .select()
+    .from(linkName)
+    .where(eq(linkName.isDeleted, false));
 
   const defaultNames = [
     "belongs to",
@@ -183,7 +219,7 @@ async function proposeLinksWithLLM(
 
   const allLinkNames = [
     ...defaultNames,
-    ...linkNames.map((ln: { name: string }) => ln.name),
+    ...linkNames.map((ln) => ln.name),
   ].join(", ");
 
   const systemPrompt = configLoader.getSystemPrompt(
@@ -229,28 +265,34 @@ Return a JSON object with a "proposals" array:
 Only include proposals with confidence >= 0.5. Limit to ${maxProposals} proposals.`;
 
   try {
-    logger.debug({
-      service: "linkProposer",
-      operation: "proposeLinksWithLLM",
-      sourceConceptId: sourceConcept.id,
-      candidateCount: candidates.length,
-      maxProposals,
-      promptLength: prompt.length,
-      systemPromptLength: systemPrompt.length,
-      provider: llmClient.getProvider(),
-      model: llmClient.getModel(),
-    }, "Calling LLM for link proposals");
+    logger.debug(
+      {
+        service: "linkProposer",
+        operation: "proposeLinksWithLLM",
+        sourceConceptId: sourceConcept.id,
+        candidateCount: candidates.length,
+        maxProposals,
+        promptLength: prompt.length,
+        systemPromptLength: systemPrompt.length,
+        provider: llmClient.getProvider(),
+        model: llmClient.getModel(),
+      },
+      "Calling LLM for link proposals",
+    );
 
     const llmStartTime = Date.now();
     const response = await llmClient.completeJSON(prompt, systemPrompt);
     const llmDuration = Date.now() - llmStartTime;
 
-    logger.debug({
-      service: "linkProposer",
-      operation: "proposeLinksWithLLM",
-      llmDuration,
-      responseKeys: Object.keys(response),
-    }, "LLM response received");
+    logger.debug(
+      {
+        service: "linkProposer",
+        operation: "proposeLinksWithLLM",
+        llmDuration,
+        responseKeys: Object.keys(response),
+      },
+      "LLM response received",
+    );
 
     const proposals = (response.proposals as Array<{
       target_id: string;
@@ -259,11 +301,14 @@ Only include proposals with confidence >= 0.5. Limit to ${maxProposals} proposal
       reasoning: string;
     }>) ?? [];
 
-    logger.debug({
-      service: "linkProposer",
-      operation: "proposeLinksWithLLM",
-      proposalsReceived: proposals.length,
-    }, "Processing LLM proposals");
+    logger.debug(
+      {
+        service: "linkProposer",
+        operation: "proposeLinksWithLLM",
+        proposalsReceived: proposals.length,
+      },
+      "Processing LLM proposals",
+    );
 
     // Enrich with target concept titles
     const enrichedProposals: LinkProposal[] = [];
@@ -283,21 +328,27 @@ Only include proposals with confidence >= 0.5. Limit to ${maxProposals} proposal
       }
     }
 
-    logger.debug({
-      service: "linkProposer",
-      operation: "proposeLinksWithLLM",
-      enrichedProposalsCount: enrichedProposals.length,
-      filteredOut: proposals.length - enrichedProposals.length,
-    }, "Enriched and filtered proposals");
+    logger.debug(
+      {
+        service: "linkProposer",
+        operation: "proposeLinksWithLLM",
+        enrichedProposalsCount: enrichedProposals.length,
+        filteredOut: proposals.length - enrichedProposals.length,
+      },
+      "Enriched and filtered proposals",
+    );
 
     return enrichedProposals.sort((a, b) => b.confidence - a.confidence);
   } catch (error) {
-    logger.error({
-      service: "linkProposer",
-      operation: "proposeLinksWithLLM",
-      sourceConceptId: sourceConcept.id,
-      error: error instanceof Error ? error.message : String(error),
-    }, "Link proposal generation failed");
+    logger.error(
+      {
+        service: "linkProposer",
+        operation: "proposeLinksWithLLM",
+        sourceConceptId: sourceConcept.id,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      "Link proposal generation failed",
+    );
     logServiceError(error, "linkProposer", {
       sourceConceptId: sourceConcept.id,
       sourceConceptTitle: sourceConcept.title,
@@ -307,4 +358,3 @@ Only include proposals with confidence >= 0.5. Limit to ${maxProposals} proposal
     return [];
   }
 }
-

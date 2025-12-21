@@ -1,11 +1,14 @@
 /**
  * REST API routes for repurposed content
  * POST /api/capsules/[id]/anchors/[anchorId]/repurposed - Create repurposed content
+ * Uses Drizzle ORM for database access
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb, handleApiError, parseJsonBody } from "~/server/api/helpers";
+import { eq } from "drizzle-orm";
+import { repurposedContent, anchor } from "~/server/schema";
 
 const createRepurposedSchema = z.object({
   type: z.string().min(1),
@@ -24,18 +27,30 @@ export async function POST(
     const body = await parseJsonBody(request);
     const input = createRepurposedSchema.parse(body);
 
-    const repurposed = await db.repurposedContent.create({
-      data: {
+    // Verify anchor exists
+    const foundAnchor = await db.query.anchor.findFirst({
+      where: eq(anchor.id, anchorId),
+    });
+
+    if (!foundAnchor) {
+      return NextResponse.json(
+        { error: "Anchor not found" },
+        { status: 404 },
+      );
+    }
+
+    const [newRepurposed] = await db
+      .insert(repurposedContent)
+      .values({
         anchorId,
         type: input.type,
         content: input.content,
         guidance: input.guidance ?? null,
-      },
-    });
+      })
+      .returning();
 
-    return NextResponse.json(repurposed, { status: 201 });
+    return NextResponse.json(newRepurposed, { status: 201 });
   } catch (error) {
     return handleApiError(error);
   }
 }
-

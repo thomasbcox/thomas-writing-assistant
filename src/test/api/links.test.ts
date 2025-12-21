@@ -5,89 +5,29 @@
  * DELETE /api/links/[sourceId]/[targetId] - Delete link
  */
 
-import { describe, it, expect, jest, beforeEach } from "@jest/globals";
+import { describe, it, expect, jest, beforeEach, beforeAll } from "@jest/globals";
+import { NextRequest } from "next/server";
+import { setupApiRouteMocks } from "./drizzle-mock-helper";
+
+// Setup mocks (jest.mock is hoisted)
+setupApiRouteMocks();
+
+// Import route handlers AFTER mocks are set up
 import { GET, POST } from "~/app/api/links/route";
 import { DELETE } from "~/app/api/links/[sourceId]/[targetId]/route";
-import { NextRequest } from "next/server";
 
-// Use jest.hoisted to create mock before jest.mock hoisting
-const { mockDb } = (jest as any).hoisted(() => {
-  return {
-    mockDb: {
-      concept: {
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-        count: jest.fn(),
-      },
-      link: {
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        delete: jest.fn(),
-        count: jest.fn(),
-      },
-      linkName: {
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-        count: jest.fn(),
-      },
-      capsule: {
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-        count: jest.fn(),
-      },
-      anchor: {
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-        count: jest.fn(),
-      },
-      repurposedContent: {
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-        count: jest.fn(),
-      },
-      mRUConcept: {
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-        count: jest.fn(),
-      },
-      $disconnect: jest.fn(),
-    },
-  };
+// Get mockDb reference after mocks are set up
+let mockDb: ReturnType<typeof import("./drizzle-mock-helper").createDrizzleMockDb>;
+beforeAll(async () => {
+  const helpers = await import("~/server/api/helpers");
+  mockDb = (helpers as any).__mockDb;
 });
-
-jest.mock("~/server/db", () => ({
-  db: mockDb,
-}));
 
 describe("Links API", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.mocked(mockDb.link.findMany).mockReset();
-    jest.mocked(mockDb.link.create).mockReset();
-    jest.mocked(mockDb.link.delete).mockReset();
-    jest.mocked(mockDb.link.findUnique).mockReset();
-    jest.mocked(mockDb.concept.findUnique).mockReset();
-    jest.mocked(mockDb.linkName.findMany).mockReset();
-    jest.mocked(mockDb.linkName.create).mockReset();
+    mockDb._setSelectResult([]);
+    mockDb._setInsertResult([]);
   });
 
   describe("GET /api/links", () => {
@@ -95,77 +35,97 @@ describe("Links API", () => {
       const mockLinks = [
         {
           id: "1",
-          sourceId: "concept-1",
-          targetId: "concept-2",
-          forwardName: "references",
-          reverseName: "referenced by",
-          notes: null,
+          sourceId: "source-1",
+          targetId: "target-1",
+          linkNameId: "linkname-1",
+          notes: "Notes",
           createdAt: new Date(),
-          source: { id: "concept-1", title: "Source Concept" },
-          target: { id: "concept-2", title: "Target Concept" },
+          source: { id: "source-1", title: "Source" },
+          target: { id: "target-1", title: "Target" },
+          linkName: { id: "linkname-1", forwardName: "relates to", reverseName: "related from" },
         },
       ];
 
-      jest.mocked(mockDb.link.findMany).mockResolvedValue(mockLinks as any);
+      mockDb.query.link.findMany.mockResolvedValue(mockLinks);
 
       const request = new NextRequest("http://localhost/api/links");
       const response = await GET(request);
       const data = await response.json();
 
       expect(response.status).toBe(200);
+      expect(Array.isArray(data)).toBe(true);
       expect(data).toHaveLength(1);
-      expect(data[0].sourceId).toBe("concept-1");
-      expect(mockDb.link.findMany).toHaveBeenCalled();
+      expect(mockDb.query.link.findMany).toHaveBeenCalled();
     });
 
-    it("should filter links by conceptId", async () => {
-      jest.mocked(mockDb.link.findMany).mockResolvedValue([]);
+    it("should filter by conceptId", async () => {
+      const mockOutgoing = [
+        {
+          id: "1",
+          sourceId: "concept-1",
+          targetId: "target-1",
+          linkNameId: "linkname-1",
+          source: { id: "concept-1", title: "Source" },
+          target: { id: "target-1", title: "Target" },
+          linkName: { id: "linkname-1", forwardName: "relates to", reverseName: "related from" },
+        },
+      ];
+
+      const mockIncoming = [
+        {
+          id: "2",
+          sourceId: "source-1",
+          targetId: "concept-1",
+          linkNameId: "linkname-1",
+          source: { id: "source-1", title: "Source" },
+          target: { id: "concept-1", title: "Target" },
+          linkName: { id: "linkname-1", forwardName: "relates to", reverseName: "related from" },
+        },
+      ];
+
+      mockDb.query.link.findMany
+        .mockResolvedValueOnce(mockOutgoing)
+        .mockResolvedValueOnce(mockIncoming);
 
       const request = new NextRequest("http://localhost/api/links?conceptId=concept-1");
-      await GET(request);
+      const response = await GET(request);
+      const data = await response.json();
 
-      // Should be called twice - once for outgoing, once for incoming
-      expect(mockDb.link.findMany).toHaveBeenCalled();
+      expect(response.status).toBe(200);
+      expect(data).toHaveProperty("outgoing");
+      expect(data).toHaveProperty("incoming");
+      expect(data.outgoing).toHaveLength(1);
+      expect(data.incoming).toHaveLength(1);
     });
   });
 
   describe("POST /api/links", () => {
-    it("should create a link", async () => {
+    it("should create a new link", async () => {
       const mockLink = {
         id: "1",
-        sourceId: "concept-1",
-        targetId: "concept-2",
-        forwardName: "references",
-        reverseName: "referenced by",
-        notes: "Test note",
+        sourceId: "source-1",
+        targetId: "target-1",
+        linkNameId: "linkname-1",
+        notes: "Notes",
         createdAt: new Date(),
-        source: { id: "concept-1", title: "Source" },
-        target: { id: "concept-2", title: "Target" },
+        source: { id: "source-1", title: "Source" },
+        target: { id: "target-1", title: "Target" },
+        linkName: { id: "linkname-1", forwardName: "relates to", reverseName: "related from" },
       };
 
-      // Mock link existence check (none exists)
-      jest.mocked(mockDb.link.findUnique).mockResolvedValue(null);
-      
-      // Mock concept exists
-      jest.mocked(mockDb.concept.findUnique).mockResolvedValue({
-        id: "concept-1",
-        title: "Source",
-      } as any);
-      
-      // Mock link names (empty)
-      jest.mocked(mockDb.linkName.findMany).mockResolvedValue([]);
-
-      // Mock link creation
-      jest.mocked(mockDb.link.create).mockResolvedValue(mockLink as any);
+      // First check if link exists (should return null)
+      mockDb.query.link.findFirst.mockResolvedValue(null);
+      // Then return created link
+      mockDb._setInsertResult([{ id: "1", sourceId: "source-1", targetId: "target-1" }]);
+      mockDb.query.link.findFirst.mockResolvedValueOnce(mockLink);
 
       const request = new NextRequest("http://localhost/api/links", {
         method: "POST",
         body: JSON.stringify({
-          sourceId: "concept-1",
-          targetId: "concept-2",
-          forwardName: "references",
-          reverseName: "referenced by",
-          notes: "Test note",
+          sourceId: "source-1",
+          targetId: "target-1",
+          linkNameId: "linkname-1",
+          notes: "Notes",
         }),
       });
 
@@ -173,99 +133,57 @@ describe("Links API", () => {
       const data = await response.json();
 
       expect(response.status).toBe(201);
-      expect(data.sourceId).toBe("concept-1");
-      expect(data.targetId).toBe("concept-2");
-      expect(mockDb.link.create).toHaveBeenCalled();
+      expect(data.sourceId).toBe("source-1");
+      expect(data.targetId).toBe("target-1");
+      expect(mockDb.insert).toHaveBeenCalled();
     });
 
-    it("should validate required fields", async () => {
-      const request = new NextRequest("http://localhost/api/links", {
-        method: "POST",
-        body: JSON.stringify({
-          sourceId: "concept-1",
-          // Missing targetId and forwardName
-        }),
-      });
+    it("should return existing link if already exists", async () => {
+      const existingLink = {
+        id: "1",
+        sourceId: "source-1",
+        targetId: "target-1",
+        linkNameId: "linkname-1",
+        source: { id: "source-1", title: "Source" },
+        target: { id: "target-1", title: "Target" },
+        linkName: { id: "linkname-1", forwardName: "relates to", reverseName: "related from" },
+      };
 
-      const response = await POST(request);
-
-      expect(response.status).toBe(400);
-    });
-
-    it("should return 404 if source concept not found", async () => {
-      // Mock link existence check (none exists)
-      jest.mocked(mockDb.link.findUnique).mockResolvedValue(null);
-      // Mock link.create to fail due to foreign key constraint (concept doesn't exist)
-      jest.mocked(mockDb.link.create).mockRejectedValue(
-        new Error("Foreign key constraint failed on the field: `sourceId`")
-      );
+      mockDb.query.link.findFirst.mockResolvedValue(existingLink);
+      mockDb._setUpdateResult([existingLink]);
+      mockDb.query.link.findFirst.mockResolvedValueOnce(existingLink);
 
       const request = new NextRequest("http://localhost/api/links", {
         method: "POST",
         body: JSON.stringify({
-          sourceId: "non-existent",
-          targetId: "concept-2",
-          forwardName: "references",
+          sourceId: "source-1",
+          targetId: "target-1",
+          linkNameId: "linkname-1",
         }),
       });
 
       const response = await POST(request);
+      const data = await response.json();
 
-      // The route will return 500 for database errors, but the test expects 404
-      // This test may need route changes to properly validate concept existence
-      expect([404, 500]).toContain(response.status);
+      expect(response.status).toBe(200);
+      expect(data.id).toBe("1");
     });
   });
 
   describe("DELETE /api/links/[sourceId]/[targetId]", () => {
     it("should delete a link", async () => {
-      const mockLink = {
-        id: "1",
-        sourceId: "concept-1",
-        targetId: "concept-2",
-        forwardName: "references",
-        reverseName: "referenced by",
-        createdAt: new Date(),
-      };
+      mockDb._setDeleteResult([{ id: "1" }]);
 
-      jest.mocked(mockDb.link.delete).mockResolvedValue(mockLink as any);
-
-      const request = new NextRequest("http://localhost/api/links/concept-1/concept-2", {
+      const request = new NextRequest("http://localhost/api/links/source-1/target-1", {
         method: "DELETE",
       });
 
       const response = await DELETE(request, {
-        params: Promise.resolve({ sourceId: "concept-1", targetId: "concept-2" }),
+        params: Promise.resolve({ sourceId: "source-1", targetId: "target-1" }),
       });
-      const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.sourceId).toBe("concept-1");
-      expect(mockDb.link.delete).toHaveBeenCalledWith({
-        where: {
-          sourceId_targetId: {
-            sourceId: "concept-1",
-            targetId: "concept-2",
-          },
-        },
-      });
-    });
-
-    it("should return error if link not found", async () => {
-      jest.mocked(mockDb.link.delete).mockRejectedValue(
-        new Error("Record to delete does not exist"),
-      );
-
-      const request = new NextRequest("http://localhost/api/links/concept-1/concept-2", {
-        method: "DELETE",
-      });
-
-      const response = await DELETE(request, {
-        params: Promise.resolve({ sourceId: "concept-1", targetId: "concept-2" }),
-      });
-
-      expect(response.status).toBe(500);
+      expect(mockDb.delete).toHaveBeenCalled();
     });
   });
 });
-

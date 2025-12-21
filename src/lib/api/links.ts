@@ -8,8 +8,7 @@ export interface Link {
   id: string;
   sourceId: string;
   targetId: string;
-  forwardName: string;
-  reverseName: string;
+  linkNameId: string;
   notes: string | null;
   createdAt: Date;
   source?: {
@@ -19,6 +18,12 @@ export interface Link {
   target?: {
     id: string;
     title: string;
+  };
+  linkName?: {
+    id: string;
+    forwardName: string;
+    reverseName: string;
+    isSymmetric: boolean;
   };
 }
 
@@ -30,8 +35,7 @@ export interface LinksResponse {
 export interface CreateLinkInput {
   sourceId: string;
   targetId: string;
-  forwardName: string;
-  reverseName?: string;
+  linkNameId: string;
   notes?: string;
 }
 

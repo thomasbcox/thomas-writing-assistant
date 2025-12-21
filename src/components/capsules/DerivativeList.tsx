@@ -19,14 +19,14 @@ export function DerivativeList({
   isDeleting = false,
 }: DerivativeListProps) {
   // Group derivatives by type
-  const groupedByType = derivatives.reduce(
+  const groupedByType = Array.isArray(derivatives) ? derivatives.reduce(
     (acc: Record<string, RepurposedContent[]>, item: RepurposedContent) => {
       if (!acc[item.type]) acc[item.type] = [];
       acc[item.type]!.push(item);
       return acc;
     },
     {} as Record<string, RepurposedContent[]>,
-  );
+  ) : {};
 
   const getTypeLabel = (type: string): string => {
     const labels: Record<string, string> = {
@@ -56,7 +56,7 @@ export function DerivativeList({
             {getTypeLabel(type)} {type === "social_post" || type === "pinterest_pin" ? `(${items.length})` : ""}
           </h5>
           <div className="space-y-2">
-            {items.map((item) => (
+            {Array.isArray(items) && items.map((item) => (
               <DerivativeItem
                 key={item.id}
                 item={item}

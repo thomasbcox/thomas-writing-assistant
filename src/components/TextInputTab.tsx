@@ -29,6 +29,20 @@ export function TextInputTab() {
   const [elapsedTime, setElapsedTime] = useState(0);
   const { toasts, addToast, removeToast } = useToast();
 
+  // Clear all tab state
+  const handleClear = () => {
+    setText("");
+    setInstructions("");
+    setMaxCandidates(5);
+    setDefaultCreator("");
+    setDefaultYear("");
+    setCandidates([]);
+    setIsGenerating(false);
+    setGenerationStartTime(null);
+    setElapsedTime(0);
+    addToast("Tab cleared", "success");
+  };
+
   const generateMutation = api.concept.generateCandidates.useMutation({
     onSuccess: (result) => {
       setCandidates(result);
@@ -110,6 +124,15 @@ export function TextInputTab() {
   return (
     <>
       <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <div className="flex justify-end mb-2">
+        <button
+          onClick={handleClear}
+          className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm"
+          title="Clear all inputs and candidates"
+        >
+          Clear
+        </button>
+      </div>
       <div className="space-y-8">
         <div className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-10">
         <div className="flex items-center gap-3 mb-8">

@@ -1,6 +1,6 @@
 # Documentation Status
 
-**Last Updated**: 2025-12-15
+**Last Updated**: January 2025
 
 ## Current Documentation
 
@@ -40,6 +40,13 @@
 - **CONCEPT_ENRICHMENT_PROPOSAL.md** - Feature proposal
 - **SYSTEM_COMPLETENESS_ASSESSMENT.md** - System assessment
 - **DATABASE_STATUS.md** - Database status
+- **PRISMA_TO_DRIZZLE_MIGRATION.md** - Migration documentation (historical)
+- **PRISMA_MIGRATION_ANALYSIS.md** - Migration analysis (historical)
+
+### Error Handling Documentation (Active)
+- **docs/error-handling-assessment.md** - Error handling assessment ✅ Completed
+- **docs/error-handling-improvements.md** - Error handling implementation summary ✅ Current
+- **docs/hydration-error-analysis.md** - Hydration error analysis ✅ Current
 
 ## Recently Deleted (Obsolete)
 
@@ -48,6 +55,9 @@ The following documentation files were removed as they were outdated or supersed
 1. **MIGRATION_STATUS.md** - Migration complete
 2. **MIGRATION_STATUS_REVIEW.md** - Migration complete
 3. **POSTGRES_MIGRATION_COMPLETE.md** - Migration complete
+4. **MIGRATION_TEST_STATUS.md** - Migration complete, tests updated
+5. **prisma.config.ts** - No longer using Prisma
+6. **src/server/schema.ts.backup** - Backup file no longer needed
 4. **REST_API_MIGRATION_PLAN.md** - Migration complete
 5. **FINAL_STATUS.md** - Outdated status
 6. **SUMMARY.md** - Outdated summary

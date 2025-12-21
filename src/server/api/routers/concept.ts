@@ -1,9 +1,14 @@
+/**
+ * Concept Router - tRPC procedures for concept management
+ * Uses Drizzle ORM for database access
+ */
+
 import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { v4 as uuidv4 } from "uuid";
-// Prisma types are available via the db instance
-// Using inline types instead of Prisma namespace
+import { eq, and, or, like, lte, desc } from "drizzle-orm";
+import { concept, link } from "~/server/schema";
 import { getLLMClient } from "~/server/services/llm/client";
 import { getConfigLoader } from "~/server/services/config";
 
@@ -16,26 +21,28 @@ export const conceptRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const where: {
-        status?: string;
-        OR?: Array<{ title?: { contains: string } } | { description?: { contains: string } }>;
-      } = {};
-      
+      const conditions = [];
+
       if (!input.includeTrash) {
-        where.status = "active";
-      }
-      
-      if (input.search) {
-        where.OR = [
-          { title: { contains: input.search } },
-          { description: { contains: input.search } },
-        ];
+        conditions.push(eq(concept.status, "active"));
       }
 
-      const concepts = await ctx.db.concept.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-      });
+      if (input.search) {
+        conditions.push(
+          or(
+            like(concept.title, `%${input.search}%`),
+            like(concept.description, `%${input.search}%`),
+          )!,
+        );
+      }
+
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+      const concepts = await ctx.db
+        .select()
+        .from(concept)
+        .where(whereClause)
+        .orderBy(desc(concept.createdAt));
 
       return concepts;
     }),
@@ -43,26 +50,32 @@ export const conceptRouter = createTRPCRouter({
   getById: publicProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      const concept = await ctx.db.concept.findUnique({
-        where: { id: input.id },
-        include: {
+      const foundConcept = await ctx.db.query.concept.findFirst({
+        where: eq(concept.id, input.id),
+        with: {
           outgoingLinks: {
-            include: { target: true },
+            with: {
+              target: true,
+              linkName: true,
+            },
           },
           incomingLinks: {
-            include: { source: true },
+            with: {
+              source: true,
+              linkName: true,
+            },
           },
         },
       });
 
-      if (!concept) {
+      if (!foundConcept) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Concept not found",
         });
       }
 
-      return concept;
+      return foundConcept;
     }),
 
   create: publicProcedure
@@ -79,8 +92,9 @@ export const conceptRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const identifier = `zettel-${uuidv4().slice(0, 8)}`;
 
-      const concept = await ctx.db.concept.create({
-        data: {
+      const [newConcept] = await ctx.db
+        .insert(concept)
+        .values({
           identifier,
           title: input.title,
           description: input.description ?? "",
@@ -89,10 +103,10 @@ export const conceptRouter = createTRPCRouter({
           source: input.source ?? "Unknown",
           year: input.year ?? new Date().getFullYear().toString(),
           status: "active",
-        },
-      });
+        })
+        .returning();
 
-      return concept;
+      return newConcept;
     }),
 
   update: publicProcedure
@@ -108,42 +122,66 @@ export const conceptRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input;
+      const { id, ...updateData } = input;
 
-      const concept = await ctx.db.concept.update({
-        where: { id },
-        data,
-      });
+      const [updatedConcept] = await ctx.db
+        .update(concept)
+        .set(updateData)
+        .where(eq(concept.id, id))
+        .returning();
 
-      return concept;
+      if (!updatedConcept) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Concept not found",
+        });
+      }
+
+      return updatedConcept;
     }),
 
   delete: publicProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const concept = await ctx.db.concept.update({
-        where: { id: input.id },
-        data: {
+      const [deletedConcept] = await ctx.db
+        .update(concept)
+        .set({
           status: "trash",
           trashedAt: new Date(),
-        },
-      });
+        })
+        .where(eq(concept.id, input.id))
+        .returning();
 
-      return concept;
+      if (!deletedConcept) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Concept not found",
+        });
+      }
+
+      return deletedConcept;
     }),
 
   restore: publicProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const concept = await ctx.db.concept.update({
-        where: { id: input.id },
-        data: {
+      const [restoredConcept] = await ctx.db
+        .update(concept)
+        .set({
           status: "active",
           trashedAt: null,
-        },
-      });
+        })
+        .where(eq(concept.id, input.id))
+        .returning();
 
-      return concept;
+      if (!restoredConcept) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Concept not found",
+        });
+      }
+
+      return restoredConcept;
     }),
 
   purgeTrash: publicProcedure
@@ -152,16 +190,16 @@ export const conceptRouter = createTRPCRouter({
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - input.daysOld);
 
-      const result = await ctx.db.concept.deleteMany({
-        where: {
-          status: "trash",
-          trashedAt: {
-            lte: cutoffDate,
-          },
-        },
-      });
+      const result = await ctx.db
+        .delete(concept)
+        .where(
+          and(
+            eq(concept.status, "trash"),
+            lte(concept.trashedAt, cutoffDate),
+          )!,
+        );
 
-      return { deletedCount: result.count };
+      return { deletedCount: result.changes };
     }),
 
   proposeLinks: publicProcedure
@@ -213,4 +251,3 @@ export const conceptRouter = createTRPCRouter({
       );
     }),
 });
-

@@ -62,7 +62,6 @@ export function createMockDb() {
       delete: jest.fn(),
       count: jest.fn(),
     },
-    $disconnect: jest.fn(),
   };
 }
 

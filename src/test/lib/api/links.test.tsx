@@ -47,10 +47,10 @@ describe("Links API hooks", () => {
           id: "1",
           sourceId: "concept-1",
           targetId: "concept-2",
-          forwardName: "references",
-          reverseName: "referenced by",
+          linkNameId: "linkname-1",
           notes: null,
           createdAt: new Date().toISOString(),
+          linkName: { id: "linkname-1", forwardName: "references", reverseName: "referenced by" },
         },
       ];
 
@@ -78,12 +78,12 @@ describe("Links API hooks", () => {
             id: "1",
             sourceId: "concept-1",
             targetId: "concept-2",
-            forwardName: "references",
-            reverseName: "referenced by",
+            linkNameId: "linkname-1",
             notes: null,
             createdAt: new Date().toISOString(),
             target: { id: "concept-2", title: "Target" },
             source: { id: "concept-1", title: "Source" },
+            linkName: { id: "linkname-1", forwardName: "references", reverseName: "referenced by" },
           },
         ],
         incoming: [],
@@ -125,10 +125,10 @@ describe("Links API hooks", () => {
         id: "1",
         sourceId: "concept-1",
         targetId: "concept-2",
-        forwardName: "references",
-        reverseName: "referenced by",
+        linkNameId: "linkname-1",
         notes: "Test note",
         createdAt: new Date().toISOString(),
+        linkName: { id: "linkname-1", forwardName: "references", reverseName: "referenced by" },
       };
 
       fetchMock.mockResolvedValueOnce({
@@ -143,8 +143,7 @@ describe("Links API hooks", () => {
       result.current.mutate({
         sourceId: "concept-1",
         targetId: "concept-2",
-        forwardName: "references",
-        reverseName: "referenced by",
+        linkNameId: "linkname-1",
         notes: "Test note",
       });
 
@@ -158,8 +157,7 @@ describe("Links API hooks", () => {
         body: JSON.stringify({
           sourceId: "concept-1",
           targetId: "concept-2",
-          forwardName: "references",
-          reverseName: "referenced by",
+          linkNameId: "linkname-1",
           notes: "Test note",
         }),
       });
@@ -172,9 +170,9 @@ describe("Links API hooks", () => {
         id: "1",
         sourceId: "concept-1",
         targetId: "concept-2",
-        forwardName: "references",
-        reverseName: "referenced by",
+        linkNameId: "linkname-1",
         createdAt: new Date().toISOString(),
+        linkName: { id: "linkname-1", forwardName: "references", reverseName: "referenced by" },
       };
 
       fetchMock.mockResolvedValueOnce({

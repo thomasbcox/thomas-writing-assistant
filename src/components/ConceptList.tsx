@@ -43,7 +43,7 @@ export function ConceptList({
     );
   }
 
-  if (!concepts || concepts.length === 0) {
+  if (!concepts || !Array.isArray(concepts) || concepts.length === 0) {
     return (
       <EmptyState
         title={showTrash ? "No trashed concepts" : "No concepts yet"}

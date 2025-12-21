@@ -13,7 +13,8 @@ interface AnchorEditorProps {
 
 export function AnchorEditor({ anchorId, onClose, onSave }: AnchorEditorProps) {
   // Get anchor from the capsule query
-  const { data: capsules } = api.capsule.list.useQuery();
+  // Need full data to find the anchor being edited
+  const { data: capsules } = api.capsule.list.useQuery({ summary: false });
   const anchor = capsules
     ?.flatMap((c: CapsuleWithAnchors) => c.anchors)
     .find((a: AnchorWithRepurposed) => a.id === anchorId);

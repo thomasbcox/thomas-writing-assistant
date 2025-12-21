@@ -1,10 +1,13 @@
 /**
  * REST API route to get link name usage
  * GET /api/link-names/[name]/usage - Get link name usage
+ * Uses Drizzle ORM for database access
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { handleApiError, getDb } from "~/server/api/helpers";
+import { eq } from "drizzle-orm";
+import { link, linkName } from "~/server/schema";
 
 const DEFAULT_LINK_NAMES = [
   "belongs to",
@@ -32,14 +35,28 @@ export async function GET(
     const db = getDb();
     const { name } = await params;
 
-    const links = await db.link.findMany({
-      where: {
-        OR: [
-          { forwardName: name },
-          { reverseName: name },
-        ],
-      },
-      include: {
+    // Find the LinkName pair by name (check both forward and reverse)
+    const linkNameRecord = await db.query.linkName.findFirst({
+      where: (linkNames, { or }) =>
+        or(
+          eq(linkNames.forwardName, name),
+          eq(linkNames.reverseName, name),
+        )!,
+    });
+
+    if (!linkNameRecord) {
+      return NextResponse.json({
+        name,
+        count: 0,
+        links: [],
+        isDefault: DEFAULT_LINK_NAMES.includes(name),
+      });
+    }
+
+    // Get all links using this LinkName pair
+    const links = await db.query.link.findMany({
+      where: eq(link.linkNameId, linkNameRecord.id),
+      with: {
         source: true,
         target: true,
       },
@@ -50,12 +67,12 @@ export async function GET(
     return NextResponse.json({
       name,
       count: links.length,
-      links: links.map((link) => ({
-        id: link.id,
-        sourceId: link.sourceId,
-        targetId: link.targetId,
-        sourceTitle: link.source.title,
-        targetTitle: link.target.title,
+      links: links.map((linkRecord) => ({
+        id: linkRecord.id,
+        sourceId: linkRecord.sourceId,
+        targetId: linkRecord.targetId,
+        sourceTitle: linkRecord.source?.title || "Unknown",
+        targetTitle: linkRecord.target?.title || "Unknown",
       })),
       isDefault,
     });

@@ -4,8 +4,10 @@ import {
   createTestDbFile,
   migrateTestDb,
   cleanupTestData,
+  closeTestDb,
 } from "./test-utils";
 import { unlinkSync, existsSync } from "fs";
+import { concept } from "~/server/schema";
 
 describe("Test Utils", () => {
   test("should create test database file", async () => {
@@ -18,10 +20,10 @@ describe("Test Utils", () => {
     // Initialize schema
     await migrateTestDb(db);
 
-    // Verify it works
-    await db.$queryRaw`SELECT 1`;
+    // Verify it works by querying
+    await db.select().from(concept).limit(1);
 
-    await db.$disconnect();
+    closeTestDb(db);
 
     // Clean up
     if (existsSync(testDbPath)) {
@@ -35,7 +37,7 @@ describe("Test Utils", () => {
     // Create first database
     const { db: db1 } = createTestDbFile(testDbPath);
     await migrateTestDb(db1);
-    await db1.$disconnect();
+    closeTestDb(db1);
 
     // Verify file exists
     expect(existsSync(testDbPath)).toBe(true);
@@ -43,7 +45,7 @@ describe("Test Utils", () => {
     // Create second database (should clean up first)
     const { db: db2 } = createTestDbFile(testDbPath);
     await migrateTestDb(db2);
-    await db2.$disconnect();
+    closeTestDb(db2);
 
     // Clean up
     if (existsSync(testDbPath)) {
@@ -51,15 +53,16 @@ describe("Test Utils", () => {
     }
   });
 
-  test("should handle initTestDb error case", async () => {
+  test("should handle initTestDb", async () => {
     const db = createTestDb();
-    
-    // This should work since we're using in-memory database
-    // The error case (lines 84-89) would require a database that fails $queryRaw
-    // which is hard to simulate with Prisma, so we'll just verify the happy path
-    await db.$queryRaw`SELECT 1`;
-    
-    await db.$disconnect();
+
+    // Initialize schema
+    await migrateTestDb(db);
+
+    // Verify it works
+    await db.select().from(concept).limit(1);
+
+    closeTestDb(db);
   });
 
   afterAll(async () => {
@@ -72,4 +75,3 @@ describe("Test Utils", () => {
     }
   });
 });
-

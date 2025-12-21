@@ -43,13 +43,12 @@ thomas-writing-assistant/
 │   │   │   │   ├── capsule.ts  # Capsule content
 │   │   │   │   └── ai.ts       # AI operations
 │   │   │   └── trpc.ts         # tRPC setup
-│   │   ├── db.ts               # Prisma client with SQLite adapter
+│   │   ├── db.ts               # Drizzle ORM database connection
+│   │   ├── schema.ts           # Drizzle schema definitions
 │   │   └── services/           # Business logic services
 │   ├── lib/                    # Shared utilities
 │   └── test/                   # Test files
-├── prisma/
-│   ├── schema.prisma           # Database schema
-│   ├── config.ts               # Prisma 7 migration config
+├── drizzle/                    # Drizzle migrations (generated)
 │   └── migrations/             # Database migrations
 ├── config/                     # Configuration files
 │   ├── style_guide.yaml        # Writing voice and preferences
@@ -90,9 +89,9 @@ Following Jana Osofsky's strategy:
 - **Next.js 16** - React framework with App Router
 - **TypeScript** - Type safety across the stack
 - **tRPC** - End-to-end type-safe APIs
-- **Prisma 7** - Modern ORM with SQLite adapter
+- **Drizzle ORM** - Lightweight, TypeScript-first ORM with SQLite
 - **Tailwind CSS** - Utility-first styling
-- **Jest** - Testing framework with full Prisma 7 support
+- **Jest** - Testing framework
 - **@testing-library/react** - Component testing utilities
 - **@testing-library/user-event** - User interaction simulation
 - **SQLite** - Local database (can migrate to Postgres later)

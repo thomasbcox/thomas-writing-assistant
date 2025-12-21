@@ -4,6 +4,7 @@ import {
   createTestCaller,
   cleanupTestData,
   migrateTestDb,
+  closeTestDb,
 } from "./test-utils";
 
 describe("LinkName Router", () => {
@@ -20,79 +21,102 @@ describe("LinkName Router", () => {
 
   afterAll(async () => {
     await cleanupTestData(db);
-    await db.$disconnect();
+    closeTestDb(db);
   });
 
-  test("should get all link names including defaults", async () => {
+  test("should get all link name pairs including defaults", async () => {
     const result = await caller.linkName.getAll();
 
     expect(result).toBeInstanceOf(Array);
     expect(result.length).toBeGreaterThan(0);
-    // Should include default link names
-    expect(result).toContain("references");
-    expect(result).toContain("builds on");
+    // Should include default link name pairs
+    const hasReferences = result.some((ln) => ln.forwardName === "references");
+    const hasBuildsOn = result.some((ln) => ln.forwardName === "builds on");
+    expect(hasReferences).toBe(true);
+    expect(hasBuildsOn).toBe(true);
   });
 
-  test("should create a custom link name", async () => {
+  test("should create a custom link name pair", async () => {
     const result = await caller.linkName.create({
-      name: "custom relationship",
+      forwardName: "custom relationship",
+      reverseName: "related to custom",
     });
 
     expect(result.id).toBeDefined();
-    expect(result.name).toBe("custom relationship");
+    expect(result.forwardName).toBe("custom relationship");
+    expect(result.reverseName).toBe("related to custom");
+    expect(result.isSymmetric).toBe(false);
     expect(result.isDefault).toBe(false);
 
     // Should appear in getAll
-    const allNames = await caller.linkName.getAll();
-    expect(allNames).toContain("custom relationship");
+    const allPairs = await caller.linkName.getAll();
+    const found = allPairs.find((ln) => ln.id === result.id);
+    expect(found).toBeDefined();
   });
 
-  test("should return existing link name if it already exists", async () => {
+  test("should return existing link name pair if it already exists", async () => {
     const created = await caller.linkName.create({
-      name: "existing name",
+      forwardName: "existing forward",
+      reverseName: "existing reverse",
     });
 
     const result = await caller.linkName.create({
-      name: "existing name",
+      forwardName: "existing forward",
+      reverseName: "existing reverse",
     });
 
     expect(result.id).toBe(created.id);
   });
 
-  test("should trim whitespace from link name", async () => {
+  test("should trim whitespace from link name pair", async () => {
     const result = await caller.linkName.create({
-      name: "  trimmed name  ",
+      forwardName: "  trimmed forward  ",
+      reverseName: "  trimmed reverse  ",
     });
 
-    expect(result.name).toBe("trimmed name");
+    expect(result.forwardName).toBe("trimmed forward");
+    expect(result.reverseName).toBe("trimmed reverse");
   });
 
-  test("should reject empty link name", async () => {
+  test("should reject empty forward name", async () => {
     await expect(
-      caller.linkName.create({ name: "   " })
-    ).rejects.toThrow("Link name cannot be empty");
+      caller.linkName.create({ forwardName: "   " })
+    ).rejects.toThrow("Forward name cannot be empty");
   });
 
-  test("should update a link name", async () => {
+  test("should create symmetric link name pair", async () => {
+    const result = await caller.linkName.create({
+      forwardName: "related to",
+      reverseName: "related to",
+    });
+
+    expect(result.isSymmetric).toBe(true);
+  });
+
+  test("should update a link name pair", async () => {
     const created = await caller.linkName.create({
-      name: "old name",
+      forwardName: "old forward",
+      reverseName: "old reverse",
     });
 
     const result = await caller.linkName.update({
-      oldName: "old name",
-      newName: "new name",
+      id: created.id,
+      forwardName: "new forward",
+      reverseName: "new reverse",
     });
 
     expect(result.success).toBe(true);
-    expect(result.updatedCount).toBeGreaterThanOrEqual(0);
+    expect(result.linkCount).toBeGreaterThanOrEqual(0);
 
-    // Old name should not be in getAll
-    const allNames = await caller.linkName.getAll();
-    expect(allNames).not.toContain("old name");
-    expect(allNames).toContain("new name");
+    // Updated pair should have new names
+    const allPairs = await caller.linkName.getAll();
+    const updated = allPairs.find((ln) => ln.id === created.id);
+    expect(updated).toBeDefined();
+    expect(updated?.forwardName).toBe("new forward");
+    expect(updated?.reverseName).toBe("new reverse");
   });
 
-  test("should update link name and update existing links", async () => {
+  test("should update link name pair and existing links automatically get new names", async () => {
     const concept1 = await caller.concept.create({
       title: "Concept 1",
       description: "Test",
@@ -111,69 +135,93 @@ describe("LinkName Router", () => {
       year: "2024",
     });
 
-    const linkName = await caller.linkName.create({
-      name: "old link name",
+    const linkNamePair = await caller.linkName.create({
+      forwardName: "old forward",
+      reverseName: "old reverse",
     });
 
     await caller.link.create({
       sourceId: concept1.id,
       targetId: concept2.id,
-      forwardName: "old link name",
+      linkNameId: linkNamePair.id,
     });
 
     const result = await caller.linkName.update({
-      oldName: "old link name",
-      newName: "new link name",
+      id: linkNamePair.id,
+      forwardName: "new forward",
+      reverseName: "new reverse",
     });
 
     expect(result.success).toBe(true);
-    expect(result.updatedCount).toBe(1);
+    expect(result.linkCount).toBe(1);
 
-    // Check that link was updated
+    // Link should now use updated names via the linkName relation
     const links = await caller.link.getAll();
     const updatedLink = links.find(
       (l) => l.sourceId === concept1.id && l.targetId === concept2.id
     );
-    expect(updatedLink?.forwardName).toBe("new link name");
+    expect(updatedLink?.linkName.forwardName).toBe("new forward");
+    expect(updatedLink?.linkName.reverseName).toBe("new reverse");
   });
 
-  test("should reject empty new name in update", async () => {
-    await caller.linkName.create({ name: "test name" });
+  test("should reject updating with empty forward name", async () => {
+    const created = await caller.linkName.create({
+      forwardName: "test forward",
+      reverseName: "test reverse",
+    });
 
     await expect(
       caller.linkName.update({
-        oldName: "test name",
-        newName: "   ",
+        id: created.id,
+        forwardName: "   ",
       })
-    ).rejects.toThrow("New name cannot be empty");
+    ).rejects.toThrow("Forward name cannot be empty");
   });
 
   test("should delete a default link name (mark as deleted)", async () => {
+    // Get a default link name pair
+    const allPairs = await caller.linkName.getAll();
+    const referencesPair = allPairs.find((ln) => ln.forwardName === "references" && ln.isDefault);
+    
+    if (!referencesPair) {
+      // Create it if it doesn't exist
+      const created = await caller.linkName.create({
+        forwardName: "references",
+        reverseName: "referenced by",
+      });
+      const result = await caller.linkName.delete({ id: created.id });
+      expect(result.success).toBe(true);
+      return;
+    }
+
     const result = await caller.linkName.delete({
-      name: "references",
+      id: referencesPair.id,
     });
 
     expect(result.success).toBe(true);
 
-    // Should not appear in getAll
-    const allNames = await caller.linkName.getAll();
-    expect(allNames).not.toContain("references");
+    // Should be marked as deleted (soft delete for defaults)
+    const allPairsAfter = await caller.linkName.getAll();
+    const deleted = allPairsAfter.find((ln) => ln.id === referencesPair.id);
+    expect(deleted?.isDeleted).toBe(true);
   });
 
   test("should delete a custom link name", async () => {
     const created = await caller.linkName.create({
-      name: "custom to delete",
+      forwardName: "custom to delete",
+      reverseName: "deleted custom",
     });
 
     const result = await caller.linkName.delete({
-      name: "custom to delete",
+      id: created.id,
     });
 
     expect(result.success).toBe(true);
 
     // Should not appear in getAll
-    const allNames = await caller.linkName.getAll();
-    expect(allNames).not.toContain("custom to delete");
+    const allPairs = await caller.linkName.getAll();
+    const found = allPairs.find((ln) => ln.id === created.id);
+    expect(found).toBeUndefined();
   });
 
   test("should reject deleting default link name in use without replacement", async () => {
@@ -195,18 +243,28 @@ describe("LinkName Router", () => {
       year: "2024",
     });
 
+    // Get or create references pair
+    const allPairs = await caller.linkName.getAll();
+    let referencesPair = allPairs.find((ln) => ln.forwardName === "references");
+    if (!referencesPair) {
+      referencesPair = await caller.linkName.create({
+        forwardName: "references",
+        reverseName: "referenced by",
+      });
+    }
+
     await caller.link.create({
       sourceId: concept1.id,
       targetId: concept2.id,
-      forwardName: "references",
+      linkNameId: referencesPair.id,
     });
 
     await expect(
-      caller.linkName.delete({ name: "references" })
+      caller.linkName.delete({ id: referencesPair.id })
     ).rejects.toThrow("Cannot delete default link name that is in use without replacement");
   });
 
-  test("should get usage of a link name", async () => {
+  test("should get usage of a link name pair", async () => {
     const concept1 = await caller.concept.create({
       title: "Concept 1",
       description: "Test",
@@ -225,16 +283,27 @@ describe("LinkName Router", () => {
       year: "2024",
     });
 
+    // Get or create a link name pair
+    const allPairs = await caller.linkName.getAll();
+    let linkNamePair = allPairs.find((ln) => ln.forwardName === "references");
+    if (!linkNamePair) {
+      linkNamePair = await caller.linkName.create({
+        forwardName: "references",
+        reverseName: "referenced by",
+      });
+    }
+
     await caller.link.create({
       sourceId: concept1.id,
       targetId: concept2.id,
-      forwardName: "references",
+      linkNameId: linkNamePair.id,
     });
 
-    const usage = await caller.linkName.getUsage({ name: "references" });
+    const usage = await caller.linkName.getUsage({ id: linkNamePair.id });
 
     expect(usage.count).toBeGreaterThan(0);
-    expect(usage.isDefault).toBe(true);
+    expect(usage.linkName).toBeDefined();
+    expect(usage.linkName.forwardName).toBe("references");
     expect(usage.links).toBeDefined();
     expect(usage.links.length).toBeGreaterThan(0);
   });
@@ -258,295 +327,35 @@ describe("LinkName Router", () => {
       year: "2024",
     });
 
-    await caller.link.create({
-      sourceId: concept1.id,
-      targetId: concept2.id,
-      forwardName: "references",
-    });
-
-    const customName = await caller.linkName.create({
-      name: "replacement name",
-    });
-
-    const result = await caller.linkName.delete({
-      name: "references",
-      replaceWith: "replacement name",
-    });
-
-    expect(result.success).toBe(true);
-
-    // Check that links were updated
-    const links = await caller.link.getAll();
-    const updatedLink = links.find(
-      (l) => l.sourceId === concept1.id && l.targetId === concept2.id
-    );
-    expect(updatedLink?.forwardName).toBe("replacement name");
-  });
-
-  test("should update link name when old name doesn't exist in database", async () => {
-    // Update a default link name that hasn't been created in DB yet
-    const result = await caller.linkName.update({
-      oldName: "references",
-      newName: "updated references",
-    });
-
-    expect(result.success).toBe(true);
-    expect(result.updatedCount).toBe(0); // No links to update
-
-    // New name should be in getAll
-    const allNames = await caller.linkName.getAll();
-    expect(allNames).toContain("updated references");
-  });
-
-  test("should handle update when new name already exists", async () => {
-    // Create a custom link name
-    await caller.linkName.create({ name: "existing name" });
-
-    // Update another name to the existing one
-    await caller.linkName.create({ name: "to update" });
-
-    const result = await caller.linkName.update({
-      oldName: "to update",
-      newName: "existing name",
-    });
-
-    expect(result.success).toBe(true);
-  });
-
-  test("should delete default link name not in use", async () => {
-    // Delete a default that's not being used
-    const result = await caller.linkName.delete({ name: "opposes" });
-
-    expect(result.success).toBe(true);
-    expect(result.deletedCount).toBe(0);
-
-    // Should not appear in getAll
-    const allNames = await caller.linkName.getAll();
-    expect(allNames).not.toContain("opposes");
-  });
-
-  test("should delete custom link name with replacement", async () => {
-    const concept1 = await caller.concept.create({
-      title: "Concept 1",
-      description: "Test",
-      content: "Content",
-      creator: "User",
-      source: "Source",
-      year: "2024",
-    });
-
-    const concept2 = await caller.concept.create({
-      title: "Concept 2",
-      description: "Test",
-      content: "Content",
-      creator: "User",
-      source: "Source",
-      year: "2024",
-    });
-
-    await caller.linkName.create({ name: "custom link" });
-    await caller.linkName.create({ name: "replacement link" });
-
-    await caller.link.create({
-      sourceId: concept1.id,
-      targetId: concept2.id,
-      forwardName: "custom link",
-    });
-
-    const result = await caller.linkName.delete({
-      name: "custom link",
-      replaceWith: "replacement link",
-    });
-
-    expect(result.success).toBe(true);
-    expect(result.deletedCount).toBe(1);
-
-    // Check that link was updated
-    const links = await caller.link.getAll();
-    const updatedLink = links.find(
-      (l) => l.sourceId === concept1.id && l.targetId === concept2.id
-    );
-    expect(updatedLink?.forwardName).toBe("replacement link");
-  });
-
-  test("should update link name when both forward and reverse names match", async () => {
-    const concept1 = await caller.concept.create({
-      title: "Concept 1",
-      description: "Test",
-      content: "Content",
-      creator: "User",
-      source: "Source",
-      year: "2024",
-    });
-
-    const concept2 = await caller.concept.create({
-      title: "Concept 2",
-      description: "Test",
-      content: "Content",
-      creator: "User",
-      source: "Source",
-      year: "2024",
-    });
-
-    await caller.linkName.create({ name: "old name" });
-
-    await caller.link.create({
-      sourceId: concept1.id,
-      targetId: concept2.id,
-      forwardName: "old name",
-      reverseName: "old name",
-    });
-
-    const result = await caller.linkName.update({
-      oldName: "old name",
-      newName: "new name",
-    });
-
-    expect(result.success).toBe(true);
-    expect(result.updatedCount).toBe(1);
-
-    // Check that both forward and reverse names were updated
-    const links = await caller.link.getAll();
-    const updatedLink = links.find(
-      (l) => l.sourceId === concept1.id && l.targetId === concept2.id
-    );
-    expect(updatedLink?.forwardName).toBe("new name");
-    expect(updatedLink?.reverseName).toBe("new name");
-  });
-
-  test("should handle update when link has only forward name matching", async () => {
-    const concept1 = await caller.concept.create({
-      title: "Concept 1",
-      description: "Test",
-      content: "Content",
-      creator: "User",
-      source: "Source",
-      year: "2024",
-    });
-
-    const concept2 = await caller.concept.create({
-      title: "Concept 2",
-      description: "Test",
-      content: "Content",
-      creator: "User",
-      source: "Source",
-      year: "2024",
-    });
-
-    await caller.linkName.create({ name: "old forward" });
-    await caller.linkName.create({ name: "different reverse" });
-
-    await caller.link.create({
-      sourceId: concept1.id,
-      targetId: concept2.id,
+    const oldPair = await caller.linkName.create({
       forwardName: "old forward",
-      reverseName: "different reverse",
-    });
-
-    const result = await caller.linkName.update({
-      oldName: "old forward",
-      newName: "new forward",
-    });
-
-    expect(result.success).toBe(true);
-    expect(result.updatedCount).toBe(1);
-
-    const links = await caller.link.getAll();
-    const updatedLink = links.find(
-      (l) => l.sourceId === concept1.id && l.targetId === concept2.id
-    );
-    expect(updatedLink?.forwardName).toBe("new forward");
-    expect(updatedLink?.reverseName).toBe("different reverse"); // Should remain unchanged
-  });
-
-  test("should handle update when link has only reverse name matching", async () => {
-    const concept1 = await caller.concept.create({
-      title: "Concept 1",
-      description: "Test",
-      content: "Content",
-      creator: "User",
-      source: "Source",
-      year: "2024",
-    });
-
-    const concept2 = await caller.concept.create({
-      title: "Concept 2",
-      description: "Test",
-      content: "Content",
-      creator: "User",
-      source: "Source",
-      year: "2024",
-    });
-
-    await caller.linkName.create({ name: "different forward" });
-    await caller.linkName.create({ name: "old reverse" });
-
-    await caller.link.create({
-      sourceId: concept1.id,
-      targetId: concept2.id,
-      forwardName: "different forward",
       reverseName: "old reverse",
     });
 
-    const result = await caller.linkName.update({
-      oldName: "old reverse",
-      newName: "new reverse",
-    });
-
-    expect(result.success).toBe(true);
-    expect(result.updatedCount).toBe(1);
-
-    const links = await caller.link.getAll();
-    const updatedLink = links.find(
-      (l) => l.sourceId === concept1.id && l.targetId === concept2.id
-    );
-    expect(updatedLink?.forwardName).toBe("different forward"); // Should remain unchanged
-    expect(updatedLink?.reverseName).toBe("new reverse");
-  });
-
-  test("should handle delete with replacement when link has both forward and reverse matching", async () => {
-    const concept1 = await caller.concept.create({
-      title: "Concept 1",
-      description: "Test",
-      content: "Content",
-      creator: "User",
-      source: "Source",
-      year: "2024",
-    });
-
-    const concept2 = await caller.concept.create({
-      title: "Concept 2",
-      description: "Test",
-      content: "Content",
-      creator: "User",
-      source: "Source",
-      year: "2024",
-    });
-
-    await caller.linkName.create({ name: "to replace" });
-    await caller.linkName.create({ name: "replacement" });
-
     await caller.link.create({
       sourceId: concept1.id,
       targetId: concept2.id,
-      forwardName: "to replace",
-      reverseName: "to replace",
+      linkNameId: oldPair.id,
+    });
+
+    const replacementPair = await caller.linkName.create({
+      forwardName: "replacement forward",
+      reverseName: "replacement reverse",
     });
 
     const result = await caller.linkName.delete({
-      name: "to replace",
-      replaceWith: "replacement",
+      id: oldPair.id,
+      replaceWithId: replacementPair.id,
     });
 
     expect(result.success).toBe(true);
-    expect(result.deletedCount).toBe(1);
 
+    // Check that links were updated to use replacement
     const links = await caller.link.getAll();
     const updatedLink = links.find(
       (l) => l.sourceId === concept1.id && l.targetId === concept2.id
     );
-    expect(updatedLink?.forwardName).toBe("replacement");
-    expect(updatedLink?.reverseName).toBe("replacement");
+    expect(updatedLink?.linkNameId).toBe(replacementPair.id);
+    expect(updatedLink?.linkName.forwardName).toBe("replacement forward");
   });
 });
-

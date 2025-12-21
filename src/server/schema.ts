@@ -1,0 +1,174 @@
+/**
+ * Drizzle ORM Schema
+ * Converted from Prisma schema
+ * 
+ * IMPORTANT: Table definitions are ordered to avoid forward reference issues.
+ * linkName must be defined before link since link references linkName.id
+ */
+
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { relations } from "drizzle-orm";
+import { createId } from "@paralleldrive/cuid2";
+
+// Concept table
+export const concept = sqliteTable("Concept", {
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  identifier: text("identifier").unique().notNull(),
+  title: text("title").notNull(),
+  description: text("description").default(""),
+  content: text("content").notNull(),
+  creator: text("creator").notNull(),
+  source: text("source").notNull(),
+  year: text("year").notNull(),
+  status: text("status").default("active").notNull(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).$onUpdate(() => new Date()).notNull(),
+  trashedAt: integer("trashedAt", { mode: "timestamp" }),
+}, (table) => ({
+  statusIdx: { columns: [table.status] },
+  identifierIdx: { columns: [table.identifier] },
+}));
+
+// LinkName table - stores forward/reverse name pairs
+// MUST be defined before Link table since Link references linkName.id
+export const linkName = sqliteTable("LinkName", {
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  forwardName: text("forwardName").unique().notNull(), // e.g., "references"
+  reverseName: text("reverseName").notNull(), // e.g., "referenced by"
+  isSymmetric: integer("isSymmetric", { mode: "boolean" }).default(false).notNull(), // true if forwardName === reverseName
+  isDefault: integer("isDefault", { mode: "boolean" }).default(false).notNull(),
+  isDeleted: integer("isDeleted", { mode: "boolean" }).default(false).notNull(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+}, (table) => ({
+  forwardNameIdx: { columns: [table.forwardName] },
+  reverseNameIdx: { columns: [table.reverseName] },
+}));
+
+// Link table - references linkName.id (now defined above)
+export const link = sqliteTable("Link", {
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  sourceId: text("sourceId").notNull().references(() => concept.id, { onDelete: "cascade" }),
+  targetId: text("targetId").notNull().references(() => concept.id, { onDelete: "cascade" }),
+  linkNameId: text("linkNameId").notNull().references(() => linkName.id, { onDelete: "restrict" }),
+  notes: text("notes"),
+  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+}, (table) => ({
+  sourceTargetUnique: { columns: [table.sourceId, table.targetId], unique: true },
+  sourceIdx: { columns: [table.sourceId] },
+  targetIdx: { columns: [table.targetId] },
+  linkNameIdIdx: { columns: [table.linkNameId] },
+}));
+
+// Capsule table
+export const capsule = sqliteTable("Capsule", {
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  title: text("title").notNull(),
+  promise: text("promise").notNull(),
+  cta: text("cta").notNull(),
+  offerMapping: text("offerMapping"),
+  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).$onUpdate(() => new Date()).notNull(),
+}, (table) => ({
+  titleIdx: { columns: [table.title] },
+}));
+
+// Anchor table
+export const anchor = sqliteTable("Anchor", {
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  capsuleId: text("capsuleId").notNull().references(() => capsule.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  painPoints: text("painPoints"), // JSON array as string
+  solutionSteps: text("solutionSteps"), // JSON array as string
+  proof: text("proof"),
+  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).$onUpdate(() => new Date()).notNull(),
+}, (table) => ({
+  capsuleIdIdx: { columns: [table.capsuleId] },
+}));
+
+// RepurposedContent table
+export const repurposedContent = sqliteTable("RepurposedContent", {
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  anchorId: text("anchorId").notNull().references(() => anchor.id, { onDelete: "cascade" }),
+  type: text("type").notNull(), // "social_post", "email", "lead_magnet", "pinterest_pin", etc.
+  content: text("content").notNull(),
+  guidance: text("guidance"), // Metadata: describes the guidance/rule used to generate this content (read-only)
+  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+}, (table) => ({
+  anchorIdIdx: { columns: [table.anchorId] },
+  typeIdx: { columns: [table.type] },
+}));
+
+// MRUConcept table
+export const mruConcept = sqliteTable("MRUConcept", {
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  conceptId: text("conceptId").unique().notNull(),
+  lastUsed: integer("lastUsed", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+}, (table) => ({
+  lastUsedIdx: { columns: [table.lastUsed] },
+}));
+
+// Relations - defined after all tables
+// IMPORTANT: Define linkNameRelations BEFORE linkRelations so Drizzle can resolve the bidirectional relationship
+export const linkNameRelations = relations(linkName, ({ many }) => ({
+  links: many(link, { relationName: "LinkNameRelation" }),
+}));
+
+export const conceptRelations = relations(concept, ({ many }) => ({
+  outgoingLinks: many(link, { relationName: "SourceConcept" }),
+  incomingLinks: many(link, { relationName: "TargetConcept" }),
+}));
+
+export const linkRelations = relations(link, ({ one }) => ({
+  source: one(concept, {
+    fields: [link.sourceId],
+    references: [concept.id],
+    relationName: "SourceConcept",
+  }),
+  target: one(concept, {
+    fields: [link.targetId],
+    references: [concept.id],
+    relationName: "TargetConcept",
+  }),
+  linkName: one(linkName, {
+    fields: [link.linkNameId],
+    references: [linkName.id],
+    relationName: "LinkNameRelation",
+  }),
+}));
+
+export const capsuleRelations = relations(capsule, ({ many }) => ({
+  anchors: many(anchor),
+}));
+
+export const anchorRelations = relations(anchor, ({ one, many }) => ({
+  capsule: one(capsule, {
+    fields: [anchor.capsuleId],
+    references: [capsule.id],
+  }),
+  repurposedContent: many(repurposedContent),
+}));
+
+export const repurposedContentRelations = relations(repurposedContent, ({ one }) => ({
+  anchor: one(anchor, {
+    fields: [repurposedContent.anchorId],
+    references: [anchor.id],
+  }),
+}));
+
+// Type exports for use in code
+export type Concept = typeof concept.$inferSelect;
+export type NewConcept = typeof concept.$inferInsert;
+export type Link = typeof link.$inferSelect;
+export type NewLink = typeof link.$inferInsert;
+export type LinkName = typeof linkName.$inferSelect;
+export type NewLinkName = typeof linkName.$inferInsert;
+export type Capsule = typeof capsule.$inferSelect;
+export type NewCapsule = typeof capsule.$inferInsert;
+export type Anchor = typeof anchor.$inferSelect;
+export type NewAnchor = typeof anchor.$inferInsert;
+export type RepurposedContent = typeof repurposedContent.$inferSelect;
+export type NewRepurposedContent = typeof repurposedContent.$inferInsert;
+export type MRUConcept = typeof mruConcept.$inferSelect;
+export type NewMRUConcept = typeof mruConcept.$inferInsert;

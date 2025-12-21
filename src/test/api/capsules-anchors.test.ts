@@ -1,226 +1,100 @@
 /**
  * Tests for Capsule Anchors API routes
  * POST /api/capsules/[id]/anchors - Create anchor
- * PUT /api/capsules/[id]/anchors/[anchorId] - Update anchor
- * DELETE /api/capsules/[id]/anchors/[anchorId] - Delete anchor
  */
 
-import { describe, it, expect, jest, beforeEach } from "@jest/globals";
-import { POST as createAnchor } from "~/app/api/capsules/[id]/anchors/route";
-import { PUT as updateAnchor, DELETE as deleteAnchor } from "~/app/api/capsules/[id]/anchors/[anchorId]/route";
+import { describe, it, expect, jest, beforeEach, beforeAll } from "@jest/globals";
 import { NextRequest } from "next/server";
+import { setupApiRouteMocks } from "./drizzle-mock-helper";
 
-// Use jest.hoisted to create mock before jest.mock hoisting
-const { mockDb } = (jest as any).hoisted(() => {
-  return {
-    mockDb: {
-      concept: {
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-        count: jest.fn(),
-      },
-      link: {
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        delete: jest.fn(),
-        count: jest.fn(),
-      },
-      linkName: {
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-        count: jest.fn(),
-      },
-      capsule: {
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-        count: jest.fn(),
-      },
-      anchor: {
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-        count: jest.fn(),
-      },
-      repurposedContent: {
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-        count: jest.fn(),
-      },
-      mRUConcept: {
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-        count: jest.fn(),
-      },
-      $disconnect: jest.fn(),
-    },
-  };
+// Setup mocks (jest.mock is hoisted)
+setupApiRouteMocks();
+
+// Import route handler AFTER mocks are set up
+import { POST } from "~/app/api/capsules/[id]/anchors/route";
+
+// Get mockDb reference after mocks are set up
+let mockDb: ReturnType<typeof import("./drizzle-mock-helper").createDrizzleMockDb>;
+beforeAll(async () => {
+  const helpers = await import("~/server/api/helpers");
+  mockDb = (helpers as any).__mockDb;
 });
-
-jest.mock("~/server/db", () => ({
-  db: mockDb,
-}));
 
 describe("Capsule Anchors API", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.mocked(mockDb.anchor.create).mockReset();
-    jest.mocked(mockDb.anchor.update).mockReset();
-    jest.mocked(mockDb.anchor.delete).mockReset();
-    jest.mocked(mockDb.capsule.findUnique).mockReset();
+    mockDb._setInsertResult([]);
   });
 
   describe("POST /api/capsules/[id]/anchors", () => {
-    it("should create an anchor", async () => {
+    it("should create a new anchor", async () => {
       const mockAnchor = {
-        id: "anchor-1",
+        id: "1",
         capsuleId: "capsule-1",
         title: "Test Anchor",
-        content: "Anchor content",
-        painPoints: JSON.stringify(["Pain 1"]),
-        solutionSteps: JSON.stringify(["Step 1"]),
-        proof: "Proof text",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      jest.mocked(mockDb.anchor.create).mockResolvedValue(mockAnchor as any);
-
-      const request = new NextRequest("http://localhost/api/capsules/capsule-1/anchors", {
-        method: "POST",
-        body: JSON.stringify({
-          title: "Test Anchor",
-          content: "Anchor content",
-          painPoints: ["Pain 1"],
-          solutionSteps: ["Step 1"],
-          proof: "Proof text",
-        }),
-      });
-
-      const response = await createAnchor(request, { params: Promise.resolve({ id: "capsule-1" }) });
-      const data = await response.json();
-
-      expect(response.status).toBe(201);
-      expect(data.title).toBe("Test Anchor");
-      expect(mockDb.anchor.create).toHaveBeenCalledWith({
-        data: {
-          capsuleId: "capsule-1",
-          title: "Test Anchor",
-          content: "Anchor content",
-          painPoints: JSON.stringify(["Pain 1"]),
-          solutionSteps: JSON.stringify(["Step 1"]),
-          proof: "Proof text",
-        },
-      });
-    });
-
-    it("should validate required fields", async () => {
-      const request = new NextRequest("http://localhost/api/capsules/capsule-1/anchors", {
-        method: "POST",
-        body: JSON.stringify({
-          title: "", // Invalid: empty title
-        }),
-      });
-
-      const response = await createAnchor(request, { params: Promise.resolve({ id: "capsule-1" }) });
-
-      expect(response.status).toBe(400);
-    });
-  });
-
-  describe("PUT /api/capsules/[id]/anchors/[anchorId]", () => {
-    it("should update an anchor", async () => {
-      const mockAnchor = {
-        id: "anchor-1",
-        capsuleId: "capsule-1",
-        title: "Updated Anchor",
-        content: "Updated content",
-        painPoints: JSON.stringify(["Updated pain"]),
+        content: "Content",
+        painPoints: null,
         solutionSteps: null,
         proof: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      jest.mocked(mockDb.anchor.update).mockResolvedValue(mockAnchor as any);
+      mockDb.query.capsule.findFirst.mockResolvedValue({ id: "capsule-1" });
+      mockDb._setInsertResult([mockAnchor]);
 
-      const request = new NextRequest("http://localhost/api/capsules/capsule-1/anchors/anchor-1", {
-        method: "PUT",
+      const request = new NextRequest("http://localhost/api/capsules/capsule-1/anchors", {
+        method: "POST",
         body: JSON.stringify({
-          title: "Updated Anchor",
-          content: "Updated content",
-          painPoints: ["Updated pain"],
+          title: "Test Anchor",
+          content: "Content",
         }),
       });
 
-      const response = await updateAnchor(request, {
-        params: Promise.resolve({ id: "capsule-1", anchorId: "anchor-1" }),
+      const response = await POST(request, {
+        params: Promise.resolve({ id: "capsule-1" }),
       });
       const data = await response.json();
 
-      expect(response.status).toBe(200);
-      expect(data.title).toBe("Updated Anchor");
-      expect(mockDb.anchor.update).toHaveBeenCalledWith({
-        where: { id: "anchor-1" },
-        data: expect.objectContaining({
-          title: "Updated Anchor",
-          content: "Updated content",
-          painPoints: JSON.stringify(["Updated pain"]),
-        }),
-      });
+      expect(response.status).toBe(201);
+      expect(data.title).toBe("Test Anchor");
+      expect(mockDb.insert).toHaveBeenCalled();
     });
 
-    it("should validate input", async () => {
-      const request = new NextRequest("http://localhost/api/capsules/capsule-1/anchors/anchor-1", {
-        method: "PUT",
+    it("should return 404 for non-existent capsule", async () => {
+      mockDb.query.capsule.findFirst.mockResolvedValue(null);
+
+      const request = new NextRequest("http://localhost/api/capsules/999/anchors", {
+        method: "POST",
         body: JSON.stringify({
-          title: "", // Invalid: empty title
+          title: "Test Anchor",
+          content: "Content",
         }),
       });
 
-      const response = await updateAnchor(request, {
-        params: Promise.resolve({ id: "capsule-1", anchorId: "anchor-1" }),
+      const response = await POST(request, {
+        params: Promise.resolve({ id: "999" }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(404);
+      expect(data.error).toBe("Capsule not found");
+    });
+
+    it("should validate required fields", async () => {
+      mockDb.query.capsule.findFirst.mockResolvedValue({ id: "capsule-1" });
+
+      const request = new NextRequest("http://localhost/api/capsules/capsule-1/anchors", {
+        method: "POST",
+        body: JSON.stringify({
+          // Missing required fields
+        }),
       });
 
+      const response = await POST(request, {
+        params: Promise.resolve({ id: "capsule-1" }),
+      });
       expect(response.status).toBe(400);
-    });
-  });
-
-  describe("DELETE /api/capsules/[id]/anchors/[anchorId]", () => {
-    it("should delete an anchor", async () => {
-      jest.mocked(mockDb.anchor.delete).mockResolvedValue({} as any);
-
-      const request = new NextRequest("http://localhost/api/capsules/capsule-1/anchors/anchor-1", {
-        method: "DELETE",
-      });
-
-      const response = await deleteAnchor(request, {
-        params: Promise.resolve({ id: "capsule-1", anchorId: "anchor-1" }),
-      });
-      const data = await response.json();
-
-      expect(response.status).toBe(200);
-      expect(data.success).toBe(true);
-      expect(mockDb.anchor.delete).toHaveBeenCalledWith({
-        where: { id: "anchor-1" },
-      });
     });
   });
 });

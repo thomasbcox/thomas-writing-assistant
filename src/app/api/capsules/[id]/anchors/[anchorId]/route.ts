@@ -2,11 +2,14 @@
  * REST API routes for individual anchors
  * PUT /api/capsules/[id]/anchors/[anchorId] - Update anchor
  * DELETE /api/capsules/[id]/anchors/[anchorId] - Delete anchor
+ * Uses Drizzle ORM for database access
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb, handleApiError, parseJsonBody } from "~/server/api/helpers";
+import { eq } from "drizzle-orm";
+import { anchor, repurposedContent } from "~/server/schema";
 
 const updateAnchorSchema = z.object({
   title: z.string().min(1).optional(),
@@ -27,19 +30,46 @@ export async function PUT(
     const body = await parseJsonBody(request);
     const input = updateAnchorSchema.parse(body);
 
-    const updateData: Record<string, unknown> = {};
-    if (input.title !== undefined) updateData.title = input.title;
-    if (input.content !== undefined) updateData.content = input.content;
-    if (input.painPoints !== undefined) updateData.painPoints = JSON.stringify(input.painPoints);
-    if (input.solutionSteps !== undefined) updateData.solutionSteps = JSON.stringify(input.solutionSteps);
-    if (input.proof !== undefined) updateData.proof = input.proof;
-
-    const anchor = await db.anchor.update({
-      where: { id: anchorId },
-      data: updateData,
+    const foundAnchor = await db.query.anchor.findFirst({
+      where: eq(anchor.id, anchorId),
     });
 
-    return NextResponse.json(anchor);
+    if (!foundAnchor) {
+      return NextResponse.json(
+        { error: "Anchor not found" },
+        { status: 404 },
+      );
+    }
+
+    const updateData: {
+      title?: string;
+      content?: string;
+      painPoints?: string | null;
+      solutionSteps?: string | null;
+      proof?: string | null;
+    } = {};
+
+    if (input.title !== undefined) updateData.title = input.title;
+    if (input.content !== undefined) updateData.content = input.content;
+    if (input.painPoints !== undefined) {
+      updateData.painPoints =
+        input.painPoints.length > 0 ? JSON.stringify(input.painPoints) : null;
+    }
+    if (input.solutionSteps !== undefined) {
+      updateData.solutionSteps =
+        input.solutionSteps.length > 0
+          ? JSON.stringify(input.solutionSteps)
+          : null;
+    }
+    if (input.proof !== undefined) updateData.proof = input.proof || null;
+
+    const [updatedAnchor] = await db
+      .update(anchor)
+      .set(updateData)
+      .where(eq(anchor.id, anchorId))
+      .returning();
+
+    return NextResponse.json(updatedAnchor);
   } catch (error) {
     return handleApiError(error);
   }
@@ -54,13 +84,27 @@ export async function DELETE(
     const db = getDb();
     const { anchorId } = await params;
 
-    await db.anchor.delete({
-      where: { id: anchorId },
+    const foundAnchor = await db.query.anchor.findFirst({
+      where: eq(anchor.id, anchorId),
     });
+
+    if (!foundAnchor) {
+      return NextResponse.json(
+        { error: "Anchor not found" },
+        { status: 404 },
+      );
+    }
+
+    // Delete repurposed content first (cascade handled by DB)
+    await db
+      .delete(repurposedContent)
+      .where(eq(repurposedContent.anchorId, anchorId));
+
+    // Delete anchor
+    await db.delete(anchor).where(eq(anchor.id, anchorId));
 
     return NextResponse.json({ success: true });
   } catch (error) {
     return handleApiError(error);
   }
 }
-

@@ -44,9 +44,9 @@ jest.mock("~/env", () => ({
 describe("AI API", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Reset to defaults
-    currentProvider = "openai";
-    currentModel = "gpt-4o-mini";
+    // Reset to defaults (LLM client defaults to gemini if both keys are available)
+    currentProvider = "gemini";
+    currentModel = "gemini-1.5-flash";
     currentTemperature = 0.7;
   });
 
@@ -56,8 +56,8 @@ describe("AI API", () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.provider).toBe("openai");
-      expect(data.model).toBe("gpt-4o-mini");
+      expect(data.provider).toBe("gemini");
+      expect(data.model).toBe("gemini-1.5-flash");
       expect(data.temperature).toBe(0.7);
       expect(data.availableProviders).toBeDefined();
       expect(data.availableProviders.openai).toBe(true);
@@ -104,6 +104,7 @@ describe("AI API", () => {
 
   describe("GET /api/ai/models", () => {
     it("should return OpenAI models when provider is OpenAI", async () => {
+      currentProvider = "openai";
       mockLLMClient.getProvider.mockReturnValue("openai");
 
       const response = await getModels();

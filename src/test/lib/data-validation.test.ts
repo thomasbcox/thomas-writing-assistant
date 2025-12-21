@@ -1,6 +1,6 @@
 /**
  * Tests for data validation utilities
- * Last Updated: 2025-12-11
+ * Uses Drizzle ORM types
  */
 
 import { describe, test, expect } from "@jest/globals";
@@ -11,7 +11,7 @@ import {
   validateAnchor,
   generateDataQualityReport,
 } from "~/lib/data-validation";
-import type { Concept, Link, Capsule, Anchor } from "@prisma/client";
+import type { Concept, Link, Capsule, Anchor } from "~/server/schema";
 
 describe("Data Validation", () => {
   describe("validateConcept", () => {
@@ -40,7 +40,7 @@ describe("Data Validation", () => {
         id: "1",
         identifier: "test-1",
         title: "",
-        description: null,
+        description: "",
         content: "Some content",
         creator: "Test Creator",
         source: "Test Source",
@@ -61,7 +61,7 @@ describe("Data Validation", () => {
         id: "1",
         identifier: "test-1",
         title: "Test Concept",
-        description: null,
+        description: "",
         content: "",
         creator: "Test Creator",
         source: "Test Source",
@@ -81,7 +81,7 @@ describe("Data Validation", () => {
         id: "1",
         identifier: "test-1",
         title: "Test Concept",
-        description: null,
+        description: "",
         content: "Short",
         creator: "Test Creator",
         source: "Test Source",
@@ -103,9 +103,9 @@ describe("Data Validation", () => {
         id: "1",
         sourceId: "source-1",
         targetId: "target-1",
-        linkNameId: "link-1",
+        linkNameId: "linkname-1",
+        notes: null,
         createdAt: new Date(),
-        updatedAt: new Date(),
       };
 
       const issues = validateLink(link, true, true);
@@ -117,9 +117,9 @@ describe("Data Validation", () => {
         id: "1",
         sourceId: "source-1",
         targetId: "target-1",
-        linkNameId: "link-1",
+        linkNameId: "linkname-1",
+        notes: null,
         createdAt: new Date(),
-        updatedAt: new Date(),
       };
 
       const issues = validateLink(link, false, true);
@@ -131,9 +131,9 @@ describe("Data Validation", () => {
         id: "1",
         sourceId: "source-1",
         targetId: "target-1",
-        linkNameId: "link-1",
+        linkNameId: "linkname-1",
+        notes: null,
         createdAt: new Date(),
-        updatedAt: new Date(),
       };
 
       const issues = validateLink(link, true, false);
@@ -145,9 +145,10 @@ describe("Data Validation", () => {
         id: "1",
         sourceId: "same-1",
         targetId: "same-1",
-        linkNameId: "link-1",
+        forwardName: "references",
+        reverseName: "referenced by",
+        notes: null,
         createdAt: new Date(),
-        updatedAt: new Date(),
       };
 
       const issues = validateLink(link, true, true);
@@ -208,7 +209,8 @@ describe("Data Validation", () => {
         id: "1",
         capsuleId: "capsule-1",
         title: "Test Anchor",
-        content: "This is a test anchor with enough content to be valid. It has more than 200 characters to pass the validation check. This content is long enough to satisfy the minimum length requirement for anchor posts. It provides sufficient detail and context for the anchor post to be considered complete and ready for use.",
+        content:
+          "This is a test anchor with enough content to be valid. It has more than 200 characters to pass the validation check. This content is long enough to satisfy the minimum length requirement for anchor posts. It provides sufficient detail and context for the anchor post to be considered complete and ready for use.",
         painPoints: null,
         solutionSteps: null,
         proof: null,
@@ -262,7 +264,7 @@ describe("Data Validation", () => {
           id: "1",
           identifier: "test-1",
           title: "Test Concept",
-          description: null,
+          description: "",
           content: "Valid content with enough text",
           creator: "Test Creator",
           source: "Test Source",
@@ -278,8 +280,12 @@ describe("Data Validation", () => {
       const capsules: Capsule[] = [];
       const anchors: Anchor[] = [];
 
-      const report = generateDataQualityReport(concepts, links, capsules, anchors, (id) =>
-        concepts.some((c) => c.id === id),
+      const report = generateDataQualityReport(
+        concepts,
+        links,
+        capsules,
+        anchors,
+        (id) => concepts.some((c) => c.id === id),
       );
 
       // May have info-level issues (like missing creator), but no errors or warnings
@@ -293,7 +299,7 @@ describe("Data Validation", () => {
           id: "1",
           identifier: "test-1",
           title: "", // Missing title
-          description: null,
+          description: "",
           content: "", // Missing content
           creator: "",
           source: "Test Source",
@@ -309,8 +315,12 @@ describe("Data Validation", () => {
       const capsules: Capsule[] = [];
       const anchors: Anchor[] = [];
 
-      const report = generateDataQualityReport(concepts, links, capsules, anchors, (id) =>
-        concepts.some((c) => c.id === id),
+      const report = generateDataQualityReport(
+        concepts,
+        links,
+        capsules,
+        anchors,
+        (id) => concepts.some((c) => c.id === id),
       );
 
       expect(report.totalIssues).toBeGreaterThan(0);
@@ -318,4 +328,3 @@ describe("Data Validation", () => {
     });
   });
 });
-

@@ -1,10 +1,13 @@
 /**
  * REST API routes for individual capsules
  * GET /api/capsules/[id] - Get capsule by ID
+ * Uses Drizzle ORM for database access
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, handleApiError } from "~/server/api/helpers";
+import { eq, inArray } from "drizzle-orm";
+import { capsule, anchor, repurposedContent } from "~/server/schema";
 
 // GET /api/capsules/[id] - Get capsule by ID
 export async function GET(
@@ -16,51 +19,50 @@ export async function GET(
     const { id } = await params;
 
     // Fetch capsule
-    const capsule = await db.capsule.findUnique({
-      where: { id },
+    const foundCapsule = await db.query.capsule.findFirst({
+      where: eq(capsule.id, id),
     });
 
-    if (!capsule) {
-      return NextResponse.json({ error: "Capsule not found" }, { status: 404 });
+    if (!foundCapsule) {
+      return NextResponse.json(
+        { error: "Capsule not found" },
+        { status: 404 },
+      );
     }
 
     // Fetch anchors
-    const anchors = await db.anchor.findMany({
-      where: { capsuleId: id },
-      orderBy: { createdAt: "asc" },
-    });
+    const anchors = await db
+      .select()
+      .from(anchor)
+      .where(eq(anchor.capsuleId, id))
+      .orderBy(anchor.createdAt);
 
     // Fetch repurposed content
     const anchorIds = anchors.map((a) => a.id);
-    const repurposedContent = anchorIds.length > 0
-      ? await db.repurposedContent.findMany({
-          where: { anchorId: { in: anchorIds } },
-          orderBy: { createdAt: "asc" },
-          select: {
-            id: true,
-            anchorId: true,
-            type: true,
-            content: true,
-            guidance: true,
-            createdAt: true,
-          },
-        })
-      : [];
+    const repurposed =
+      anchorIds.length > 0
+        ? await db
+            .select()
+            .from(repurposedContent)
+            .where(inArray(repurposedContent.anchorId, anchorIds))
+            .orderBy(repurposedContent.createdAt)
+        : [];
 
     // Combine data
-    const repurposedByAnchorId = new Map<string, typeof repurposedContent>();
-    for (const repurposed of repurposedContent) {
-      if (!repurposedByAnchorId.has(repurposed.anchorId)) {
-        repurposedByAnchorId.set(repurposed.anchorId, []);
+    const repurposedByAnchorId = new Map<string, typeof repurposed>();
+    for (const repurposedRecord of repurposed) {
+      if (!repurposedByAnchorId.has(repurposedRecord.anchorId)) {
+        repurposedByAnchorId.set(repurposedRecord.anchorId, []);
       }
-      repurposedByAnchorId.get(repurposed.anchorId)!.push(repurposed);
+      repurposedByAnchorId.get(repurposedRecord.anchorId)!.push(repurposedRecord);
     }
 
     const capsuleWithAnchors = {
-      ...capsule,
-      anchors: anchors.map((anchor) => ({
-        ...anchor,
-        repurposedContent: repurposedByAnchorId.get(anchor.id) || [],
+      ...foundCapsule,
+      anchors: anchors.map((anchorRecord) => ({
+        ...anchorRecord,
+        repurposedContent:
+          repurposedByAnchorId.get(anchorRecord.id) || [],
       })),
     };
 
@@ -69,4 +71,3 @@ export async function GET(
     return handleApiError(error);
   }
 }
-

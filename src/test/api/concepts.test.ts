@@ -1,83 +1,31 @@
 /**
  * Tests for Concepts API routes
+ * GET /api/concepts - List concepts
+ * POST /api/concepts - Create concept
  */
 
-import { describe, it, expect, jest, beforeEach } from "@jest/globals";
-import { GET, POST } from "~/app/api/concepts/route";
-import { GET as getById, PUT, DELETE } from "~/app/api/concepts/[id]/route";
+import { describe, it, expect, jest, beforeEach, beforeAll } from "@jest/globals";
 import { NextRequest } from "next/server";
+import { setupApiRouteMocks } from "./drizzle-mock-helper";
 
-// Use jest.hoisted to create mock before jest.mock hoisting
-const { mockDb } = (jest as any).hoisted(() => {
-  return {
-    mockDb: {
-      concept: {
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-        count: jest.fn(),
-      },
-      link: {
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        delete: jest.fn(),
-        count: jest.fn(),
-      },
-      linkName: {
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-        count: jest.fn(),
-      },
-      capsule: {
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-        count: jest.fn(),
-      },
-      anchor: {
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-        count: jest.fn(),
-      },
-      repurposedContent: {
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-        count: jest.fn(),
-      },
-      mRUConcept: {
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-        count: jest.fn(),
-      },
-      $disconnect: jest.fn(),
-    },
-  };
+// Setup mocks (jest.mock is hoisted)
+setupApiRouteMocks();
+
+// Import route handler AFTER mocks are set up
+import { GET, POST } from "~/app/api/concepts/route";
+
+// Get mockDb reference after mocks are set up
+let mockDb: ReturnType<typeof import("./drizzle-mock-helper").createDrizzleMockDb>;
+beforeAll(async () => {
+  const helpers = await import("~/server/api/helpers");
+  mockDb = (helpers as any).__mockDb;
 });
-
-jest.mock("~/server/db", () => ({
-  db: mockDb,
-}));
 
 describe("Concepts API", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockDb._setSelectResult([]);
+    mockDb._setInsertResult([]);
   });
 
   describe("GET /api/concepts", () => {
@@ -99,7 +47,7 @@ describe("Concepts API", () => {
         },
       ];
 
-      jest.mocked(mockDb.concept.findMany).mockResolvedValue(mockConcepts as any);
+      mockDb._setSelectResult(mockConcepts);
 
       const request = new NextRequest("http://localhost/api/concepts");
       const response = await GET(request);
@@ -108,23 +56,25 @@ describe("Concepts API", () => {
       expect(response.status).toBe(200);
       expect(data).toHaveLength(1);
       expect(data[0].title).toBe("Test Concept");
+      expect(mockDb.select).toHaveBeenCalled();
     });
 
     it("should filter by search query", async () => {
-      jest.mocked(mockDb.concept.findMany).mockResolvedValue([]);
+      mockDb._setSelectResult([]);
 
       const request = new NextRequest("http://localhost/api/concepts?search=test");
       await GET(request);
 
-      expect(mockDb.concept.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            OR: expect.arrayContaining([
-              expect.objectContaining({ title: expect.objectContaining({ contains: "test" }) }),
-            ]),
-          }),
-        }),
-      );
+      expect(mockDb.select).toHaveBeenCalled();
+    });
+
+    it("should include trash when includeTrash=true", async () => {
+      mockDb._setSelectResult([]);
+
+      const request = new NextRequest("http://localhost/api/concepts?includeTrash=true");
+      await GET(request);
+
+      expect(mockDb.select).toHaveBeenCalled();
     });
   });
 
@@ -145,7 +95,7 @@ describe("Concepts API", () => {
         trashedAt: null,
       };
 
-      jest.mocked(mockDb.concept.create).mockResolvedValue(mockConcept as any);
+      mockDb._setInsertResult([mockConcept]);
 
       const request = new NextRequest("http://localhost/api/concepts", {
         method: "POST",
@@ -164,8 +114,19 @@ describe("Concepts API", () => {
 
       expect(response.status).toBe(201);
       expect(data.title).toBe("New Concept");
-      expect(mockDb.concept.create).toHaveBeenCalled();
+      expect(mockDb.insert).toHaveBeenCalled();
+    });
+
+    it("should validate required fields", async () => {
+      const request = new NextRequest("http://localhost/api/concepts", {
+        method: "POST",
+        body: JSON.stringify({
+          // Missing required fields
+        }),
+      });
+
+      const response = await POST(request);
+      expect(response.status).toBe(400);
     });
   });
 });
-

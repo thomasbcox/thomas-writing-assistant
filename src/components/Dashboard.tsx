@@ -2,6 +2,7 @@
 
 import { api } from "~/lib/trpc/react";
 import { LoadingSpinner } from "./ui/LoadingSpinner";
+import { HealthStatusCard } from "./ui/HealthStatusCard";
 import type { ConceptListItem, LinkWithConcepts, CapsuleWithAnchors } from "~/types/database";
 
 interface DashboardProps {
@@ -13,23 +14,30 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     includeTrash: false,
   });
 
-  const { data: links, isLoading: linksLoading } = api.link.getAll.useQuery();
+  // Use summary mode for dashboard - only load counts, not full nested data
+  const { data: links, isLoading: linksLoading } = api.link.getAll.useQuery({ summary: true });
 
-  const { data: capsules, isLoading: capsulesLoading } = api.capsule.list.useQuery();
+  // Only load summary data for dashboard (counts only, not full nested data)
+  // Use summary mode for dashboard - only load counts, not full nested data
+  const { data: capsules, isLoading: capsulesLoading } = api.capsule.list.useQuery({ summary: true });
 
-  const recentConcepts = concepts?.slice(0, 5) || [];
+  const recentConcepts = (concepts && Array.isArray(concepts)) ? concepts.slice(0, 5) : [];
   const conceptCount = concepts?.length || 0;
   const linkCount = links?.length || 0;
   const capsuleCount = capsules?.length || 0;
-  const anchorCount = capsules?.reduce((acc: number, cap: CapsuleWithAnchors) => acc + (cap.anchors?.length || 0), 0) || 0;
+  const anchorCount = (capsules && Array.isArray(capsules)) 
+    ? capsules.reduce((acc: number, cap: CapsuleWithAnchors) => acc + (cap.anchors?.length || 0), 0) 
+    : 0;
 
   const isLoading = conceptsLoading || linksLoading || capsulesLoading;
 
-  const linkedConcepts = concepts?.filter((c: ConceptListItem) => {
-    const hasOutgoing = links?.some((l: LinkWithConcepts) => l.sourceId === c.id);
-    const hasIncoming = links?.some((l: LinkWithConcepts) => l.targetId === c.id);
-    return hasOutgoing || hasIncoming;
-  }).length || 0;
+  const linkedConcepts = (concepts && Array.isArray(concepts) && links && Array.isArray(links))
+    ? concepts.filter((c: ConceptListItem) => {
+        const hasOutgoing = links.some((l: LinkWithConcepts) => l.sourceId === c.id);
+        const hasIncoming = links.some((l: LinkWithConcepts) => l.targetId === c.id);
+        return hasOutgoing || hasIncoming;
+      }).length
+    : 0;
 
   const linkPercentage = conceptCount > 0 ? Math.round((linkedConcepts / conceptCount) * 100) : 0;
 
@@ -86,42 +94,62 @@ export function Dashboard({ onNavigate }: DashboardProps) {
 
       {/* Stats - With Color Status */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white border-2 border-blue-200 rounded-xl p-5 hover:border-blue-300 hover:shadow-md transition-all">
-          <div className="text-sm font-semibold text-gray-600 mb-1 uppercase tracking-wide">Concepts</div>
-          <div className="text-5xl font-bold text-blue-600 mb-1">
+        <button
+          onClick={() => onNavigate?.("concepts")}
+          className="bg-white border-2 border-blue-200 rounded-xl p-5 hover:border-blue-400 hover:shadow-lg transition-all cursor-pointer text-left group active:bg-blue-50"
+        >
+          <div className="text-sm font-semibold text-gray-600 mb-1 uppercase tracking-wide group-hover:text-blue-700 transition-colors">
+            Concepts
+          </div>
+          <div className="text-5xl font-bold text-blue-600 mb-1 group-hover:text-blue-700 transition-colors">
             {isLoading ? <LoadingSpinner size="sm" /> : conceptCount}
           </div>
           <div className={`text-xs font-medium ${conceptCount > 0 ? "text-green-600" : "text-gray-400"}`}>
             {conceptCount > 0 ? "Active" : "Empty"}
           </div>
-        </div>
-        <div className="bg-white border-2 border-blue-200 rounded-xl p-5 hover:border-blue-300 hover:shadow-md transition-all">
-          <div className="text-sm font-semibold text-gray-600 mb-1 uppercase tracking-wide">Links</div>
-          <div className="text-5xl font-bold text-blue-600 mb-1">
+        </button>
+        <button
+          onClick={() => onNavigate?.("links")}
+          className="bg-white border-2 border-blue-200 rounded-xl p-5 hover:border-blue-400 hover:shadow-lg transition-all cursor-pointer text-left group active:bg-blue-50"
+        >
+          <div className="text-sm font-semibold text-gray-600 mb-1 uppercase tracking-wide group-hover:text-blue-700 transition-colors">
+            Links
+          </div>
+          <div className="text-5xl font-bold text-blue-600 mb-1 group-hover:text-blue-700 transition-colors">
             {isLoading ? <LoadingSpinner size="sm" /> : linkCount}
           </div>
           <div className={`text-xs font-medium ${linkCount > 0 ? "text-green-600" : "text-gray-400"}`}>
             {linkCount > 0 ? "Connected" : "None"}
           </div>
-        </div>
-        <div className="bg-white border-2 border-blue-200 rounded-xl p-5 hover:border-blue-300 hover:shadow-md transition-all">
-          <div className="text-sm font-semibold text-gray-600 mb-1 uppercase tracking-wide">Capsules</div>
-          <div className="text-5xl font-bold text-blue-600 mb-1">
+        </button>
+        <button
+          onClick={() => onNavigate?.("capsules")}
+          className="bg-white border-2 border-blue-200 rounded-xl p-5 hover:border-blue-400 hover:shadow-lg transition-all cursor-pointer text-left group active:bg-blue-50"
+        >
+          <div className="text-sm font-semibold text-gray-600 mb-1 uppercase tracking-wide group-hover:text-blue-700 transition-colors">
+            Capsules
+          </div>
+          <div className="text-5xl font-bold text-blue-600 mb-1 group-hover:text-blue-700 transition-colors">
             {isLoading ? <LoadingSpinner size="sm" /> : capsuleCount}
           </div>
           <div className={`text-xs font-medium ${capsuleCount > 0 ? "text-green-600" : "text-gray-400"}`}>
             {capsuleCount > 0 ? "Active" : "Empty"}
           </div>
-        </div>
-        <div className="bg-white border-2 border-blue-200 rounded-xl p-5 hover:border-blue-300 hover:shadow-md transition-all">
-          <div className="text-sm font-semibold text-gray-600 mb-1 uppercase tracking-wide">Anchors</div>
-          <div className="text-5xl font-bold text-blue-600 mb-1">
+        </button>
+        <button
+          onClick={() => onNavigate?.("capsules")}
+          className="bg-white border-2 border-blue-200 rounded-xl p-5 hover:border-blue-400 hover:shadow-lg transition-all cursor-pointer text-left group active:bg-blue-50"
+        >
+          <div className="text-sm font-semibold text-gray-600 mb-1 uppercase tracking-wide group-hover:text-blue-700 transition-colors">
+            Anchors
+          </div>
+          <div className="text-5xl font-bold text-blue-600 mb-1 group-hover:text-blue-700 transition-colors">
             {isLoading ? <LoadingSpinner size="sm" /> : anchorCount}
           </div>
           <div className={`text-xs font-medium ${anchorCount > 0 ? "text-green-600" : "text-gray-400"}`}>
             {anchorCount > 0 ? "Active" : "None"}
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Main Content - Two Column Layout */}
@@ -176,31 +204,36 @@ export function Dashboard({ onNavigate }: DashboardProps) {
             </div>
           ) : (
             <div className="space-y-3">
-              {recentConcepts.map((concept: ConceptListItem) => (
-                <div
-                  key={concept.id}
-                  onClick={() => onNavigate?.("concepts")}
-                  className="p-4 border-2 border-gray-300 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all cursor-pointer group"
-                >
-                  <h3 className="text-lg font-bold text-gray-900 mb-1 group-hover:text-blue-700 transition-colors">
-                    {concept.title}
-                  </h3>
-                  {concept.description && (
-                    <p className="text-sm text-gray-700 mb-1 line-clamp-2 leading-relaxed">
-                      {concept.description}
-                    </p>
-                  )}
-                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                    {concept.creator} • {concept.source} • {concept.year}
+              {Array.isArray(recentConcepts) && recentConcepts.length > 0 ? (
+                recentConcepts.map((concept: ConceptListItem) => (
+                  <div
+                    key={concept.id}
+                    onClick={() => onNavigate?.("concepts")}
+                    className="p-4 border-2 border-gray-300 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all cursor-pointer group"
+                  >
+                    <h3 className="text-lg font-bold text-gray-900 mb-1 group-hover:text-blue-700 transition-colors">
+                      {concept.title}
+                    </h3>
+                    {concept.description && (
+                      <p className="text-sm text-gray-700 mb-1 line-clamp-2 leading-relaxed">
+                        {concept.description}
+                      </p>
+                    )}
+                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                      {concept.creator || "Unknown"} • {concept.source || "Unknown"} • {concept.year || "Unknown"}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : null}
             </div>
           )}
         </div>
 
         {/* Sidebar - Quick Actions & Health */}
         <div className="space-y-3">
+          {/* System Health */}
+          <HealthStatusCard onNavigate={onNavigate} />
+
           {/* Quick Actions */}
           <div className="bg-white border-2 border-gray-300 rounded-xl p-4">
             <h2 className="text-2xl font-bold text-gray-900 mb-1">Quick Actions</h2>

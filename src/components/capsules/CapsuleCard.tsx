@@ -44,7 +44,7 @@ export function CapsuleCard({
           <p className="text-sm text-gray-600 mt-1">{capsule.promise}</p>
           <p className="text-sm text-gray-500 mt-1">CTA: {capsule.cta}</p>
           <p className="text-sm text-gray-500 mt-2">
-            {capsule.anchors.length} anchor{capsule.anchors.length !== 1 ? "s" : ""}
+            {Array.isArray(capsule.anchors) ? capsule.anchors.length : 0} anchor{Array.isArray(capsule.anchors) && capsule.anchors.length !== 1 ? "s" : ""}
           </p>
         </div>
         <button
@@ -57,7 +57,7 @@ export function CapsuleCard({
 
       {isExpanded && (
         <div className="mt-4 space-y-3 border-t pt-4">
-          {capsule.anchors.length === 0 ? (
+          {!Array.isArray(capsule.anchors) || capsule.anchors.length === 0 ? (
             <p className="text-sm text-gray-500">No anchors yet. Upload a PDF to create one.</p>
           ) : (
             capsule.anchors.map((anchor) => (

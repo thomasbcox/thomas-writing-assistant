@@ -9,6 +9,7 @@ import {
   createTestCaller,
   cleanupTestData,
   migrateTestDb,
+  closeTestDb,
 } from "../test-utils";
 
 describe("Data Quality Router", () => {
@@ -25,7 +26,7 @@ describe("Data Quality Router", () => {
 
   afterAll(async () => {
     await cleanupTestData(db);
-    await db.$disconnect();
+    closeTestDb(db);
   });
 
   test("should get data quality report", async () => {

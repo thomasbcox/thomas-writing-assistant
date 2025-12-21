@@ -2,12 +2,14 @@
  * REST API routes for individual link names
  * PUT /api/link-names/[name] - Update link name
  * DELETE /api/link-names/[name] - Delete link name
- * GET /api/link-names/[name]/usage - Get link name usage
+ * Uses Drizzle ORM for database access
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { handleApiError, getDb, parseJsonBody } from "~/server/api/helpers";
+import { eq, or } from "drizzle-orm";
+import { linkName, link } from "~/server/schema";
 
 const DEFAULT_LINK_NAMES = [
   "belongs to",
@@ -43,69 +45,37 @@ export async function PUT(
     const trimmedNewName = input.newName.trim();
 
     if (!trimmedNewName) {
-      return NextResponse.json({ error: "New name cannot be empty" }, { status: 400 });
+      return NextResponse.json(
+        { error: "New name cannot be empty" },
+        { status: 400 },
+      );
     }
 
-    // Update all links using the old name
-    const linksToUpdate = await db.link.findMany({
-      where: {
-        OR: [
-          { forwardName: oldName },
-          { reverseName: oldName },
-        ],
-      },
+    // Find the LinkName pair by old name (check both forward and reverse)
+    const oldLinkName = await db.query.linkName.findFirst({
+      where: or(
+        eq(linkName.forwardName, oldName),
+        eq(linkName.reverseName, oldName),
+      )!,
     });
 
-    let updatedCount = 0;
-    for (const link of linksToUpdate) {
-      const updateData: {
-        forwardName?: string;
-        reverseName?: string;
-      } = {};
-
-      if (link.forwardName === oldName) {
-        updateData.forwardName = trimmedNewName;
-      }
-
-      if (link.reverseName === oldName) {
-        updateData.reverseName = trimmedNewName;
-      }
-
-      if (Object.keys(updateData).length > 0) {
-        await db.link.update({
-          where: { id: link.id },
-          data: updateData,
-        });
-        updatedCount++;
-      }
+    if (!oldLinkName) {
+      return NextResponse.json(
+        { error: "Link name not found" },
+        { status: 404 },
+      );
     }
 
-    // Update link name record
-    const oldLinkName = await db.linkName.findUnique({
-      where: { name: oldName },
-    });
+    // Update the LinkName pair
+    await db
+      .update(linkName)
+      .set({
+        forwardName: oldLinkName.forwardName === oldName ? trimmedNewName : oldLinkName.forwardName,
+        reverseName: oldLinkName.reverseName === oldName ? trimmedNewName : oldLinkName.reverseName,
+      })
+      .where(eq(linkName.id, oldLinkName.id));
 
-    if (oldLinkName) {
-      await db.linkName.delete({
-        where: { name: oldName },
-      });
-    }
-
-    // Create new link name if it doesn't exist
-    const newLinkNameExists = await db.linkName.findUnique({
-      where: { name: trimmedNewName },
-    });
-
-    if (!newLinkNameExists) {
-      await db.linkName.create({
-        data: {
-          name: trimmedNewName,
-          isDefault: false,
-        },
-      });
-    }
-
-    return NextResponse.json({ updatedCount, success: true });
+    return NextResponse.json({ success: true, updated: oldLinkName.id });
   } catch (error) {
     return handleApiError(error);
   }
@@ -119,85 +89,76 @@ export async function DELETE(
   try {
     const db = getDb();
     const { name } = await params;
-    const replaceWith = new URL(request.url).searchParams.get("replaceWith") || undefined;
+    const replaceWith =
+      new URL(request.url).searchParams.get("replaceWith") || undefined;
 
     const isDefault = DEFAULT_LINK_NAMES.includes(name);
 
-    // Check usage
-    const usageCount = await db.link.count({
-      where: {
-        OR: [
-          { forwardName: name },
-          { reverseName: name },
-        ],
-      },
+    // Find the LinkName pair by name (check both forward and reverse)
+    const linkNameToDelete = await db.query.linkName.findFirst({
+      where: or(
+        eq(linkName.forwardName, name),
+        eq(linkName.reverseName, name),
+      )!,
     });
+
+    if (!linkNameToDelete) {
+      return NextResponse.json(
+        { error: "Link name not found" },
+        { status: 404 },
+      );
+    }
+
+    // Check usage - find all links using this LinkName pair
+    const linksUsingName = await db
+      .select()
+      .from(link)
+      .where(eq(link.linkNameId, linkNameToDelete.id));
+
+    const usageCount = linksUsingName.length;
 
     if (isDefault && usageCount > 0 && !replaceWith) {
       return NextResponse.json(
-        { error: "Cannot delete default link name that is in use without replacement" },
+        {
+          error:
+            "Cannot delete default link name that is in use without replacement",
+        },
         { status: 400 },
       );
     }
 
     if (replaceWith && usageCount > 0) {
-      // Replace all usages
-      const linksToUpdate = await db.link.findMany({
-        where: {
-          OR: [
-            { forwardName: name },
-            { reverseName: name },
-          ],
-        },
+      // Find replacement LinkName pair
+      const replacementLinkName = await db.query.linkName.findFirst({
+        where: or(
+          eq(linkName.forwardName, replaceWith),
+          eq(linkName.reverseName, replaceWith),
+        )!,
       });
 
-      for (const link of linksToUpdate) {
-        const updateData: {
-          forwardName?: string;
-          reverseName?: string;
-        } = {};
-
-        if (link.forwardName === name) {
-          updateData.forwardName = replaceWith;
-        }
-
-        if (link.reverseName === name) {
-          updateData.reverseName = replaceWith;
-        }
-
-        if (Object.keys(updateData).length > 0) {
-          await db.link.update({
-            where: { id: link.id },
-            data: updateData,
-          });
-        }
+      if (!replacementLinkName) {
+        return NextResponse.json(
+          { error: "Replacement link name not found" },
+          { status: 400 },
+        );
       }
+
+      // Replace all usages
+      await db
+        .update(link)
+        .set({ linkNameId: replacementLinkName.id })
+        .where(eq(link.linkNameId, linkNameToDelete.id));
     }
 
     // Delete or mark as deleted
     if (isDefault) {
-      const existing = await db.linkName.findUnique({
-        where: { name },
-      });
-
-      if (existing) {
-        await db.linkName.update({
-          where: { name },
-          data: { isDeleted: true },
-        });
-      } else {
-        await db.linkName.create({
-          data: {
-            name,
-            isDefault: true,
-            isDeleted: true,
-          },
-        });
-      }
+      await db
+        .update(linkName)
+        .set({ isDeleted: true })
+        .where(eq(linkName.id, linkNameToDelete.id));
     } else {
-      await db.linkName.delete({
-        where: { name },
-      });
+      // Hard delete custom link names
+      await db.delete(linkName).where(eq(linkName.id, linkNameToDelete.id));
     }
 
     return NextResponse.json({ success: true, deletedCount: usageCount });
@@ -205,6 +166,3 @@ export async function DELETE(
     return handleApiError(error);
   }
 }
-
-// Note: GET handler moved to [name]/usage/route.ts to match hook expectations
-

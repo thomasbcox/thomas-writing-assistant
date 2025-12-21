@@ -4,6 +4,7 @@ import {
   createTestCaller,
   cleanupTestData,
   migrateTestDb,
+  closeTestDb,
 } from "./test-utils";
 
 // Skip AI tests if OPENAI_API_KEY is not set
@@ -20,7 +21,7 @@ describeIf("AI Router", () => {
 
   afterAll(async () => {
     await cleanupTestData(db);
-    await db.$disconnect();
+    closeTestDb(db);
   });
 
   test("should get AI settings", async () => {

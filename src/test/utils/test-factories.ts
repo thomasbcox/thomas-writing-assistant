@@ -61,17 +61,31 @@ export function createMockConcept(overrides = {}) {
   };
 }
 
+export function createMockLinkName(overrides = {}) {
+  return {
+    id: `linkname-${Math.random().toString(36).substring(7)}`,
+    forwardName: "references",
+    reverseName: "referenced by",
+    isSymmetric: false,
+    isDefault: false,
+    isDeleted: false,
+    createdAt: new Date(),
+    ...overrides,
+  };
+}
+
 export function createMockLink(overrides = {}) {
+  const linkName = createMockLinkName();
   return {
     id: `link-${Math.random().toString(36).substring(7)}`,
     sourceId: "concept-1",
     targetId: "concept-2",
-    forwardName: "references",
-    reverseName: "referenced by",
+    linkNameId: linkName.id,
     notes: null,
     createdAt: new Date(),
     source: createMockConcept({ id: "concept-1" }),
     target: createMockConcept({ id: "concept-2" }),
+    linkName: linkName,
     ...overrides,
   };
 }

@@ -40,7 +40,7 @@ export function CapsuleList({
     <div className="bg-white rounded-lg shadow p-6">
       <h2 className="text-xl font-semibold mb-5">Capsules</h2>
       <div className="space-y-4">
-        {capsules?.map((capsule) => (
+        {Array.isArray(capsules) && capsules.map((capsule) => (
           <CapsuleCard
             key={capsule.id}
             capsule={capsule}

@@ -2,12 +2,15 @@
  * REST API routes for concepts
  * GET /api/concepts - List concepts
  * POST /api/concepts - Create concept
+ * Uses Drizzle ORM for database access
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb, handleApiError, parseJsonBody, getQueryParamBool, getQueryParam } from "~/server/api/helpers";
 import { logger } from "~/lib/logger";
+import { eq, and, or, like, desc } from "drizzle-orm";
+import { concept } from "~/server/schema";
 
 const createConceptSchema = z.object({
   title: z.string().min(1),
@@ -25,26 +28,28 @@ export async function GET(request: NextRequest) {
     const includeTrash = getQueryParamBool(request, "includeTrash", false);
     const search = getQueryParam(request, "search");
 
-    const where: {
-      status?: string;
-      OR?: Array<{ title?: { contains: string } } | { description?: { contains: string } }>;
-    } = {};
+    const conditions = [];
 
     if (!includeTrash) {
-      where.status = "active";
+      conditions.push(eq(concept.status, "active"));
     }
 
     if (search) {
-      where.OR = [
-        { title: { contains: search } },
-        { description: { contains: search } },
-      ];
+      conditions.push(
+        or(
+          like(concept.title, `%${search}%`),
+          like(concept.description, `%${search}%`),
+        )!,
+      );
     }
 
-    const concepts = await db.concept.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-    });
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const concepts = await db
+      .select()
+      .from(concept)
+      .where(whereClause)
+      .orderBy(desc(concept.createdAt));
 
     logger.info({
       operation: "listConcepts",
@@ -68,8 +73,9 @@ export async function POST(request: NextRequest) {
     const { v4: uuidv4 } = await import("uuid");
     const identifier = `zettel-${uuidv4().slice(0, 8)}`;
 
-    const concept = await db.concept.create({
-      data: {
+    const [newConcept] = await db
+      .insert(concept)
+      .values({
         identifier,
         title: input.title,
         description: input.description ?? "",
@@ -78,21 +84,20 @@ export async function POST(request: NextRequest) {
         source: input.source ?? "Unknown",
         year: input.year ?? new Date().getFullYear().toString(),
         status: "active",
-      },
-    });
+      })
+      .returning();
 
     logger.info({
       operation: "createConcept",
-      conceptId: concept.id,
-      identifier: concept.identifier,
-      title: concept.title,
-      creator: concept.creator,
-      source: concept.source,
+      conceptId: newConcept.id,
+      identifier: newConcept.identifier,
+      title: newConcept.title,
+      creator: newConcept.creator,
+      source: newConcept.source,
     }, "Created concept");
 
-    return NextResponse.json(concept, { status: 201 });
+    return NextResponse.json(newConcept, { status: 201 });
   } catch (error) {
     return handleApiError(error);
   }
 }
-

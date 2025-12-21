@@ -4,6 +4,7 @@ import {
   createTestCaller,
   cleanupTestData,
   migrateTestDb,
+  closeTestDb,
 } from "./test-utils";
 import fs from "fs";
 import path from "path";
@@ -18,7 +19,7 @@ describe("PDF Router", () => {
 
   afterAll(async () => {
     await cleanupTestData(db);
-    await db.$disconnect();
+    closeTestDb(db);
   });
 
   test("should extract text from a simple PDF", async () => {

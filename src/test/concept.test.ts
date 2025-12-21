@@ -4,7 +4,10 @@ import {
   createTestCaller,
   cleanupTestData,
   migrateTestDb,
+  closeTestDb,
 } from "./test-utils";
+import { eq } from "drizzle-orm";
+import { concept } from "~/server/schema";
 
 describe("Concept Router", () => {
   const db = createTestDb();
@@ -21,9 +24,8 @@ describe("Concept Router", () => {
   });
 
   afterAll(async () => {
-    // Clean up and disconnect
     await cleanupTestData(db);
-    await db.$disconnect();
+    closeTestDb(db);
   });
 
   test("should create a new concept", async () => {
@@ -236,10 +238,13 @@ describe("Concept Router", () => {
       year: "2024",
     });
 
+    const linkNames = await caller.linkName.getAll();
+    const linkNamePair = linkNames.find((ln) => ln.forwardName === "references") || linkNames[0];
+
     await caller.link.create({
       sourceId: concept1.id,
       targetId: concept2.id,
-      forwardName: "references",
+      linkNameId: linkNamePair.id,
     });
 
     const result = await caller.concept.getById({ id: concept1.id });
@@ -263,12 +268,12 @@ describe("Concept Router", () => {
     await caller.concept.delete({ id: concept1.id });
 
     // Manually update trashedAt to be 31 days ago
-    await db.concept.update({
-      where: { id: concept1.id },
-      data: {
+    await db
+      .update(concept)
+      .set({
         trashedAt: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000),
-      },
-    });
+      })
+      .where(eq(concept.id, concept1.id));
 
     // Create another trashed concept that's only 10 days old
     const concept2 = await caller.concept.create({
@@ -282,12 +287,12 @@ describe("Concept Router", () => {
 
     await caller.concept.delete({ id: concept2.id });
 
-    await db.concept.update({
-      where: { id: concept2.id },
-      data: {
+    await db
+      .update(concept)
+      .set({
         trashedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-      },
-    });
+      })
+      .where(eq(concept.id, concept2.id));
 
     // Purge concepts older than 30 days
     const result = await caller.concept.purgeTrash({ daysOld: 30 });
@@ -305,7 +310,7 @@ describe("Concept Router", () => {
   });
 
   test("should purge with custom daysOld parameter", async () => {
-    const concept = await caller.concept.create({
+    const createdConcept = await caller.concept.create({
       title: "Custom Days Concept",
       description: "Test",
       content: "Content",
@@ -314,15 +319,15 @@ describe("Concept Router", () => {
       year: "2024",
     });
 
-    await caller.concept.delete({ id: concept.id });
+    await caller.concept.delete({ id: createdConcept.id });
 
     // Set trashedAt to 15 days ago
-    await db.concept.update({
-      where: { id: concept.id },
-      data: {
+    await db
+      .update(concept)
+      .set({
         trashedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
-      },
-    });
+      })
+      .where(eq(concept.id, createdConcept.id));
 
     // Purge with 10 days (should delete)
     const result1 = await caller.concept.purgeTrash({ daysOld: 10 });
@@ -330,7 +335,7 @@ describe("Concept Router", () => {
 
     // Verify it's gone
     await expect(
-      caller.concept.getById({ id: concept.id })
+      caller.concept.getById({ id: createdConcept.id })
     ).rejects.toThrow("Concept not found");
   });
 });

@@ -3,17 +3,23 @@
  * Script to delete all concepts from the database
  * This will also delete all associated links due to cascade delete
  * Usage: npx tsx scripts/delete-all-concepts.ts
+ * 
+ * Updated for Drizzle ORM
  */
 
 import { db } from "../src/server/db";
+import { concept, link, mruConcept } from "../src/server/schema";
+import { eq } from "drizzle-orm";
 
 async function deleteAllConcepts() {
   try {
     console.log("Starting deletion of all concepts...");
 
-    // First, get counts
-    const conceptCount = await db.concept.count();
-    const linkCount = await db.link.count();
+    // First, get counts using Drizzle
+    const allConcepts = await db.select().from(concept);
+    const allLinks = await db.select().from(link);
+    const conceptCount = allConcepts.length;
+    const linkCount = allLinks.length;
 
     console.log(`Found ${conceptCount} concepts and ${linkCount} links to delete.`);
 
@@ -23,25 +29,24 @@ async function deleteAllConcepts() {
     }
 
     // Delete all links first (they will be cascade deleted anyway, but this is cleaner)
-    const deletedLinks = await db.link.deleteMany({});
-    console.log(`Deleted ${deletedLinks.count} links.`);
+    const deletedLinks = await db.delete(link);
+    console.log(`Deleted ${linkCount} links.`);
 
     // Delete all concepts (this will cascade delete any remaining links)
-    const deletedConcepts = await db.concept.deleteMany({});
-    console.log(`Deleted ${deletedConcepts.count} concepts.`);
+    const deletedConcepts = await db.delete(concept);
+    console.log(`Deleted ${conceptCount} concepts.`);
 
     // Also clean up MRUConcept table (most recently used concepts)
-    const deletedMRU = await db.mRUConcept.deleteMany({});
-    if (deletedMRU.count > 0) {
-      console.log(`Deleted ${deletedMRU.count} MRU concept records.`);
+    const allMRU = await db.select().from(mruConcept);
+    if (allMRU.length > 0) {
+      await db.delete(mruConcept);
+      console.log(`Deleted ${allMRU.length} MRU concept records.`);
     }
 
     console.log("✅ Successfully deleted all concepts and associated links!");
   } catch (error) {
     console.error("❌ Error deleting concepts:", error);
     process.exit(1);
-  } finally {
-    await db.$disconnect();
   }
 }
 

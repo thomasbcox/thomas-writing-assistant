@@ -16,8 +16,15 @@ interface Toast {
 }
 
 export function CapsulesTab() {
-  const { data: capsules, refetch } = api.capsule.list.useQuery();
+  // Load full data with all nested relations for detailed view
+  const { data: capsules, refetch } = api.capsule.list.useQuery({ summary: false });
   const [toasts, setToasts] = useState<Toast[]>([]);
+
+  // Clear all tab state (refetch to reset any local state)
+  const handleClear = () => {
+    void refetch();
+    addToast("Tab cleared", "success");
+  };
 
   const addToast = useCallback((message: string, type: ToastType) => {
     const id = Math.random().toString(36).substring(7);
@@ -137,7 +144,25 @@ export function CapsulesTab() {
   return (
     <>
       <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <div className="flex justify-end mb-2">
+        <button
+          onClick={handleClear}
+          className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm"
+          title="Clear and refresh tab"
+        >
+          Clear
+        </button>
+      </div>
       <div className="space-y-5">
+        <div className="flex justify-end mb-2">
+          <button
+            onClick={handleClear}
+            className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm"
+            title="Clear and refresh tab"
+          >
+            Clear
+          </button>
+        </div>
         <CapsuleInfoSection />
 
         <PDFUploadSection

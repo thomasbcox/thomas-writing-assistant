@@ -83,24 +83,59 @@ export function HealthStatusCard({ onNavigate }: HealthStatusCardProps) {
   }
 
   if (error || !health) {
+    const errorMessage = error?.message || "Failed to load health status";
+    const isTimeout = errorMessage.toLowerCase().includes("timeout");
+    const isServiceUnavailable = errorMessage.includes("Service Unavailable") || errorMessage.includes("503");
+    
     return (
       <div className="bg-white border-2 border-red-200 rounded-xl p-4">
         <h2 className="text-2xl font-bold text-gray-900 mb-3">⚡ System Health</h2>
         <div className="text-sm text-red-600 mb-3">
-          {error?.message || "Failed to load health status"}
+          {isTimeout ? (
+            <div>
+              <div className="font-bold mb-1">Health check timeout</div>
+              <div className="text-xs text-gray-600">
+                The server may be slow or the database query is taking too long (over 3 seconds).
+              </div>
+            </div>
+          ) : isServiceUnavailable ? (
+            <div>
+              <div className="font-bold mb-1">Service Unavailable</div>
+              <div className="text-xs text-gray-600">
+                The health check indicates a system issue. Check server logs for details.
+              </div>
+            </div>
+          ) : (
+            errorMessage
+          )}
         </div>
         <button
-          onClick={() => refetch()}
-          className="px-4 py-2 text-sm font-semibold bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all"
+          onClick={async () => {
+            // Show loading state immediately and refetch
+            await refetch();
+          }}
+          disabled={isLoading}
+          className="px-4 py-2 text-sm font-semibold bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Retry
+          {isLoading ? "Checking..." : "Retry"}
         </button>
+        {(isTimeout || isServiceUnavailable) && (
+          <div className="mt-2 text-xs text-gray-600">
+            <div className="mb-1">Possible causes:</div>
+            <ul className="list-disc list-inside space-y-1">
+              <li>Database file locked or corrupted</li>
+              <li>Server under heavy load</li>
+              <li>Database query taking too long</li>
+            </ul>
+          </div>
+        )}
       </div>
     );
   }
 
   const overallStatus = health.status;
   const checks = health.checks;
+  const issues = health.issues || [];
 
   return (
     <div className={`bg-white border-2 rounded-xl p-4 ${getStatusBgColor(overallStatus)}`}>
@@ -183,16 +218,16 @@ export function HealthStatusCard({ onNavigate }: HealthStatusCardProps) {
         </div>
 
         {/* Issues List */}
-        {health.issues.length > 0 && (
+        {Array.isArray(issues) && issues.length > 0 && (
           <div className="pt-2 border-t border-gray-300">
             <div className="text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">
-              Issues:
+              Issues ({issues.length}):
             </div>
             <ul className="text-xs text-gray-600 space-y-1">
-              {health.issues.map((issue, idx) => (
+              {issues.map((issue, idx) => (
                 <li key={idx} className="flex items-start gap-2">
                   <span className="text-red-500">•</span>
-                  <span>{issue}</span>
+                  <span>{issue || "Unknown issue"}</span>
                 </li>
               ))}
             </ul>

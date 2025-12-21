@@ -1,85 +1,97 @@
 /**
  * Admin API route to get database statistics
  * GET /api/admin/db-stats - Get record counts for all tables
+ * Uses Drizzle ORM for database access
  */
 
 import { NextResponse } from "next/server";
 import { getDb, handleApiError } from "~/server/api/helpers";
+import { eq, desc } from "drizzle-orm";
+import { concept, link, capsule, anchor, repurposedContent, linkName, mruConcept } from "~/server/schema";
 
 export async function GET() {
   try {
     const db = getDb();
 
     const [
-      conceptCount,
-      activeConceptCount,
-      trashedConceptCount,
-      linkCount,
-      capsuleCount,
-      anchorCount,
-      repurposedContentCount,
-      linkNameCount,
-      mruConceptCount,
+      allConcepts,
+      activeConcepts,
+      trashedConcepts,
+      allLinks,
+      allCapsules,
+      allAnchors,
+      allRepurposed,
+      allLinkNames,
+      allMRU,
     ] = await Promise.all([
-      db.concept.count(),
-      db.concept.count({ where: { status: "active" } }),
-      db.concept.count({ where: { status: "trash" } }),
-      db.link.count(),
-      db.capsule.count(),
-      db.anchor.count(),
-      db.repurposedContent.count(),
-      db.linkName.count(),
-      db.mRUConcept.count(),
+      db.select().from(concept),
+      db.select().from(concept).where(eq(concept.status, "active")),
+      db.select().from(concept).where(eq(concept.status, "trash")),
+      db.select().from(link),
+      db.select().from(capsule),
+      db.select().from(anchor),
+      db.select().from(repurposedContent),
+      db.select().from(linkName),
+      db.select().from(mruConcept),
     ]);
 
     // Get sample data for verification
-    const sampleConcepts = await db.concept.findMany({
-      take: 3,
-      select: {
-        id: true,
-        title: true,
-        status: true,
-        description: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const sampleConcepts = await db
+      .select({
+        id: concept.id,
+        title: concept.title,
+        status: concept.status,
+        description: concept.description,
+      })
+      .from(concept)
+      .orderBy(desc(concept.createdAt))
+      .limit(3);
 
-    const sampleCapsules = await db.capsule.findMany({
-      take: 3,
-      select: {
-        id: true,
-        title: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const sampleCapsules = await db
+      .select({
+        id: capsule.id,
+        title: capsule.title,
+      })
+      .from(capsule)
+      .orderBy(desc(capsule.createdAt))
+      .limit(3);
 
-    const sampleLinks = await db.link.findMany({
-      take: 3,
-      select: {
-        id: true,
-        forwardName: true,
-        reverseName: true,
-        source: { select: { title: true } },
-        target: { select: { title: true } },
+    // Get sample links with source and target concept titles
+    const sampleLinksRaw = await (db.query as any).link.findMany({
+      limit: 3,
+      orderBy: [desc(link.createdAt)],
+      with: {
+        source: true,
+        target: true,
+        linkName: true,
       },
-      orderBy: { createdAt: "desc" },
     });
+    
+    const sampleLinks = sampleLinksRaw.map((l: { id: string; linkName?: { forwardName: string; reverseName: string } | null; source?: { title: string } | null; target?: { title: string } | null }) => ({
+      id: l.id,
+      linkName: l.linkName ? {
+        forwardName: l.linkName.forwardName,
+        reverseName: l.linkName.reverseName,
+      } : null,
+      source: { title: l.source?.title || "" },
+      target: { title: l.target?.title || "" },
+    }));
 
     return NextResponse.json({
       counts: {
-        Concept: conceptCount,
-        Link: linkCount,
-        Capsule: capsuleCount,
-        Anchor: anchorCount,
-        RepurposedContent: repurposedContentCount,
-        LinkName: linkNameCount,
-        MRUConcept: mruConceptCount,
+        Concept: allConcepts.length,
+        Link: allLinks.length,
+        Capsule: allCapsules.length,
+        Anchor: allAnchors.length,
+        RepurposedContent: allRepurposed.length,
+        LinkName: allLinkNames.length,
+        MRUConcept: allMRU.length,
       },
       breakdowns: {
         concepts: {
-          total: conceptCount,
-          active: activeConceptCount,
-          trashed: trashedConceptCount,
+          total: allConcepts.length,
+          active: activeConcepts.length,
+          trashed: trashedConcepts.length,
         },
       },
       samples: {

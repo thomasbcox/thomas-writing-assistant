@@ -16,9 +16,9 @@ Quick start guide for the Thomas Writing Assistant.
 
 2. **Set up the database:**
    ```bash
-   npm run db:generate
-   npm run db:migrate
+   npm run db:push
    ```
+   (This creates the database schema. Use `npm run db:generate` and `npm run db:migrate` for migration-based workflows.)
 
 3. **Create `.env` file:**
    ```env
@@ -153,8 +153,8 @@ The app runs on port 3051 by default. To change this, update the `dev` and `star
 ### API Key Issues
 
 The app requires at least one LLM provider API key for AI features. You can use either:
-- **OpenAI**: `OPENAI_API_KEY=sk-your-key-here`
-- **Google Gemini**: `GOOGLE_API_KEY=your-gemini-key-here`
+- **OpenAI**: `OPENAI_API_KEY=your_openai_key_here`
+- **Google Gemini**: `GOOGLE_API_KEY=your_gemini_key_here`
 
 If both are set, Gemini is preferred by default. You can switch providers in the Settings tab.
 

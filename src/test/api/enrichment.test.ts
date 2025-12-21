@@ -13,12 +13,17 @@ import { POST as expandDefinitionPost } from "~/app/api/enrichment/expand-defini
 import { POST as chatPost } from "~/app/api/enrichment/chat/route";
 import { NextRequest } from "next/server";
 
-// Mock the enrichment service
+// Mock the enrichment service - create mocks that can be accessed
+const mockAnalyzeConcept = jest.fn();
+const mockEnrichMetadata = jest.fn();
+const mockExpandDefinition = jest.fn();
+const mockChatEnrichConcept = jest.fn();
+
 jest.mock("~/server/services/conceptEnricher", () => ({
-  analyzeConcept: jest.fn(),
-  enrichMetadata: jest.fn(),
-  expandDefinition: jest.fn(),
-  chatEnrichConcept: jest.fn(),
+  analyzeConcept: (...args: unknown[]) => mockAnalyzeConcept(...args),
+  enrichMetadata: (...args: unknown[]) => mockEnrichMetadata(...args),
+  expandDefinition: (...args: unknown[]) => mockExpandDefinition(...args),
+  chatEnrichConcept: (...args: unknown[]) => mockChatEnrichConcept(...args),
 }));
 
 // Mock LLM client and config loader
@@ -46,7 +51,6 @@ describe("Enrichment API", () => {
 
   describe("POST /api/enrichment/analyze", () => {
     it("should analyze a concept", async () => {
-      const { analyzeConcept } = await import("~/server/services/conceptEnricher");
       const mockResponse = {
         suggestions: [
           {
@@ -69,7 +73,7 @@ describe("Enrichment API", () => {
         initialMessage: "I can help improve this concept",
       };
 
-      jest.mocked(analyzeConcept).mockResolvedValue(mockResponse);
+      mockAnalyzeConcept.mockResolvedValue(mockResponse);
 
       const request = new NextRequest("http://localhost/api/enrichment/analyze", {
         method: "POST",
@@ -114,7 +118,6 @@ describe("Enrichment API", () => {
 
   describe("POST /api/enrichment/enrich-metadata", () => {
     it("should enrich metadata", async () => {
-      const { enrichMetadata } = await import("~/server/services/conceptEnricher");
       const mockResponse = {
         creator: "Test Author",
         year: "2024",
@@ -123,7 +126,7 @@ describe("Enrichment API", () => {
         confidence: "high" as const,
       };
 
-      jest.mocked(enrichMetadata).mockResolvedValue(mockResponse);
+      mockEnrichMetadata.mockResolvedValue(mockResponse);
 
       const request = new NextRequest("http://localhost/api/enrichment/enrich-metadata", {
         method: "POST",
@@ -139,14 +142,13 @@ describe("Enrichment API", () => {
       expect(response.status).toBe(200);
       expect(data.creator).toBe("Test Author");
       expect(data.year).toBe("2024");
-      expect(enrichMetadata).toHaveBeenCalled();
+      expect(mockEnrichMetadata).toHaveBeenCalled();
     });
   });
 
   describe("POST /api/enrichment/expand-definition", () => {
     it("should expand a definition", async () => {
-      const { expandDefinition } = await import("~/server/services/conceptEnricher");
-      jest.mocked(expandDefinition).mockResolvedValue("Expanded definition with more detail");
+      mockExpandDefinition.mockResolvedValue("Expanded definition with more detail");
 
       const request = new NextRequest("http://localhost/api/enrichment/expand-definition", {
         method: "POST",
@@ -167,14 +169,13 @@ describe("Enrichment API", () => {
 
   describe("POST /api/enrichment/chat", () => {
     it("should handle chat enrichment", async () => {
-      const { chatEnrichConcept } = await import("~/server/services/conceptEnricher");
       const mockResponse = {
         response: "Here's how to improve your concept",
         suggestions: [],
         actions: [],
       };
 
-      jest.mocked(chatEnrichConcept).mockResolvedValue(mockResponse);
+      mockChatEnrichConcept.mockResolvedValue(mockResponse);
 
       const request = new NextRequest("http://localhost/api/enrichment/chat", {
         method: "POST",

@@ -3,12 +3,15 @@
  * GET /api/concepts/[id] - Get concept by ID
  * PUT /api/concepts/[id] - Update concept
  * DELETE /api/concepts/[id] - Delete concept (soft delete)
+ * Uses Drizzle ORM for database access
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb, handleApiError, parseJsonBody } from "~/server/api/helpers";
 import { logger } from "~/lib/logger";
+import { eq } from "drizzle-orm";
+import { concept } from "~/server/schema";
 
 const updateConceptSchema = z.object({
   title: z.string().min(1).optional(),
@@ -28,23 +31,23 @@ export async function GET(
     const db = getDb();
     const { id } = await params;
 
-    const concept = await db.concept.findUnique({
-      where: { id },
-      include: {
+    const foundConcept = await db.query.concept.findFirst({
+      where: eq(concept.id, id),
+      with: {
         outgoingLinks: {
-          include: { target: true },
+          with: { target: true },
         },
         incomingLinks: {
-          include: { source: true },
+          with: { source: true },
         },
       },
     });
 
-    if (!concept) {
+    if (!foundConcept) {
       return NextResponse.json({ error: "Concept not found" }, { status: 404 });
     }
 
-    return NextResponse.json(concept);
+    return NextResponse.json(foundConcept);
   } catch (error) {
     return handleApiError(error);
   }
@@ -61,26 +64,23 @@ export async function PUT(
     const body = await parseJsonBody(request);
     const input = updateConceptSchema.parse(body);
 
-    const updateData: Record<string, unknown> = {};
-    if (input.title !== undefined) updateData.title = input.title;
-    if (input.description !== undefined) updateData.description = input.description;
-    if (input.content !== undefined) updateData.content = input.content;
-    if (input.creator !== undefined) updateData.creator = input.creator;
-    if (input.source !== undefined) updateData.source = input.source;
-    if (input.year !== undefined) updateData.year = input.year;
+    const [updatedConcept] = await db
+      .update(concept)
+      .set(input)
+      .where(eq(concept.id, id))
+      .returning();
 
-    const concept = await db.concept.update({
-      where: { id },
-      data: updateData,
-    });
+    if (!updatedConcept) {
+      return NextResponse.json({ error: "Concept not found" }, { status: 404 });
+    }
 
     logger.info({
       operation: "updateConcept",
       conceptId: id,
-      updatedFields: Object.keys(updateData),
+      updatedFields: Object.keys(input),
     }, "Updated concept");
 
-    return NextResponse.json(concept);
+    return NextResponse.json(updatedConcept);
   } catch (error) {
     return handleApiError(error);
   }
@@ -95,18 +95,27 @@ export async function DELETE(
     const db = getDb();
     const { id } = await params;
 
-    const concept = await db.concept.update({
-      where: { id },
-      data: {
+    const foundConcept = await db.query.concept.findFirst({
+      where: eq(concept.id, id),
+    });
+
+    if (!foundConcept) {
+      return NextResponse.json({ error: "Concept not found" }, { status: 404 });
+    }
+
+    const [deletedConcept] = await db
+      .update(concept)
+      .set({
         status: "trash",
         trashedAt: new Date(),
-      },
-    });
+      })
+      .where(eq(concept.id, id))
+      .returning();
 
     logger.info({
       operation: "deleteConcept",
       conceptId: id,
-      title: concept.title,
+      title: deletedConcept.title,
     }, "Soft deleted concept");
 
     return NextResponse.json({ success: true });
@@ -114,4 +123,3 @@ export async function DELETE(
     return handleApiError(error);
   }
 }
-

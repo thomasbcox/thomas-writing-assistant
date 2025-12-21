@@ -15,25 +15,62 @@ export function LinksTab() {
   const [manualLinkForm, setManualLinkForm] = useState({
     sourceId: "",
     targetId: "",
-    forwardName: "",
-    reverseName: "",
+    linkNameId: "",
     notes: "",
   });
   const { toasts, addToast, removeToast } = useToast();
+
+  // Clear all tab state
+  const handleClear = () => {
+    setSelectedConceptId("");
+    setShowLinkNameManager(false);
+    setShowManualLinkForm(false);
+    setManualLinkForm({
+      sourceId: "",
+      targetId: "",
+      linkNameId: "",
+      notes: "",
+    });
+    addToast("Tab cleared", "success");
+  };
 
   const { data: concepts } = api.concept.list.useQuery({
     includeTrash: false,
   });
 
-  const { data: links } = api.link.getByConcept.useQuery(
+  // Get all links (for display when no concept is selected)
+  const { data: allLinks, error: allLinksError, isLoading: allLinksLoading } = api.link.getAll.useQuery({ summary: false });
+  
+  // Log errors for debugging
+  if (allLinksError) {
+    console.error("Error loading all links:", allLinksError);
+  }
+  
+  // Debug logging
+  if (allLinks && Array.isArray(allLinks)) {
+    console.log("All links data:", { count: allLinks.length, links: allLinks });
+  }
+  
+  // Get all link name pairs (used in both manual form and display)
+  const { data: linkNamePairs } = api.linkName.getAll.useQuery();
+
+  // Get links for selected concept (when a concept is selected)
+  const { data: links, error: linksError } = api.link.getByConcept.useQuery(
     { conceptId: selectedConceptId },
     { enabled: !!selectedConceptId },
   );
+  
+  // Log errors for debugging
+  if (linksError) {
+    console.error("Error loading links:", linksError);
+  }
 
   const deleteLinkMutation = api.link.delete.useMutation({
     onSuccess: () => {
       addToast("Link deleted successfully", "success");
-      void utils.link.getByConcept.invalidate({ conceptId: selectedConceptId });
+      if (selectedConceptId) {
+        void utils.link.getByConcept.invalidate({ conceptId: selectedConceptId });
+      }
       void utils.link.getAll.invalidate();
     },
     onError: (error) => {
@@ -47,12 +84,13 @@ export function LinksTab() {
       setManualLinkForm({
         sourceId: "",
         targetId: "",
-        forwardName: "",
-        reverseName: "",
+        linkNameId: "",
         notes: "",
       });
       setShowManualLinkForm(false);
-      void utils.link.getByConcept.invalidate({ conceptId: selectedConceptId });
+      if (selectedConceptId) {
+        void utils.link.getByConcept.invalidate({ conceptId: selectedConceptId });
+      }
       void utils.link.getAll.invalidate();
     },
     onError: (error) => {
@@ -65,15 +103,14 @@ export function LinksTab() {
   const selectedConcept = concepts?.find((c: ConceptListItem) => c.id === selectedConceptId);
 
   const handleCreateLink = () => {
-    if (!manualLinkForm.sourceId || !manualLinkForm.targetId || !manualLinkForm.forwardName) {
-      addToast("Please fill in source, target, and forward name", "error");
+    if (!manualLinkForm.sourceId || !manualLinkForm.targetId || !manualLinkForm.linkNameId) {
+      addToast("Please fill in source, target, and link name pair", "error");
       return;
     }
     createLinkMutation.mutate({
       sourceId: manualLinkForm.sourceId,
       targetId: manualLinkForm.targetId,
-      forwardName: manualLinkForm.forwardName,
-      reverseName: manualLinkForm.reverseName || undefined,
+      linkNameId: manualLinkForm.linkNameId,
       notes: manualLinkForm.notes || undefined,
     });
   };
@@ -84,13 +121,22 @@ export function LinksTab() {
       <div className="space-y-5">
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-xl font-semibold">Manage Link Names</h2>
-          <button
-            onClick={() => setShowLinkNameManager(!showLinkNameManager)}
-            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-          >
-            {showLinkNameManager ? "Hide" : "Show"} Link Name Manager
-          </button>
+          <h2 className="text-xl font-semibold">Links</h2>
+          <div className="flex gap-2">
+            <button
+              onClick={handleClear}
+              className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm"
+              title="Clear all selections and forms"
+            >
+              Clear
+            </button>
+            <button
+              onClick={() => setShowLinkNameManager(!showLinkNameManager)}
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+            >
+              {showLinkNameManager ? "Hide" : "Show"} Link Name Manager
+            </button>
+          </div>
         </div>
         {showLinkNameManager && <LinkNameManager />}
       </div>
@@ -139,35 +185,39 @@ export function LinksTab() {
                 placeholder="-- Select target --"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">
-                  Forward Name (required)
-                </label>
-                <input
-                  type="text"
-                  value={manualLinkForm.forwardName}
-                  onChange={(e) =>
-                    setManualLinkForm({ ...manualLinkForm, forwardName: e.target.value })
-                  }
-                  placeholder="e.g., references, builds on, contains"
-                  className="w-full px-5 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">
-                  Reverse Name (optional)
-                </label>
-                <input
-                  type="text"
-                  value={manualLinkForm.reverseName}
-                  onChange={(e) =>
-                    setManualLinkForm({ ...manualLinkForm, reverseName: e.target.value })
-                  }
-                  placeholder="Auto-filled if left empty"
-                  className="w-full px-5 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-900 mb-2">
+                Link Name Pair (required)
+              </label>
+              <select
+                value={manualLinkForm.linkNameId}
+                onChange={(e) =>
+                  setManualLinkForm({ ...manualLinkForm, linkNameId: e.target.value })
+                }
+                className="w-full px-5 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+              >
+                <option value="">-- Select link name pair --</option>
+                {linkNamePairs && Array.isArray(linkNamePairs) && linkNamePairs.length > 0 ? (
+                  linkNamePairs.map((pair) => (
+                    <option key={pair?.id || ""} value={pair?.id || ""}>
+                      {pair?.forwardName || "unknown"} → {pair?.reverseName || "unknown"}
+                      {pair?.isSymmetric && " (symmetric)"}
+                    </option>
+                  ))
+                ) : (
+                  <option value="" disabled>No link name pairs available</option>
+                )}
+              </select>
+              {manualLinkForm.linkNameId && linkNamePairs && Array.isArray(linkNamePairs) && (
+                <div className="mt-2 text-sm text-gray-600">
+                  <div>
+                    Forward: <strong>{linkNamePairs.find((p) => p?.id === manualLinkForm.linkNameId)?.forwardName || "unknown"}</strong>
+                  </div>
+                  <div>
+                    Reverse: <strong>{linkNamePairs.find((p) => p?.id === manualLinkForm.linkNameId)?.reverseName || "unknown"}</strong>
+                  </div>
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-900 mb-2">
@@ -197,8 +247,7 @@ export function LinksTab() {
                   setManualLinkForm({
                     sourceId: "",
                     targetId: "",
-                    forwardName: "",
-                    reverseName: "",
+                    linkNameId: "",
                     notes: "",
                   });
                 }}
@@ -236,10 +285,13 @@ export function LinksTab() {
         )}
       </div>
 
-      {selectedConceptId && links && (
+      {/* Show all links when no concept is selected, or filtered links when a concept is selected */}
+      {selectedConceptId && links && typeof links === "object" && "outgoing" in links && "incoming" in links ? (
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold mb-5">Existing Links</h2>
-          {links.outgoing.length > 0 && (
+          <h2 className="text-xl font-semibold mb-5">
+            Links for: {selectedConcept?.title || selectedConceptId}
+          </h2>
+          {Array.isArray(links.outgoing) && links.outgoing.length > 0 && (
             <div className="mb-6">
               <h3 className="text-sm font-medium text-gray-600 mb-5">
                 OUTGOING:
@@ -252,10 +304,10 @@ export function LinksTab() {
                   >
                     <div>
                       <span className="text-sm text-gray-600">
-                        "{link.forwardName}"
+                        "{link.linkName?.forwardName || "unknown"}"
                       </span>
                       <span className="mx-2 text-gray-400">→</span>
-                      <strong>{link.target.title}</strong>
+                      <strong>{link.target?.title || link.targetId}</strong>
                     </div>
                     <button
                       onClick={() =>
@@ -274,7 +326,7 @@ export function LinksTab() {
             </div>
           )}
 
-          {links.incoming.length > 0 && (
+          {Array.isArray(links.incoming) && links.incoming.length > 0 && (
             <div>
               <h3 className="text-sm font-medium text-gray-600 mb-5">
                 INCOMING:
@@ -286,10 +338,10 @@ export function LinksTab() {
                     className="flex items-center justify-between p-3 bg-gray-50 rounded border"
                   >
                     <div>
-                      <strong>{link.source.title}</strong>
+                      <strong>{link.source?.title || link.sourceId}</strong>
                       <span className="mx-2 text-gray-400">←</span>
                       <span className="text-sm text-gray-600">
-                        "{link.reverseName}"
+                        "{link.linkName?.reverseName || "unknown"}"
                       </span>
                     </div>
                     <button
@@ -309,8 +361,56 @@ export function LinksTab() {
             </div>
           )}
 
-          {links.outgoing.length === 0 && links.incoming.length === 0 && (
-            <p className="text-gray-500">No links yet.</p>
+          {(!Array.isArray(links.outgoing) || links.outgoing.length === 0) && (!Array.isArray(links.incoming) || links.incoming.length === 0) && (
+            <p className="text-gray-500">No links for this concept yet.</p>
+          )}
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-5">All Links</h2>
+          {allLinks && Array.isArray(allLinks) && allLinks.length > 0 ? (
+            <div className="space-y-2">
+              {allLinks.map((link: LinkWithConcepts) => {
+                // Ensure link has required properties
+                if (!link || !link.id) {
+                  console.warn("Invalid link object:", link);
+                  return null;
+                }
+                const sourceConcept = concepts?.find((c: ConceptListItem) => c.id === link.sourceId);
+                const targetConcept = concepts?.find((c: ConceptListItem) => c.id === link.targetId);
+                return (
+                  <div
+                    key={link.id}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded border"
+                  >
+                    <div>
+                      <strong>{sourceConcept?.title || link.source?.title || link.sourceId || "Unknown"}</strong>
+                      <span className="mx-2 text-gray-400">→</span>
+                      <span className="text-sm text-gray-600">
+                        "{link.linkName?.forwardName || "unknown"}"
+                      </span>
+                      <span className="mx-2 text-gray-400">→</span>
+                      <strong>{targetConcept?.title || link.target?.title || link.targetId || "Unknown"}</strong>
+                    </div>
+                    <button
+                      onClick={() =>
+                        deleteLinkMutation.mutate({
+                          sourceId: link.sourceId,
+                          targetId: link.targetId,
+                        })
+                      }
+                      className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-gray-500">
+              {allLinksLoading ? "Loading links..." : allLinksError ? `Error: ${allLinksError.message}` : "No links yet. Select a concept above to propose links, or create a manual link."}
+            </p>
           )}
         </div>
       )}

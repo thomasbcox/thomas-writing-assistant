@@ -2,17 +2,19 @@
  * REST API routes for links
  * GET /api/links - Get links (query param: conceptId)
  * POST /api/links - Create link
+ * Uses Drizzle ORM for database access
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb, handleApiError, parseJsonBody, getQueryParam } from "~/server/api/helpers";
+import { eq, and, desc } from "drizzle-orm";
+import { link, linkName } from "~/server/schema";
 
 const createLinkSchema = z.object({
   sourceId: z.string(),
   targetId: z.string(),
-  forwardName: z.string().min(1),
-  reverseName: z.string().optional(),
+  linkNameId: z.string().min(1),
   notes: z.string().optional(),
 });
 
@@ -24,19 +26,21 @@ export async function GET(request: NextRequest) {
 
     if (conceptId) {
       // Get links for a specific concept
-      const outgoing = await db.link.findMany({
-        where: { sourceId: conceptId },
-        include: { 
+      const outgoing = await db.query.link.findMany({
+        where: eq(link.sourceId, conceptId),
+        with: {
           target: true,
           source: true,
+          linkName: true,
         },
       });
 
-      const incoming = await db.link.findMany({
-        where: { targetId: conceptId },
-        include: { 
+      const incoming = await db.query.link.findMany({
+        where: eq(link.targetId, conceptId),
+        with: {
           source: true,
           target: true,
+          linkName: true,
         },
       });
 
@@ -44,12 +48,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all links
-    const links = await db.link.findMany({
-      include: {
+    const links = await db.query.link.findMany({
+      with: {
         source: true,
         target: true,
+        linkName: true,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [desc(link.createdAt)],
     });
 
     return NextResponse.json(links);
@@ -65,73 +70,74 @@ export async function POST(request: NextRequest) {
     const body = await parseJsonBody(request);
     const input = createLinkSchema.parse(body);
 
-    // Check if link already exists
-    const existing = await db.link.findUnique({
-      where: {
-        sourceId_targetId: {
-          sourceId: input.sourceId,
-          targetId: input.targetId,
-        },
-      },
+    // Verify linkNameId exists
+    const linkNameRecord = await db.query.linkName.findFirst({
+      where: eq(linkName.id, input.linkNameId),
     });
 
-    let link;
+    if (!linkNameRecord) {
+      return NextResponse.json(
+        { error: "Link name not found" },
+        { status: 400 },
+      );
+    }
+
+    // Check if link already exists
+    const existingLinks = await db
+      .select()
+      .from(link)
+      .where(
+        and(
+          eq(link.sourceId, input.sourceId),
+          eq(link.targetId, input.targetId),
+        )!,
+      );
+    const existing = existingLinks[0];
+
+    let linkRecord;
     if (existing) {
       // Update existing link
-      link = await db.link.update({
-        where: { id: existing.id },
-        data: {
-          forwardName: input.forwardName,
-          reverseName: input.reverseName ?? input.forwardName,
-          notes: input.notes,
-        },
-        include: {
+      const [updated] = await db
+        .update(link)
+        .set({
+          linkNameId: input.linkNameId,
+          notes: input.notes ?? null,
+        })
+        .where(eq(link.id, existing.id))
+        .returning();
+
+      linkRecord = await db.query.link.findFirst({
+        where: eq(link.id, updated.id),
+        with: {
           source: true,
           target: true,
+          linkName: true,
         },
       });
     } else {
       // Create new link
-      link = await db.link.create({
-        data: {
+      const [newLink] = await db
+        .insert(link)
+        .values({
           sourceId: input.sourceId,
           targetId: input.targetId,
-          forwardName: input.forwardName,
-          reverseName: input.reverseName ?? input.forwardName,
-          notes: input.notes,
-        },
-        include: {
+          linkNameId: input.linkNameId,
+          notes: input.notes ?? null,
+        })
+        .returning();
+
+      linkRecord = await db.query.link.findFirst({
+        where: eq(link.id, newLink.id),
+        with: {
           source: true,
           target: true,
+          linkName: true,
         },
       });
-
-      // Auto-add link names if they don't exist
-      const linkNames = await db.linkName.findMany();
-      const existingNames = new Set(linkNames.map((ln: { name: string }) => ln.name));
-
-      if (!existingNames.has(input.forwardName)) {
-        await db.linkName.create({
-          data: {
-            name: input.forwardName,
-            isDefault: false,
-          },
-        });
-      }
-
-      if (input.reverseName && !existingNames.has(input.reverseName)) {
-        await db.linkName.create({
-          data: {
-            name: input.reverseName,
-            isDefault: false,
-          },
-        });
-      }
     }
 
-    return NextResponse.json(link, { status: existing ? 200 : 201 });
+    return NextResponse.json(linkRecord!, { status: existing ? 200 : 201 });
   } catch (error) {
     return handleApiError(error);
   }
 }
-

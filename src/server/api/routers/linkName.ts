@@ -1,293 +1,306 @@
+/**
+ * Link Name Router - tRPC procedures for link name management
+ * Uses Drizzle ORM for database access
+ */
+
 import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
-// Prisma types are available via the db instance
-// Using inline types instead of Prisma namespace
-import type { LinkWithConcepts } from "~/types/database";
+import { eq, or, and } from "drizzle-orm";
+import { linkName, link } from "~/server/schema";
 
-const DEFAULT_LINK_NAMES = [
-  "belongs to",
-  "references",
-  "is a subset of",
-  "builds on",
-  "contradicts",
-  "related to",
-  "example of",
-  "prerequisite for",
-  "extends",
-  "similar to",
-  "part of",
-  "contains",
-  "inspired by",
-  "opposes",
+const DEFAULT_LINK_NAME_PAIRS: Array<{ forward: string; reverse: string }> = [
+  { forward: "belongs to", reverse: "contains" },
+  { forward: "references", reverse: "referenced by" },
+  { forward: "is a subset of", reverse: "is a superset of" },
+  { forward: "builds on", reverse: "built on by" },
+  { forward: "contradicts", reverse: "contradicted by" },
+  { forward: "related to", reverse: "related to" }, // symmetric
+  { forward: "example of", reverse: "exemplified by" },
+  { forward: "prerequisite for", reverse: "requires" },
+  { forward: "extends", reverse: "extended by" },
+  { forward: "similar to", reverse: "similar to" }, // symmetric
+  { forward: "part of", reverse: "contains" },
+  { forward: "contains", reverse: "part of" },
+  { forward: "inspired by", reverse: "inspired" },
+  { forward: "opposes", reverse: "opposed by" },
 ];
 
 export const linkNameRouter = createTRPCRouter({
   getAll: publicProcedure.query(async ({ ctx }) => {
-    // Get all link names (defaults + custom, excluding deleted defaults)
-    const customNames = await ctx.db.linkName.findMany({
-      where: {
-        isDefault: false,
-        isDeleted: false,
-      },
-    });
+    // Get all link name pairs (defaults + custom, excluding deleted)
+    const customPairs = await ctx.db
+      .select()
+      .from(linkName)
+      .where(eq(linkName.isDefault, false));
 
-    const deletedDefaults = await ctx.db.linkName.findMany({
-      where: {
-        isDefault: true,
-        isDeleted: true,
-      },
-    });
+    const deletedDefaults = await ctx.db
+      .select()
+      .from(linkName)
+      .where(
+        and(
+          eq(linkName.isDefault, true),
+          eq(linkName.isDeleted, true),
+        )!,
+      );
 
-    const deletedSet = new Set(deletedDefaults.map((ln: { name: string }) => ln.name));
-
-    const availableDefaults = DEFAULT_LINK_NAMES.filter(
-      (name) => !deletedSet.has(name),
+    const deletedSet = new Set(
+      deletedDefaults.map((ln) => `${ln.forwardName}|${ln.reverseName}`),
     );
 
-    const allNames = [
-      ...availableDefaults,
-      ...customNames.map((ln) => ln.name),
-    ].sort();
+    // Get available default pairs (not deleted)
+    const availableDefaults = DEFAULT_LINK_NAME_PAIRS.filter(
+      (pair) => !deletedSet.has(`${pair.forward}|${pair.reverse}`),
+    );
 
-    return allNames;
+    // Get existing default pairs from database
+    const existingDefaults = await ctx.db
+      .select()
+      .from(linkName)
+      .where(
+        and(
+          eq(linkName.isDefault, true),
+          eq(linkName.isDeleted, false),
+        )!,
+      );
+
+    // Combine defaults and custom pairs
+    const allPairs = [
+      ...existingDefaults,
+      ...customPairs,
+    ];
+
+    return allPairs;
   }),
 
   create: publicProcedure
-    .input(z.object({ name: z.string().min(1).trim() }))
+    .input(
+      z.object({
+        forwardName: z.string().min(1).trim(),
+        reverseName: z.string().min(1).trim().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
-      const trimmedName = input.name.trim();
+      const trimmedForward = input.forwardName.trim();
+      const trimmedReverse = input.reverseName?.trim() || trimmedForward;
 
-      if (!trimmedName) {
+      if (!trimmedForward) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Link name cannot be empty",
+          message: "Forward name cannot be empty",
         });
       }
 
+      const isSymmetric = trimmedForward === trimmedReverse;
+
       // Check if already exists
-      const existing = await ctx.db.linkName.findUnique({
-        where: { name: trimmedName },
+      const existing = await ctx.db.query.linkName.findFirst({
+        where: and(
+          eq(linkName.forwardName, trimmedForward),
+          eq(linkName.reverseName, trimmedReverse),
+        )!,
       });
 
       if (existing) {
         return existing;
       }
 
-      const linkName = await ctx.db.linkName.create({
-        data: {
-          name: trimmedName,
+      const [newLinkName] = await ctx.db
+        .insert(linkName)
+        .values({
+          forwardName: trimmedForward,
+          reverseName: trimmedReverse,
+          isSymmetric,
           isDefault: false,
-        },
-      });
+          isDeleted: false,
+        })
+        .returning();
 
-      return linkName;
+      return newLinkName;
     }),
 
   update: publicProcedure
     .input(
       z.object({
-        oldName: z.string(),
-        newName: z.string().min(1).trim(),
+        id: z.string(),
+        forwardName: z.string().min(1).trim(),
+        reverseName: z.string().min(1).trim().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const trimmedNewName = input.newName.trim();
+      const trimmedForward = input.forwardName.trim();
+      const trimmedReverse = input.reverseName?.trim() || trimmedForward;
 
-      if (!trimmedNewName) {
+      if (!trimmedForward) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "New name cannot be empty",
+          message: "Forward name cannot be empty",
         });
       }
 
-      // Update all links using the old name
-      const linksToUpdate = await ctx.db.link.findMany({
-        where: {
-          OR: [
-            { forwardName: input.oldName },
-            { reverseName: input.oldName },
-          ],
-        },
+      const isSymmetric = trimmedForward === trimmedReverse;
+
+      // Check if LinkName exists
+      const existing = await ctx.db.query.linkName.findFirst({
+        where: eq(linkName.id, input.id),
       });
 
-      let updatedCount = 0;
-
-      for (const link of linksToUpdate) {
-        const updateData: {
-          forwardName?: string;
-          reverseName?: string;
-          notes?: string | null;
-        } = {};
-
-        if (link.forwardName === input.oldName) {
-          updateData.forwardName = trimmedNewName;
-        }
-
-        if (link.reverseName === input.oldName) {
-          updateData.reverseName = trimmedNewName;
-        }
-
-        if (Object.keys(updateData).length > 0) {
-          await ctx.db.link.update({
-            where: { id: link.id },
-            data: updateData,
-          });
-          updatedCount++;
-        }
-      }
-
-      // Update link name record
-      const oldLinkName = await ctx.db.linkName.findUnique({
-        where: { name: input.oldName },
-      });
-
-      if (oldLinkName) {
-        await ctx.db.linkName.delete({
-          where: { name: input.oldName },
+      if (!existing) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Link name not found",
         });
       }
 
-      // Create new link name if it doesn't exist
-      const newLinkNameExists = await ctx.db.linkName.findUnique({
-        where: { name: trimmedNewName },
+      // Check if new pair already exists (different ID)
+      const duplicate = await ctx.db.query.linkName.findFirst({
+        where: and(
+          eq(linkName.forwardName, trimmedForward),
+          eq(linkName.reverseName, trimmedReverse),
+        )!,
       });
 
-      if (!newLinkNameExists) {
-        await ctx.db.linkName.create({
-          data: {
-            name: trimmedNewName,
-            isDefault: false,
-          },
+      if (duplicate && duplicate.id !== input.id) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "A link name pair with these names already exists",
         });
       }
 
-      return { updatedCount, success: true };
+      // Update the LinkName record
+      // This automatically updates all links using this LinkName via the foreign key relationship
+      const [updated] = await ctx.db
+        .update(linkName)
+        .set({
+          forwardName: trimmedForward,
+          reverseName: trimmedReverse,
+          isSymmetric,
+        })
+        .where(eq(linkName.id, input.id))
+        .returning();
+
+      // Count how many links use this LinkName
+      const linksUsing = await ctx.db
+        .select()
+        .from(link)
+        .where(eq(link.linkNameId, input.id));
+
+      return { updatedLinkName: updated, linkCount: linksUsing.length, success: true };
     }),
 
   delete: publicProcedure
     .input(
       z.object({
-        name: z.string(),
-        replaceWith: z.string().optional(),
+        id: z.string(),
+        replaceWithId: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const isDefault = DEFAULT_LINK_NAMES.includes(input.name);
-
-      // Check usage
-      const usageCount = await ctx.db.link.count({
-        where: {
-          OR: [
-            { forwardName: input.name },
-            { reverseName: input.name },
-          ],
-        },
+      // Get the LinkName to delete
+      const linkNameToDelete = await ctx.db.query.linkName.findFirst({
+        where: eq(linkName.id, input.id),
       });
 
-      if (isDefault && usageCount > 0 && !input.replaceWith) {
+      if (!linkNameToDelete) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Link name not found",
+        });
+      }
+
+      const isDefault = linkNameToDelete.isDefault;
+
+      // Check usage
+      const linksUsingName = await ctx.db
+        .select()
+        .from(link)
+        .where(eq(link.linkNameId, input.id));
+
+      const usageCount = linksUsingName.length;
+
+      if (isDefault && usageCount > 0 && !input.replaceWithId) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Cannot delete default link name that is in use without replacement",
         });
       }
 
-      if (input.replaceWith && usageCount > 0) {
-        // Replace all usages
-        const linksToUpdate = await ctx.db.link.findMany({
-          where: {
-            OR: [
-              { forwardName: input.name },
-              { reverseName: input.name },
-            ],
-          },
+      if (input.replaceWithId && usageCount > 0) {
+        // Verify replacement LinkName exists
+        const replacement = await ctx.db.query.linkName.findFirst({
+          where: eq(linkName.id, input.replaceWithId),
         });
 
-        for (const link of linksToUpdate) {
-          const updateData: {
-          forwardName?: string;
-          reverseName?: string;
-          notes?: string | null;
-        } = {};
-
-          if (link.forwardName === input.name) {
-            updateData.forwardName = input.replaceWith;
-          }
-
-          if (link.reverseName === input.name) {
-            updateData.reverseName = input.replaceWith;
-          }
-
-          if (Object.keys(updateData).length > 0) {
-            await ctx.db.link.update({
-              where: { id: link.id },
-              data: updateData,
-            });
-          }
+        if (!replacement) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Replacement link name not found",
+          });
         }
+
+        // Replace all usages
+        await ctx.db
+          .update(link)
+          .set({ linkNameId: input.replaceWithId })
+          .where(eq(link.linkNameId, input.id));
       }
 
       // Delete or mark as deleted
       if (isDefault) {
-        // Mark default as deleted
-        const existing = await ctx.db.linkName.findUnique({
-          where: { name: input.name },
-        });
-
-        if (existing) {
-          await ctx.db.linkName.update({
-            where: { name: input.name },
-            data: { isDeleted: true },
-          });
+        // Mark default as deleted (soft delete)
+        await ctx.db
+          .update(linkName)
+          .set({ isDeleted: true })
+          .where(eq(linkName.id, input.id));
+      } else {
+        // Hard delete custom name (only if not in use, or after replacement)
+        if (usageCount === 0 || input.replaceWithId) {
+          await ctx.db.delete(linkName).where(eq(linkName.id, input.id));
         } else {
-          await ctx.db.linkName.create({
-            data: {
-              name: input.name,
-              isDefault: true,
-              isDeleted: true,
-            },
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Cannot delete link name that is in use without replacement",
           });
         }
-      } else {
-        // Delete custom name
-        await ctx.db.linkName.delete({
-          where: { name: input.name },
-        });
       }
 
       return { success: true, deletedCount: usageCount };
     }),
 
   getUsage: publicProcedure
-    .input(z.object({ name: z.string() }))
+    .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      const links = await ctx.db.link.findMany({
-        where: {
-          OR: [
-            { forwardName: input.name },
-            { reverseName: input.name },
-          ],
-        },
-        include: {
+      // Get the LinkName
+      const linkNameRecord = await ctx.db.query.linkName.findFirst({
+        where: eq(linkName.id, input.id),
+      });
+
+      if (!linkNameRecord) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Link name not found",
+        });
+      }
+
+      // Get all links using this LinkName
+      const links = await ctx.db.query.link.findMany({
+        where: eq(link.linkNameId, input.id),
+        with: {
           source: true,
           target: true,
         },
       });
 
-      const isDefault = DEFAULT_LINK_NAMES.includes(input.name);
-
       return {
-        name: input.name,
+        linkName: linkNameRecord,
         count: links.length,
-        links: links.map((link: LinkWithConcepts) => ({
-          id: link.id,
-          sourceId: link.sourceId,
-          targetId: link.targetId,
-          sourceTitle: link.source.title,
-          targetTitle: link.target.title,
+        links: links.map((linkRecord) => ({
+          id: linkRecord.id,
+          sourceId: linkRecord.sourceId,
+          targetId: linkRecord.targetId,
+          sourceTitle: linkRecord.source?.title || "",
+          targetTitle: linkRecord.target?.title || "",
         })),
-        isDefault,
       };
     }),
 });
-
