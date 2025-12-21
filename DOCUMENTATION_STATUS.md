@@ -78,8 +78,11 @@ The following documentation files were removed as they were outdated or supersed
 - Historical docs can remain as reference
 
 ### Last Updated Dates
+- **CRITICAL**: Always use `date +"%B %d, %Y"` command to get the actual current date from the OS
+- **NEVER** guess or assume dates - always query the OS first
 - All active documentation should have a "Last Updated" date
 - Update dates when making significant changes
+- Format: "December 20, 2025" (full month name, day, year)
 
 ### Tech Stack References
 - ✅ Use "Vitest" (not Jest)

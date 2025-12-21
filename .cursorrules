@@ -1,0 +1,18 @@
+# Documentation Date Standards
+
+When adding or updating dates in any documentation file:
+
+1. ALWAYS run `date +"%B %d, %Y"` to get the actual current date from the OS
+2. NEVER guess, assume, or use relative dates
+3. ALWAYS use the OS date output exactly as returned
+4. Format: "December 20, 2025" (full month name, day, year)
+
+This applies to:
+- PROJECT_HISTORY.md entries
+- Documentation "Last Updated" dates
+- Any date references in markdown files
+
+Example workflow:
+1. Run: `date +"%B %d, %Y"`
+2. Use the exact output in documentation
+3. Verify no date assumptions were made

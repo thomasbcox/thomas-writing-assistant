@@ -1,4 +1,23 @@
-# Contributing Guidelines
+# Contributing
+
+## Documentation Date Standards
+
+**CRITICAL RULE**: When adding or updating dates in documentation:
+
+1. **ALWAYS** get the actual date from the OS first:
+   ```bash
+   date +"%B %d, %Y"
+   ```
+
+2. **NEVER** guess, assume, or use relative dates (e.g., "January 2025", "today")
+
+3. **ALWAYS** verify dates match the OS date before committing
+
+4. Format dates as: "December 20, 2025" (full month name, day, year)
+
+This prevents date errors in PROJECT_HISTORY.md and other documentation files.
+
+--- Guidelines
 
 **Last Updated**: 2025-12-18
 
