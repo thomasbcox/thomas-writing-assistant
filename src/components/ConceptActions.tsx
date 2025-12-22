@@ -1,6 +1,7 @@
 "use client";
 
 import { ConfirmDialog } from "./ui/ConfirmDialog";
+import { LoadingSpinner } from "./ui/LoadingSpinner";
 
 interface ConceptActionsProps {
   showTrash: boolean;

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 
-export type ToastType = "success" | "error" | "info";
+export type ToastType = "success" | "error" | "info" | "warning";
 
 interface ToastProps {
   message: string;
@@ -24,7 +24,9 @@ export function Toast({ message, type, duration = 3000, onClose }: ToastProps) {
       ? "bg-green-600"
       : type === "error"
         ? "bg-red-600"
-        : "bg-blue-600";
+        : type === "warning"
+          ? "bg-yellow-600"
+          : "bg-blue-600";
 
   return (
     <div

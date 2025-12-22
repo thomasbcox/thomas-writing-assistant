@@ -59,3 +59,5 @@ Example: If backups run every 6 hours for 2 days = 8 backups, but minimum is 10,
 If backups run every 6 hours for 3 days = 12 backups, and 2 days = 8, so keeps 12 (all from last 3 days).
 
 
+
+

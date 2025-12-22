@@ -10,7 +10,7 @@ import { logServiceError } from "~/lib/logger";
 /**
  * Get database instance for API routes
  */
-export function getDb() {
+export function getDb(): typeof db {
   return db;
 }
 

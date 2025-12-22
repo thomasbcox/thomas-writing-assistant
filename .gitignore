@@ -18,6 +18,9 @@ node_modules
 *.db.backup
 backups/
 
+# Database preference file (local configuration)
+.db-preference.json
+
 # Prisma
 /generated/prisma
 

@@ -3,6 +3,9 @@
 import { api } from "~/lib/trpc/react";
 import { LoadingSpinner } from "./ui/LoadingSpinner";
 import { HealthStatusCard } from "./ui/HealthStatusCard";
+import { useHealthStatus } from "~/lib/api/health";
+import { useDatabaseToggle } from "~/hooks/useDatabaseToggle";
+import { ToastContainer, useToast } from "./ui/Toast";
 import type { ConceptListItem, LinkWithConcepts, CapsuleWithAnchors } from "~/types/database";
 
 interface DashboardProps {
@@ -10,6 +13,9 @@ interface DashboardProps {
 }
 
 export function Dashboard({ onNavigate }: DashboardProps) {
+  const { data: health } = useHealthStatus();
+  const { toasts, addToast, removeToast } = useToast();
+  const { currentDatabase, isLoading: isToggling, toggleDatabase, isProd: isDbProd } = useDatabaseToggle({ addToast });
   const { data: concepts, isLoading: conceptsLoading } = api.concept.list.useQuery({
     includeTrash: false,
   });
@@ -64,8 +70,44 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     return "Your knowledge base is well-connected and healthy.";
   };
 
+  // Environment badge shows NODE_ENV (runtime environment)
+  const environment = health?.environment || "development";
+  const isProd = environment === "production";
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 relative">
+      {/* Environment Badge and Database Toggle - Top Right */}
+      <div className="absolute top-0 right-0 z-10 flex flex-col gap-2 items-end">
+        {/* Environment Badge - Shows NODE_ENV (runtime environment, not database file) */}
+        <div className={`px-3 py-1 rounded-full text-xs font-bold ${
+          isProd 
+            ? "bg-yellow-500 text-yellow-900" 
+            : "bg-green-500 text-green-900"
+        }`} title={`Runtime Environment (NODE_ENV): ${environment}. This shows your Node.js environment, not which database file is active.`}>
+          {isProd ? "PROD" : "DEV"}
+        </div>
+        
+        {/* Database Toggle Button - Shows which database file is active (dev.db vs prod.db) */}
+        <button
+          onClick={toggleDatabase}
+          disabled={isToggling}
+          className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+            isDbProd
+              ? "bg-yellow-500 text-yellow-900 hover:bg-yellow-600"
+              : "bg-green-500 text-green-900 hover:bg-green-600"
+          } disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1`}
+          title={`Active Database File: ${currentDatabase === "dev" ? "dev.db" : "prod.db"}. Click to switch to ${currentDatabase === "dev" ? "prod.db" : "dev.db"}`}
+        >
+          {isToggling ? (
+            <>
+              <LoadingSpinner size="sm" />
+              <span>Switching...</span>
+            </>
+          ) : (
+            <span>DB: {currentDatabase.toUpperCase()}</span>
+          )}
+        </button>
+      </div>
       {/* Welcome Hero Section */}
       <div className="bg-gradient-to-br from-blue-50 via-blue-100 to-indigo-50 border-2 border-blue-200 rounded-xl p-5 shadow-sm">
         <div className="max-w-3xl">
@@ -311,6 +353,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           </div>
         </div>
       </div>
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }

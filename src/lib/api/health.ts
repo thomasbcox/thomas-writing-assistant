@@ -13,6 +13,7 @@ export interface HealthCheck {
 export interface HealthResponse {
   status: "healthy" | "degraded" | "unhealthy";
   timestamp: string;
+  environment: "development" | "test" | "production";
   checks: {
     server: HealthCheck;
     database: HealthCheck;

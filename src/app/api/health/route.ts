@@ -8,8 +8,9 @@ import { NextResponse } from "next/server";
 import { getDb, handleApiError } from "~/server/api/helpers";
 import { getConfigLoader } from "~/server/services/config";
 import { concept } from "~/server/schema";
-import type Database from "better-sqlite3";
+import type { Database as DatabaseType } from "better-sqlite3";
 import { logServiceError } from "~/lib/logger";
+import { env } from "~/env";
 
 interface HealthCheck {
   status: "healthy" | "degraded" | "unhealthy";
@@ -20,6 +21,7 @@ interface HealthCheck {
 interface HealthResponse {
   status: "healthy" | "degraded" | "unhealthy";
   timestamp: string;
+  environment: "development" | "test" | "production";
   checks: {
     server: HealthCheck;
     database: HealthCheck;
@@ -65,7 +67,7 @@ export async function GET() {
     const db = getDb();
     
     // Use raw SQLite to check if tables exist
-    const sqlite = (db as any).$client || (db as any).session?.client as InstanceType<typeof Database> | undefined;
+    const sqlite = (db as any).$client || (db as any).session?.client as DatabaseType | undefined;
     if (sqlite) {
       // First verify database is accessible
       sqlite.prepare("SELECT 1").get();
@@ -221,6 +223,7 @@ export async function GET() {
   const response: HealthResponse = {
     status: overallStatus,
     timestamp: new Date().toISOString(),
+    environment: env.NODE_ENV,
     checks,
     issues,
   };

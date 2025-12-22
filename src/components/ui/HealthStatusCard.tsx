@@ -156,7 +156,7 @@ export function HealthStatusCard({ onNavigate }: HealthStatusCardProps) {
             </div>
             <div className="text-xs text-gray-600 ml-6">
               {checks.server.message || "Unknown status"}
-              {checks.server.responseTime && ` • ${formatResponseTime(checks.server.responseTime)}`}
+              {typeof checks.server.responseTime === 'number' && checks.server.responseTime > 0 && ` • ${formatResponseTime(checks.server.responseTime)}`}
             </div>
           </div>
         </div>
@@ -170,7 +170,7 @@ export function HealthStatusCard({ onNavigate }: HealthStatusCardProps) {
             </div>
             <div className="text-xs text-gray-600 ml-6">
               {checks.database.message || "Unknown status"}
-              {checks.database.responseTime && ` • ${formatResponseTime(checks.database.responseTime)}`}
+              {typeof checks.database.responseTime === 'number' && checks.database.responseTime > 0 && ` • ${formatResponseTime(checks.database.responseTime)}`}
             </div>
           </div>
         </div>

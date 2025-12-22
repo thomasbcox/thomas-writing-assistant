@@ -226,3 +226,5 @@ psql $DATABASE_URL -c "SELECT id, title, \"createdAt\" FROM \"Concept\" ORDER BY
 5. **Create log aggregation** for easier AI analysis
 
 
+
+
