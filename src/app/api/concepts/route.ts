@@ -60,16 +60,29 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(concepts);
   } catch (error) {
+    // Enhanced error logging for AI diagnosis
+    logger.error({
+      operation: "listConcepts",
+      error,
+      includeTrash,
+      hasSearch: !!search,
+      errorType: error instanceof Error ? error.constructor.name : typeof error,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    }, "Failed to list concepts");
+    
     return handleApiError(error);
   }
 }
 
 // POST /api/concepts - Create concept
 export async function POST(request: NextRequest) {
+  // Declare input outside try block so it's accessible in catch
+  let input: z.infer<typeof createConceptSchema> | undefined;
+  
   try {
     const db = getDb();
     const body = await parseJsonBody(request);
-    const input = createConceptSchema.parse(body);
+    input = createConceptSchema.parse(body);
     const { v4: uuidv4 } = await import("uuid");
     const identifier = `zettel-${uuidv4().slice(0, 8)}`;
 
@@ -98,6 +111,16 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(newConcept, { status: 201 });
   } catch (error) {
+    // Enhanced error logging for AI diagnosis
+    logger.error({
+      operation: "createConcept",
+      error,
+      inputTitle: input?.title,
+      hasInput: !!input,
+      errorType: error instanceof Error ? error.constructor.name : typeof error,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    }, "Failed to create concept");
+    
     return handleApiError(error);
   }
 }

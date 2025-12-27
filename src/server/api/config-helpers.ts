@@ -7,6 +7,9 @@ import fs from "fs";
 import path from "path";
 import yaml from "js-yaml";
 
+// Type for fs module to allow dependency injection in tests
+type FsModule = typeof import("fs");
+
 export interface ConfigValidationResult {
   valid: boolean;
   error?: string;
@@ -70,26 +73,30 @@ export function validateConfigContent(
 
 /**
  * Creates a backup of a config file before writing
+ * Accepts fs module for dependency injection in tests
  */
-export function backupConfigFile(filePath: string): string | null {
+export function backupConfigFile(
+  filePath: string,
+  fsModule: FsModule = fs
+): string | null {
   try {
-    if (!fs.existsSync(filePath)) {
+    if (!fsModule.existsSync(filePath)) {
       return null; // No file to backup
     }
 
     const backupDir = path.join(process.cwd(), "config", ".backups");
-    if (!fs.existsSync(backupDir)) {
-      fs.mkdirSync(backupDir, { recursive: true });
+    if (!fsModule.existsSync(backupDir)) {
+      fsModule.mkdirSync(backupDir, { recursive: true });
     }
 
     const fileName = path.basename(filePath);
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const backupPath = path.join(backupDir, `${fileName}.${timestamp}.bak`);
 
-    fs.copyFileSync(filePath, backupPath);
+    fsModule.copyFileSync(filePath, backupPath);
 
     // Keep only last 10 backups per file
-    const backups = fs
+    const backups = fsModule
       .readdirSync(backupDir)
       .filter((f) => f.startsWith(fileName) && f.endsWith(".bak"))
       .sort()
@@ -97,7 +104,7 @@ export function backupConfigFile(filePath: string): string | null {
 
     if (backups.length > 10) {
       for (const oldBackup of backups.slice(10)) {
-        fs.unlinkSync(path.join(backupDir, oldBackup));
+        fsModule.unlinkSync(path.join(backupDir, oldBackup));
       }
     }
 
@@ -110,11 +117,13 @@ export function backupConfigFile(filePath: string): string | null {
 
 /**
  * Safely writes a config file with validation and backup
+ * Accepts fs module for dependency injection in tests
  */
 export function safeWriteConfigFile(
   filePath: string,
   content: string,
   fileName: string,
+  fsModule: FsModule = fs,
 ): { success: boolean; error?: string; backupPath?: string } {
   // Validate content
   const validation = validateConfigContent(content, fileName);
@@ -133,11 +142,11 @@ export function safeWriteConfigFile(
   }
 
   // Create backup
-  const backupPath = backupConfigFile(filePath);
+  const backupPath = backupConfigFile(filePath, fsModule);
 
   // Write file
   try {
-    fs.writeFileSync(filePath, content, "utf-8");
+    fsModule.writeFileSync(filePath, content, "utf-8");
     return { success: true, backupPath: backupPath || undefined };
   } catch (error) {
     return {

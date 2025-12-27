@@ -3,47 +3,48 @@
  * POST /api/capsules/[id]/anchors - Create anchor
  */
 
-import { describe, it, expect, jest, beforeEach, beforeAll } from "@jest/globals";
+import { describe, it, expect, beforeEach, beforeAll, afterAll } from "@jest/globals";
 import { NextRequest } from "next/server";
-import { setupApiRouteMocks } from "./drizzle-mock-helper";
+import { cleanupTestData } from "../test-utils";
+import type { ReturnType } from "~/server/db";
+import { capsule, anchor } from "~/server/schema";
+import { eq } from "drizzle-orm";
+import { setupInMemoryDbMocks, initInMemoryDb, cleanupInMemoryDb } from "../utils/in-memory-db-setup";
 
-// Setup mocks (jest.mock is hoisted)
-setupApiRouteMocks();
+// Setup mocks (must be before route imports)
+setupInMemoryDbMocks();
 
-// Import route handler AFTER mocks are set up
-import { POST } from "~/app/api/capsules/[id]/anchors/route";
+type Database = ReturnType<typeof import("~/server/db").db>;
 
-// Get mockDb reference after mocks are set up
-let mockDb: ReturnType<typeof import("./drizzle-mock-helper").createDrizzleMockDb>;
+// Create test database - will be initialized in beforeAll
+let testDb: Database;
+
 beforeAll(async () => {
-  const helpers = await import("~/server/api/helpers");
-  mockDb = (helpers as any).__mockDb;
+  testDb = await initInMemoryDb();
+});
+
+afterAll(() => {
+  cleanupInMemoryDb();
 });
 
 describe("Capsule Anchors API", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockDb._setInsertResult([]);
+  beforeEach(async () => {
+    // Clean up test data before each test
+    await cleanupTestData(testDb);
   });
 
   describe("POST /api/capsules/[id]/anchors", () => {
     it("should create a new anchor", async () => {
-      const mockAnchor = {
-        id: "1",
-        capsuleId: "capsule-1",
-        title: "Test Anchor",
-        content: "Content",
-        painPoints: null,
-        solutionSteps: null,
-        proof: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      const { POST } = await import("~/app/api/capsules/[id]/anchors/route");
+      
+      // Create a test capsule
+      const [testCapsule] = await testDb.insert(capsule).values({
+        title: "Test Capsule",
+        promise: "Test promise",
+        cta: "Test CTA",
+      }).returning();
 
-      mockDb.query.capsule.findFirst.mockResolvedValue({ id: "capsule-1" });
-      mockDb._setInsertResult([mockAnchor]);
-
-      const request = new NextRequest("http://localhost/api/capsules/capsule-1/anchors", {
+      const request = new NextRequest(`http://localhost/api/capsules/${testCapsule.id}/anchors`, {
         method: "POST",
         body: JSON.stringify({
           title: "Test Anchor",
@@ -52,19 +53,28 @@ describe("Capsule Anchors API", () => {
       });
 
       const response = await POST(request, {
-        params: Promise.resolve({ id: "capsule-1" }),
+        params: Promise.resolve({ id: testCapsule.id }),
       });
       const data = await response.json();
 
       expect(response.status).toBe(201);
       expect(data.title).toBe("Test Anchor");
-      expect(mockDb.insert).toHaveBeenCalled();
+      expect(data.content).toBe("Content");
+      expect(data.capsuleId).toBe(testCapsule.id);
+      
+      // Verify anchor was actually created in database
+      const createdAnchor = await testDb.query.anchor.findFirst({
+        where: eq(anchor.capsuleId, testCapsule.id),
+      });
+      expect(createdAnchor).toBeDefined();
+      expect(createdAnchor?.title).toBe("Test Anchor");
     });
 
     it("should return 404 for non-existent capsule", async () => {
-      mockDb.query.capsule.findFirst.mockResolvedValue(null);
-
-      const request = new NextRequest("http://localhost/api/capsules/999/anchors", {
+      const { POST } = await import("~/app/api/capsules/[id]/anchors/route");
+      
+      const nonExistentId = "non-existent-id-12345";
+      const request = new NextRequest(`http://localhost/api/capsules/${nonExistentId}/anchors`, {
         method: "POST",
         body: JSON.stringify({
           title: "Test Anchor",
@@ -73,7 +83,7 @@ describe("Capsule Anchors API", () => {
       });
 
       const response = await POST(request, {
-        params: Promise.resolve({ id: "999" }),
+        params: Promise.resolve({ id: nonExistentId }),
       });
       const data = await response.json();
 
@@ -82,17 +92,24 @@ describe("Capsule Anchors API", () => {
     });
 
     it("should validate required fields", async () => {
-      mockDb.query.capsule.findFirst.mockResolvedValue({ id: "capsule-1" });
+      const { POST } = await import("~/app/api/capsules/[id]/anchors/route");
+      
+      // Create a test capsule
+      const [testCapsule] = await testDb.insert(capsule).values({
+        title: "Test Capsule",
+        promise: "Test promise",
+        cta: "Test CTA",
+      }).returning();
 
-      const request = new NextRequest("http://localhost/api/capsules/capsule-1/anchors", {
+      const request = new NextRequest(`http://localhost/api/capsules/${testCapsule.id}/anchors`, {
         method: "POST",
         body: JSON.stringify({
-          // Missing required fields
+          // Missing required fields (title and content are required)
         }),
       });
 
       const response = await POST(request, {
-        params: Promise.resolve({ id: "capsule-1" }),
+        params: Promise.resolve({ id: testCapsule.id }),
       });
       expect(response.status).toBe(400);
     });

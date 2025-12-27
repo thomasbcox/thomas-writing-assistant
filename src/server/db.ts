@@ -23,6 +23,22 @@ const globalForDb = globalThis as unknown as {
   dbPath: string | undefined;
 };
 
+// Export a getter function that always returns the current database instance
+// This ensures that after reconnectDatabase() is called, getDb() will return the new instance
+export function getCurrentDb(): DatabaseInstance {
+  // Priority 1: Check for test database (for Jest tests with in-memory DB)
+  // This allows tests to use real in-memory databases without complex mocking
+  if ((globalThis as any).__TEST_DB__) {
+    return (globalThis as any).__TEST_DB__;
+  }
+  // Priority 2: Check if we have a global instance (updated by reconnectDatabase)
+  if (globalForDb.db) {
+    return globalForDb.db;
+  }
+  // Priority 3: Fall back to module-level export
+  return db;
+}
+
 /**
  * Get the database path based on preference, NODE_ENV, or DATABASE_URL
  */
@@ -100,12 +116,10 @@ function initializeDatabase(): { sqlite: DatabaseType; db: DatabaseInstance; dbP
   // Create Drizzle instance with proper typing
   const db = globalForDb.db ?? createTypedDb(sqlite);
 
-  // Store in global for reuse (in development)
-  if (env.NODE_ENV !== "production") {
-    globalForDb.sqlite = sqlite;
-    globalForDb.db = db;
-    globalForDb.dbPath = dbPath;
-  }
+  // Store in global for reuse (always, so getCurrentDb() works after reconnection)
+  globalForDb.sqlite = sqlite;
+  globalForDb.db = db;
+  globalForDb.dbPath = dbPath;
 
   // Log which database is being used (helpful for debugging)
   if (env.NODE_ENV !== "test") {
@@ -145,12 +159,11 @@ export async function reconnectDatabase(): Promise<void> {
     // Reinitialize with new preference
     const { sqlite: newSqlite, db: newDb, dbPath: newDbPath } = initializeDatabase();
 
-    // Update global state
-    if (env.NODE_ENV !== "production") {
-      globalForDb.sqlite = newSqlite;
-      globalForDb.db = newDb;
-      globalForDb.dbPath = newDbPath;
-    }
+    // Update global state (always update, not just in non-production)
+    // This ensures getCurrentDb() will return the new instance
+    globalForDb.sqlite = newSqlite;
+    globalForDb.db = newDb;
+    globalForDb.dbPath = newDbPath;
 
     // Update the module-level export by replacing it in the module cache
     // This is a workaround since we can't directly reassign the export

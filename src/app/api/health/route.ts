@@ -6,7 +6,7 @@
 
 import { NextResponse } from "next/server";
 import { getDb, handleApiError } from "~/server/api/helpers";
-import { getConfigLoader } from "~/server/services/config";
+import { getDependencies } from "~/server/dependencies";
 import { concept } from "~/server/schema";
 import type { Database as DatabaseType } from "better-sqlite3";
 import { logServiceError } from "~/lib/logger";
@@ -154,7 +154,7 @@ export async function GET() {
 
   // Check configuration files
   try {
-    const configLoader = getConfigLoader();
+    const { configLoader } = getDependencies();
     const configStatus = configLoader.getConfigStatus();
 
     checks.config = {

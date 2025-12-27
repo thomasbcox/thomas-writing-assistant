@@ -1,8 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { api } from "~/lib/trpc/react";
 import { LoadingSpinner } from "./ui/LoadingSpinner";
+import { ToastContainer, type ToastType } from "./ui/Toast";
+
+interface Toast {
+  id: string;
+  message: string;
+  type: ToastType;
+}
 
 export function SettingsTab() {
   const { data: settings, isLoading, refetch } = api.ai.getSettings.useQuery();
@@ -16,6 +23,7 @@ export function SettingsTab() {
   const [provider, setProvider] = useState<"openai" | "gemini">("openai");
   const [model, setModel] = useState("");
   const [temperature, setTemperature] = useState(0.7);
+  const [toasts, setToasts] = useState<Toast[]>([]);
 
   useEffect(() => {
     if (settings) {
@@ -24,6 +32,30 @@ export function SettingsTab() {
       setTemperature(settings.temperature);
     }
   }, [settings]);
+
+  const addToast = useCallback((message: string, type: ToastType) => {
+    const id = Math.random().toString(36).substring(7);
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 5000);
+  }, []);
+
+  const removeToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  // Reset form to saved settings
+  const handleReset = () => {
+    if (settings) {
+      setProvider(settings.provider);
+      setModel(settings.model);
+      setTemperature(settings.temperature);
+      addToast("Settings reset to saved values", "success");
+    } else {
+      addToast("No saved settings to reset to", "info");
+    }
+  };
 
   const handleSave = () => {
     updateMutation.mutate({
@@ -44,9 +76,21 @@ export function SettingsTab() {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-10">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">AI Settings</h2>
-      <div className="space-y-6">
+    <>
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <div className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-10">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">AI Settings</h2>
+          <button
+            onClick={handleReset}
+            className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm"
+            title="Reset form to saved settings"
+            disabled={!settings}
+          >
+            Reset
+          </button>
+        </div>
+        <div className="space-y-6">
         <div>
           <label className="block text-sm font-semibold text-gray-900 mb-3">
             Provider
@@ -135,7 +179,8 @@ export function SettingsTab() {
             </div>
           </div>
         )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

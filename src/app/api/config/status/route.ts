@@ -5,12 +5,12 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { handleApiError } from "~/server/api/helpers";
-import { getConfigLoader } from "~/server/services/config";
+import { getDependencies } from "~/server/dependencies";
 
 export async function GET() {
   try {
-    const loader = getConfigLoader();
-    return NextResponse.json(loader.getConfigStatus());
+    const { configLoader } = getDependencies();
+    return NextResponse.json(configLoader.getConfigStatus());
   } catch (error) {
     return handleApiError(error);
   }

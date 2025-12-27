@@ -5,12 +5,12 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { handleApiError } from "~/server/api/helpers";
-import { getLLMClient } from "~/server/services/llm/client";
+import { getDependencies } from "~/server/dependencies";
 
 export async function GET() {
   try {
-    const client = getLLMClient();
-    const provider = client.getProvider();
+    const { llmClient } = getDependencies();
+    const provider = llmClient.getProvider();
 
     if (provider === "gemini") {
       return NextResponse.json({

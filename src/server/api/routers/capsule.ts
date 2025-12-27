@@ -10,8 +10,7 @@ import { eq, desc, sql } from "drizzle-orm";
 import { capsule, anchor, repurposedContent } from "~/server/schema";
 import { extractAnchorMetadata } from "~/server/services/anchorExtractor";
 import { repurposeAnchorContent } from "~/server/services/repurposer";
-import { getLLMClient } from "~/server/services/llm/client";
-import { getConfigLoader } from "~/server/services/config";
+import { getDependencies } from "~/server/dependencies";
 import { logServiceError } from "~/lib/logger";
 import { safeJsonParseArray } from "~/lib/json-utils";
 
@@ -454,8 +453,7 @@ export const capsuleRouter = createTRPCRouter({
           safeJsonParseArray<string>(foundAnchor.solutionSteps, []) ?? [];
 
         // Generate new repurposed content
-        const llmClient = getLLMClient();
-        const configLoader = getConfigLoader();
+        const { llmClient, configLoader } = getDependencies();
         const repurposed = await repurposeAnchorContent(
           foundAnchor.title,
           foundAnchor.content,

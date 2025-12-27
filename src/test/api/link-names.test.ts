@@ -4,70 +4,62 @@
  * POST /api/link-names - Create link name
  */
 
-import { describe, it, expect, jest, beforeEach, beforeAll } from "@jest/globals";
+import { describe, it, expect, beforeEach, beforeAll, afterAll } from "@jest/globals";
 import { NextRequest } from "next/server";
-import { setupApiRouteMocks } from "./drizzle-mock-helper";
+import { cleanupTestData } from "../test-utils";
+import type { ReturnType } from "~/server/db";
+import { linkName } from "~/server/schema";
+import { eq } from "drizzle-orm";
+import { setupInMemoryDbMocks, initInMemoryDb, cleanupInMemoryDb } from "../utils/in-memory-db-setup";
 
-// Setup mocks (jest.mock is hoisted)
-setupApiRouteMocks();
+// Setup mocks (must be before route imports)
+setupInMemoryDbMocks();
 
-// Import route handler AFTER mocks are set up
-import { GET, POST } from "~/app/api/link-names/route";
+type Database = ReturnType<typeof import("~/server/db").db>;
 
-// Get mockDb reference after mocks are set up
-let mockDb: ReturnType<typeof import("./drizzle-mock-helper").createDrizzleMockDb>;
+// Create test database - will be initialized in beforeAll
+let testDb: Database;
+
 beforeAll(async () => {
-  const helpers = await import("~/server/api/helpers");
-  mockDb = (helpers as any).__mockDb;
+  testDb = await initInMemoryDb();
+});
+
+afterAll(() => {
+  cleanupInMemoryDb();
 });
 
 describe("Link Names API", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockDb._setSelectResult([]);
-    mockDb._setInsertResult([]);
+  beforeEach(async () => {
+    // Clean up test data before each test
+    await cleanupTestData(testDb);
   });
 
   describe("GET /api/link-names", () => {
     it("should return list of link names", async () => {
-      const mockCustomNames = [
-        { id: "1", name: "custom-name", isDefault: false, isDeleted: false },
-      ];
-      const mockDeletedDefaults = [];
-
-      mockDb._setSelectResult(mockCustomNames);
-      // Second call for deleted defaults
-      mockDb._selectBuilder.from.mockReturnValueOnce({
-        where: jest.fn().mockReturnValueOnce({
-          then: jest.fn((resolve) => Promise.resolve(mockDeletedDefaults).then(resolve)),
-        }),
-      });
-
+      const { GET } = await import("~/app/api/link-names/route");
+      
+      // Note: This route is deprecated and returns empty array
       const response = await GET();
       const data = await response.json();
 
       expect(response.status).toBe(200);
       expect(Array.isArray(data)).toBe(true);
-      expect(mockDb.select).toHaveBeenCalled();
+      // Route returns empty array (deprecated)
+      expect(data).toEqual([]);
     });
   });
 
   describe("POST /api/link-names", () => {
     it("should create a new link name", async () => {
-      const mockLinkName = {
-        id: "1",
-        name: "new-relationship",
-        isDefault: false,
-        isDeleted: false,
-      };
-
-      mockDb.query.linkName.findFirst.mockResolvedValue(null);
-      mockDb._setInsertResult([mockLinkName]);
-
+      const { POST } = await import("~/app/api/link-names/route");
+      
+      // Use a unique name that won't conflict with default link names
+      const uniqueName = `test-relationship-${Date.now()}`;
+      
       const request = new NextRequest("http://localhost/api/link-names", {
         method: "POST",
         body: JSON.stringify({
-          name: "new-relationship",
+          name: uniqueName,
         }),
       });
 
@@ -75,24 +67,38 @@ describe("Link Names API", () => {
       const data = await response.json();
 
       expect(response.status).toBe(201);
-      expect(data.name).toBe("new-relationship");
-      expect(mockDb.insert).toHaveBeenCalled();
+      expect(data.forwardName).toBe(uniqueName);
+      expect(data.reverseName).toBe(uniqueName);
+      expect(data.isSymmetric).toBe(true);
+      expect(data.isDefault).toBe(false);
+      
+      // Verify link name was actually created in database
+      const createdLinkName = await testDb.query.linkName.findFirst({
+        where: eq(linkName.forwardName, uniqueName),
+      });
+      expect(createdLinkName).toBeDefined();
+      expect(createdLinkName?.id).toBe(data.id);
     });
 
     it("should return existing link name if already exists", async () => {
-      const existingLinkName = {
-        id: "1",
-        name: "existing-name",
+      const { POST } = await import("~/app/api/link-names/route");
+      
+      // Use a unique name to avoid conflicts
+      const existingName = `existing-name-${Date.now()}`;
+      
+      // Create existing link name
+      const [existingLinkName] = await testDb.insert(linkName).values({
+        forwardName: existingName,
+        reverseName: existingName,
+        isSymmetric: true,
         isDefault: false,
         isDeleted: false,
-      };
-
-      mockDb.query.linkName.findFirst.mockResolvedValue(existingLinkName);
+      }).returning();
 
       const request = new NextRequest("http://localhost/api/link-names", {
         method: "POST",
         body: JSON.stringify({
-          name: "existing-name",
+          name: existingName,
         }),
       });
 
@@ -100,10 +106,13 @@ describe("Link Names API", () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.id).toBe("1");
+      expect(data.id).toBe(existingLinkName.id);
+      expect(data.forwardName).toBe(existingName);
     });
 
     it("should reject empty link name", async () => {
+      const { POST } = await import("~/app/api/link-names/route");
+      
       const request = new NextRequest("http://localhost/api/link-names", {
         method: "POST",
         body: JSON.stringify({

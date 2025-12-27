@@ -64,7 +64,12 @@ export function safeJsonParseArray<T>(json: string | null | undefined, defaultVa
  */
 export function safeJsonStringify(obj: unknown, defaultValue: string = "{}"): string {
   try {
-    return JSON.stringify(obj);
+    // JSON.stringify(undefined) returns undefined, not a string
+    const result = JSON.stringify(obj);
+    if (result === undefined) {
+      return defaultValue;
+    }
+    return result;
   } catch (error) {
     logger.error(
       {

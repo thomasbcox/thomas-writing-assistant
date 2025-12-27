@@ -6,8 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { handleApiError, parseJsonBody } from "~/server/api/helpers";
-import { getLLMClient } from "~/server/services/llm/client";
-import { getConfigLoader } from "~/server/services/config";
+import { getDependencies } from "~/server/dependencies";
 import { expandDefinition } from "~/server/services/conceptEnricher";
 import { logServiceError } from "~/lib/logger";
 
@@ -22,8 +21,7 @@ export async function POST(request: NextRequest) {
     body = await parseJsonBody(request);
     const input = expandDefinitionSchema.parse(body);
     
-    const llmClient = getLLMClient();
-    const configLoader = getConfigLoader();
+    const { llmClient, configLoader } = getDependencies();
     
     const expanded = await expandDefinition(
       input.currentDefinition,
@@ -34,7 +32,13 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({ expanded });
   } catch (error) {
-    logServiceError(error, "enrichment.expandDefinition", { conceptTitle: body?.conceptTitle || "unknown" });
+    // Enhanced error logging for AI diagnosis
+    logServiceError(error, "enrichment.expandDefinition", {
+      conceptTitle: body?.conceptTitle || "unknown",
+      hasCurrentDefinition: !!body?.currentDefinition,
+      currentDefinitionLength: body?.currentDefinition?.length || 0,
+      errorPhase: "expandDefinition",
+    });
     return handleApiError(error);
   }
 }

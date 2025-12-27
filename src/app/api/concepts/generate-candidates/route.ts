@@ -25,8 +25,7 @@ export async function POST(request: NextRequest) {
     const { generateConceptCandidates } = await import(
       "~/server/services/conceptProposer"
     );
-    const llmClient = getLLMClient();
-    const configLoader = getConfigLoader();
+    const { llmClient, configLoader } = getDependencies();
     
     const candidates = await generateConceptCandidates(
       input.text,

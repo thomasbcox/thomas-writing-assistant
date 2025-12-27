@@ -201,9 +201,17 @@ describe("LinkName Router", () => {
     expect(result.success).toBe(true);
 
     // Should be marked as deleted (soft delete for defaults)
-    const allPairsAfter = await caller.linkName.getAll();
-    const deleted = allPairsAfter.find((ln) => ln.id === referencesPair.id);
-    expect(deleted?.isDeleted).toBe(true);
+    // Query database directly since getAll() doesn't return deleted defaults
+    const { linkName } = await import("~/server/schema");
+    const { eq } = await import("drizzle-orm");
+    const deletedRecord = await db
+      .select()
+      .from(linkName)
+      .where(eq(linkName.id, referencesPair.id))
+      .limit(1);
+    
+    expect(deletedRecord.length).toBe(1);
+    expect(deletedRecord[0]?.isDeleted).toBe(true);
   });
 
   test("should delete a custom link name", async () => {

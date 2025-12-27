@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { handleApiError, parseJsonBody } from "~/server/api/helpers";
-import { getConfigLoader } from "~/server/services/config";
+import { getDependencies } from "~/server/dependencies";
 import { safeWriteConfigFile } from "~/server/api/config-helpers";
 import fs from "fs";
 import path from "path";
@@ -38,8 +38,8 @@ export async function GET(request: NextRequest) {
     }
     
     // Return parsed style guide
-    const loader = getConfigLoader();
-    return NextResponse.json(loader.getStyleGuide());
+    const { configLoader } = getDependencies();
+    return NextResponse.json(configLoader.getStyleGuide());
   } catch (error) {
     return handleApiError(error);
   }
@@ -54,15 +54,16 @@ export async function PUT(request: NextRequest) {
     const styleGuidePath = path.join(configDir, "style_guide.yaml");
 
     // Safely write with validation and backup
-    const result = safeWriteConfigFile(styleGuidePath, input.content, "style_guide.yaml");
+    // Pass fs module for testability (can be mocked in tests)
+    const result = safeWriteConfigFile(styleGuidePath, input.content, "style_guide.yaml", fs);
     
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
     
     // Reload configs immediately
-    const loader = getConfigLoader();
-    loader.reloadConfigs();
+    const { configLoader } = getDependencies();
+    configLoader.reloadConfigs();
     
     return NextResponse.json({ 
       success: true,

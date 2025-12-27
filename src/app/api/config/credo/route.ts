@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { handleApiError, parseJsonBody } from "~/server/api/helpers";
-import { getConfigLoader } from "~/server/services/config";
+import { getDependencies } from "~/server/dependencies";
 import { safeWriteConfigFile } from "~/server/api/config-helpers";
 import fs from "fs";
 import path from "path";
@@ -35,8 +35,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ content });
     }
     
-    const loader = getConfigLoader();
-    return NextResponse.json(loader.getCredo());
+    const { configLoader } = getDependencies();
+    return NextResponse.json(configLoader.getCredo());
   } catch (error) {
     return handleApiError(error);
   }
@@ -50,14 +50,14 @@ export async function PUT(request: NextRequest) {
     const credoPath = path.join(configDir, "credo.yaml");
 
     // Safely write with validation and backup
-    const result = safeWriteConfigFile(credoPath, input.content, "credo.yaml");
+    const result = safeWriteConfigFile(credoPath, input.content, "credo.yaml", fs);
     
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
     
-    const loader = getConfigLoader();
-    loader.reloadConfigs();
+    const { configLoader } = getDependencies();
+    configLoader.reloadConfigs();
     
     return NextResponse.json({ 
       success: true,

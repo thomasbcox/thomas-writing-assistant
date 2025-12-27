@@ -34,11 +34,16 @@ export function ConceptList({
   }
 
   if (error) {
+    // Display full error details including MSW response data
+    const errorDetails = JSON.stringify(error, null, 2);
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-4">
         <p className="text-sm text-red-800">
           Error loading concepts: {error.message}
         </p>
+        <pre className="text-xs mt-2 overflow-auto max-h-96 bg-red-100 p-2 rounded">
+          {errorDetails}
+        </pre>
       </div>
     );
   }

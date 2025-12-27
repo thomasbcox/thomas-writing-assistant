@@ -6,8 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { handleApiError, parseJsonBody } from "~/server/api/helpers";
-import { getLLMClient } from "~/server/services/llm/client";
-import { getConfigLoader } from "~/server/services/config";
+import { getDependencies } from "~/server/dependencies";
 import { analyzeConcept, type ConceptFormData } from "~/server/services/conceptEnricher";
 import { logServiceError } from "~/lib/logger";
 
@@ -26,13 +25,20 @@ export async function POST(request: NextRequest) {
     body = await parseJsonBody(request);
     const input = analyzeSchema.parse(body);
     
-    const llmClient = getLLMClient();
-    const configLoader = getConfigLoader();
+    const { llmClient, configLoader } = getDependencies();
     
     const result = await analyzeConcept(input as ConceptFormData, llmClient, configLoader);
     return NextResponse.json(result);
   } catch (error) {
-    logServiceError(error, "enrichment.analyze", { conceptTitle: body?.title || "unknown" });
+    // Enhanced error logging for AI diagnosis
+    logServiceError(error, "enrichment.analyze", {
+      conceptTitle: body?.title || "unknown",
+      hasTitle: !!body?.title,
+      hasDescription: !!body?.description,
+      hasContent: !!body?.content,
+      inputKeys: body ? Object.keys(body) : [],
+      errorPhase: "analyzeConcept",
+    });
     return handleApiError(error);
   }
 }

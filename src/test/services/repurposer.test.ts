@@ -124,5 +124,96 @@ describe("repurposer", () => {
 
     expect(result).toHaveLength(0);
   });
+
+  it("should handle partial response (only some content types)", async () => {
+    const mockResponse = {
+      social_posts: ["Post 1"],
+      email: "Email content",
+      // Missing lead_magnet and pinterest_pins
+    };
+
+    mockLLMClient.setMockCompleteJSON(async () => mockResponse);
+    mockConfigLoader.setMockSystemPrompt("Test system prompt");
+
+    const result = await repurposeAnchorContent(
+      "Test Title",
+      "Test content",
+      null,
+      null,
+      mockLLMClient,
+      mockConfigLoader,
+    );
+
+    expect(result.length).toBe(2);
+    expect(result.filter((r) => r.type === "social_post")).toHaveLength(1);
+    expect(result.filter((r) => r.type === "email")).toHaveLength(1);
+  });
+
+  it("should handle invalid response structure", async () => {
+    const mockResponse = {
+      social_posts: "not an array", // Invalid - should be array
+      email: null, // Invalid - should be string
+    };
+
+    mockLLMClient.setMockCompleteJSON(async () => mockResponse);
+    mockConfigLoader.setMockSystemPrompt("Test system prompt");
+
+    const result = await repurposeAnchorContent(
+      "Test Title",
+      "Test content",
+      null,
+      null,
+      mockLLMClient,
+      mockConfigLoader,
+    );
+
+    // Should handle invalid structure gracefully
+    expect(Array.isArray(result)).toBe(true);
+  });
+
+  it("should handle very long anchor content", async () => {
+    const longContent = "x".repeat(50000); // 50k characters
+    const mockResponse = {
+      social_posts: ["Post 1"],
+      email: "Email",
+      lead_magnet: "Lead magnet",
+      pinterest_pins: ["Pin 1"],
+    };
+
+    mockLLMClient.setMockCompleteJSON(async () => mockResponse);
+    mockConfigLoader.setMockSystemPrompt("Test system prompt");
+
+    const result = await repurposeAnchorContent(
+      "Test Title",
+      longContent,
+      null,
+      null,
+      mockLLMClient,
+      mockConfigLoader,
+    );
+
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  it("should handle empty arrays for pain points and solution steps", async () => {
+    const mockResponse = {
+      social_posts: ["Post 1"],
+      email: "Email",
+    };
+
+    mockLLMClient.setMockCompleteJSON(async () => mockResponse);
+    mockConfigLoader.setMockSystemPrompt("Test system prompt");
+
+    const result = await repurposeAnchorContent(
+      "Test Title",
+      "Test content",
+      [], // Empty array
+      [], // Empty array
+      mockLLMClient,
+      mockConfigLoader,
+    );
+
+    expect(result.length).toBeGreaterThan(0);
+  });
 });
 

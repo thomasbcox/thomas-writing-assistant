@@ -46,35 +46,26 @@ jest.mock("~/lib/logger", () => ({
   logServiceError: jest.fn(),
 }));
 
-// Mock pdf-parse module - need to handle dynamic imports
-// The route uses dynamic import, so we need to ensure the mock is available
-jest.mock("pdf-parse", () => {
-  class MockPDFParser {
-    constructor(options: { data: Buffer }) {}
-    async getText() {
-      return { text: "Extracted PDF text content", total: 1 };
-    }
-    async getInfo() {
-      return { info: { Title: "Test PDF" }, metadata: { Creator: "Test Creator" } };
-    }
-  }
-  return {
-    __esModule: true,
-    default: { PDFParse: MockPDFParser },
-    PDFParse: MockPDFParser,
-  };
-});
-
+// pdf-parse is mocked globally in setup.ts to handle dynamic imports
 // Import route handler AFTER mocks are set up
-import { POST as extractText } from "~/app/api/pdf/extract-text/route";
+let extractText: typeof import("~/app/api/pdf/extract-text/route").POST | undefined;
 
 describe("PDF API", () => {
+  beforeAll(async () => {
+    // Dynamic import to ensure mocks are applied
+    const routeModule = await import("~/app/api/pdf/extract-text/route");
+    extractText = routeModule.POST;
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   describe("POST /api/pdf/extract-text", () => {
     it("should extract text from PDF", async () => {
+      expect(extractText).toBeDefined();
+      if (!extractText) return;
+      
       const base64PDF = Buffer.from("fake pdf content").toString("base64");
 
       const request = new NextRequest("http://localhost/api/pdf/extract-text", {

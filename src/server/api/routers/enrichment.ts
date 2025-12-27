@@ -9,8 +9,7 @@ import {
   type ConceptFormData,
   type ChatMessage,
 } from "~/server/services/conceptEnricher";
-import { getLLMClient } from "~/server/services/llm/client";
-import { getConfigLoader } from "~/server/services/config";
+import { getDependencies } from "~/server/dependencies";
 import { logServiceError } from "~/lib/logger";
 
 const conceptFormDataSchema = z.object({
@@ -39,8 +38,7 @@ export const enrichmentRouter = createTRPCRouter({
     .input(conceptFormDataSchema)
     .mutation(async ({ input }) => {
       try {
-        const llmClient = getLLMClient();
-        const configLoader = getConfigLoader();
+        const { llmClient, configLoader } = getDependencies();
 
         const result = await analyzeConcept(input as ConceptFormData, llmClient, configLoader);
 
@@ -66,8 +64,7 @@ export const enrichmentRouter = createTRPCRouter({
     )
     .mutation(async ({ input }) => {
       try {
-        const llmClient = getLLMClient();
-        const configLoader = getConfigLoader();
+        const { llmClient, configLoader } = getDependencies();
 
         const result = await enrichMetadata(input.title, input.description, llmClient, configLoader);
 
@@ -133,8 +130,7 @@ export const enrichmentRouter = createTRPCRouter({
     )
     .mutation(async ({ input }) => {
       try {
-        const llmClient = getLLMClient();
-        const configLoader = getConfigLoader();
+        const { llmClient, configLoader } = getDependencies();
 
         const expanded = await expandDefinition(
           input.currentDefinition,

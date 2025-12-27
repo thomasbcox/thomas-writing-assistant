@@ -12,30 +12,39 @@ const mockUpdateStyleGuideUseMutation = jest.fn();
 const mockUpdateCredoUseMutation = jest.fn();
 const mockUpdateConstraintsUseMutation = jest.fn();
 
-jest.mock("~/lib/trpc/react", () => ({
-  api: {
-    config: {
-      getStyleGuideRaw: {
-        useQuery: (...args: unknown[]) => mockGetStyleGuideRawUseQuery(...args),
+// Import the utility to ensure the mock is set up
+import "../utils/trpc-test-utils";
+
+jest.mock("~/lib/trpc/react", () => {
+  const React = require("react");
+  return {
+    api: {
+      config: {
+        getStyleGuideRaw: {
+          useQuery: (...args: unknown[]) => mockGetStyleGuideRawUseQuery(...args),
+        },
+        getCredoRaw: {
+          useQuery: (...args: unknown[]) => mockGetCredoRawUseQuery(...args),
+        },
+        getConstraintsRaw: {
+          useQuery: (...args: unknown[]) => mockGetConstraintsRawUseQuery(...args),
+        },
+        updateStyleGuide: {
+          useMutation: () => mockUpdateStyleGuideUseMutation(),
+        },
+        updateCredo: {
+          useMutation: () => mockUpdateCredoUseMutation(),
+        },
+        updateConstraints: {
+          useMutation: () => mockUpdateConstraintsUseMutation(),
+        },
       },
-      getCredoRaw: {
-        useQuery: (...args: unknown[]) => mockGetCredoRawUseQuery(...args),
-      },
-      getConstraintsRaw: {
-        useQuery: (...args: unknown[]) => mockGetConstraintsRawUseQuery(...args),
-      },
-      updateStyleGuide: {
-        useMutation: () => mockUpdateStyleGuideUseMutation(),
-      },
-      updateCredo: {
-        useMutation: () => mockUpdateCredoUseMutation(),
-      },
-      updateConstraints: {
-        useMutation: () => mockUpdateConstraintsUseMutation(),
-      },
+      // Provide a mock Provider that just returns children
+      Provider: ({ children }: { children: React.ReactNode }) => children,
+      createClient: jest.fn(() => ({})),
     },
-  },
-}));
+  };
+});
 
 describe("ConfigTab - User Flows", () => {
   beforeEach(() => {
@@ -61,7 +70,7 @@ describe("ConfigTab - User Flows", () => {
     it("allows user to switch between configuration sections", async () => {
       const user = userEvent.setup();
       
-      render(<ConfigTab />);
+      renderWithTRPC(<ConfigTab />);
       
       // Initially Style Guide should be active
       // @ts-expect-error - jest-dom matcher
@@ -106,7 +115,7 @@ describe("ConfigTab - User Flows", () => {
         isPending: false,
       });
       
-      render(<ConfigTab />);
+      renderWithTRPC(<ConfigTab />);
       
       // Find textarea
       const textarea = screen.getByRole("textbox");
@@ -155,7 +164,7 @@ describe("ConfigTab - User Flows", () => {
         isPending: false,
       });
       
-      render(<ConfigTab />);
+      renderWithTRPC(<ConfigTab />);
       
       // Enter invalid YAML
       const textarea = screen.getByRole("textbox");
@@ -179,7 +188,7 @@ describe("ConfigTab - User Flows", () => {
         isPending: true,
       });
       
-      render(<ConfigTab />);
+      renderWithTRPC(<ConfigTab />);
       
       // Save button should show loading state
       const saveButton = screen.getByRole("button", { name: /saving/i });
@@ -207,7 +216,7 @@ describe("ConfigTab - User Flows", () => {
         isPending: false,
       });
       
-      render(<ConfigTab />);
+      renderWithTRPC(<ConfigTab />);
       
       // Switch to Credo tab
       const credoTab = screen.getByRole("button", { name: /credo/i });
@@ -247,7 +256,7 @@ describe("ConfigTab - User Flows", () => {
         isPending: false,
       });
       
-      render(<ConfigTab />);
+      renderWithTRPC(<ConfigTab />);
       
       // Switch to Constraints tab
       const constraintsTab = screen.getByRole("button", { name: /constraints/i });
@@ -279,7 +288,7 @@ describe("ConfigTab - User Flows", () => {
         refetch: jest.fn(),
       });
       
-      render(<ConfigTab />);
+      renderWithTRPC(<ConfigTab />);
       
       // Loading spinner should appear
       // @ts-expect-error - jest-dom matcher

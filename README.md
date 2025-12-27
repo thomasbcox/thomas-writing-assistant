@@ -99,15 +99,21 @@ Following Jana Osofsky's strategy:
 ## 🧪 Testing
 
 - **Test Framework**: Jest with separate environments for Node.js (services/routers) and jsdom (components)
-- **Current Coverage**: 39.96% statements, 40.65% lines
-- **Test Count**: 197 total tests (163 passing, 33 component tests need tRPC provider setup)
+- **Current Coverage**: 
+  - Statements: 73.11% (1009/1380)
+  - Branches: 46.93% (345/735) ⚠️
+  - Functions: 75.53% (210/278)
+  - Lines: 74.69% (986/1320)
+- **Test Count**: 369 total tests (253 passing, 115 failing, 1 skipped)
+- **Test Files**: 60 test files across API routes, routers, services, and components
 - **Test Categories**:
-  - ✅ Service layer tests (100% coverage for critical services)
+  - ✅ Service layer tests (high coverage for critical services)
   - ✅ Router/integration tests (comprehensive API testing)
   - ✅ Component unit tests (basic components)
-  - ⚠️ Component flow tests (structured, need tRPC provider setup)
+  - ⚠️ Component flow tests (some need tRPC provider setup)
+  - ⚠️ Branch coverage needs improvement (edge cases)
 
-**Note**: Component tests for user flows are implemented but require a tRPC React Query provider setup to work properly. The test structure is complete and follows best practices.
+**Note**: See `docs/test-coverage-quality.md` for detailed coverage report and recommendations. Some component tests require tRPC React Query provider setup to work properly.
 
 ## 📝 Features Implemented
 

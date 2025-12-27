@@ -6,8 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { handleApiError, getDb, getQueryParam } from "~/server/api/helpers";
-import { getLLMClient } from "~/server/services/llm/client";
-import { getConfigLoader } from "~/server/services/config";
+import { getDependencies } from "~/server/dependencies";
 import { proposeLinksForConcept } from "~/server/services/linkProposer";
 
 export async function GET(
@@ -19,8 +18,7 @@ export async function GET(
     const { id: conceptId } = await params;
     const maxProposals = parseInt(getQueryParam(request, "maxProposals") || "5", 10);
 
-    const llmClient = getLLMClient();
-    const configLoader = getConfigLoader();
+    const { llmClient, configLoader } = getDependencies();
 
     const proposals = await proposeLinksForConcept(
       conceptId,

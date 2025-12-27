@@ -7,9 +7,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb, handleApiError, parseJsonBody } from "~/server/api/helpers";
+import { getDependencies } from "~/server/dependencies";
 import { generateBlogPost } from "~/server/services/blogPostGenerator";
-import { getLLMClient } from "~/server/services/llm/client";
-import { getConfigLoader } from "~/server/services/config";
 import type { ConceptReference } from "~/server/services/blogPostGenerator";
 import { eq, and, inArray } from "drizzle-orm";
 import { concept } from "~/server/schema";
@@ -74,8 +73,7 @@ export async function POST(request: NextRequest) {
     }));
 
     // Generate the blog post
-    const llmClient = getLLMClient();
-    const configLoader = getConfigLoader();
+    const { llmClient, configLoader } = getDependencies();
     const blogPost = await generateBlogPost(
       input,
       conceptReferences,

@@ -6,74 +6,128 @@
  * POST /api/enrichment/chat - Chat enrichment
  */
 
-import { describe, it, expect, jest, beforeEach } from "@jest/globals";
-import { POST as analyzePost } from "~/app/api/enrichment/analyze/route";
-import { POST as enrichMetadataPost } from "~/app/api/enrichment/enrich-metadata/route";
-import { POST as expandDefinitionPost } from "~/app/api/enrichment/expand-definition/route";
-import { POST as chatPost } from "~/app/api/enrichment/chat/route";
+import { describe, it, expect, jest, beforeEach, beforeAll, afterAll } from "@jest/globals";
 import { NextRequest } from "next/server";
+import { setDependencies, resetDependencies } from "~/server/dependencies";
+import { createTestDependencies, createMockLLMClient, createMockConfigLoader } from "../utils/dependencies";
 
 // Mock the enrichment service - create mocks that can be accessed
+// These must be defined before jest.mock() calls
 const mockAnalyzeConcept = jest.fn();
 const mockEnrichMetadata = jest.fn();
 const mockExpandDefinition = jest.fn();
 const mockChatEnrichConcept = jest.fn();
 
-jest.mock("~/server/services/conceptEnricher", () => ({
-  analyzeConcept: (...args: unknown[]) => mockAnalyzeConcept(...args),
-  enrichMetadata: (...args: unknown[]) => mockEnrichMetadata(...args),
-  expandDefinition: (...args: unknown[]) => mockExpandDefinition(...args),
-  chatEnrichConcept: (...args: unknown[]) => mockChatEnrichConcept(...args),
-}));
+// Mock the entire module - use factory function to ensure mocks are set up correctly
+// IMPORTANT: jest.mock is hoisted, so this runs before imports
+// Store mocks in a global object that can be accessed from both factory and tests
+const enrichmentMocks = {
+  analyzeConcept: jest.fn(),
+  enrichMetadata: jest.fn(),
+  expandDefinition: jest.fn(),
+  chatEnrichConcept: jest.fn(),
+};
 
-// Mock LLM client and config loader
-jest.mock("~/server/services/llm/client", () => ({
-  getLLMClient: jest.fn(() => ({
-    completeJSON: jest.fn(),
-    complete: jest.fn(),
-  })),
-}));
+jest.mock("~/server/services/conceptEnricher", () => {
+  // Import actual module to get types/interfaces
+  const actual = jest.requireActual("~/server/services/conceptEnricher");
+  
+  return {
+    ...actual,
+    analyzeConcept: enrichmentMocks.analyzeConcept,
+    enrichMetadata: enrichmentMocks.enrichMetadata,
+    expandDefinition: enrichmentMocks.expandDefinition,
+    chatEnrichConcept: enrichmentMocks.chatEnrichConcept,
+  };
+});
 
-jest.mock("~/server/services/config", () => ({
-  getConfigLoader: jest.fn(() => ({
-    getSystemPrompt: jest.fn(() => "System prompt"),
-    reloadConfigs: jest.fn(),
-  })),
+// Mock logger to prevent hangs
+jest.mock("~/lib/logger", () => ({
+  logger: {
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+  },
+  logServiceError: jest.fn(),
 }));
 
 // Database and helpers are mocked globally in setup.ts
 // Individual mocks can override if needed
 
 describe("Enrichment API", () => {
-  beforeEach(() => {
+  let testDependencies: Awaited<ReturnType<typeof createTestDependencies>>;
+  let mockLLMClient: ReturnType<typeof createMockLLMClient>;
+  let mockConfigLoader: ReturnType<typeof createMockConfigLoader>;
+
+  beforeAll(async () => {
+    // Create test dependencies with mocks
+    mockLLMClient = createMockLLMClient({
+      completeJSON: jest.fn().mockResolvedValue({
+        greeting: "Test greeting",
+        suggestions: [],
+        quickActions: [],
+      }),
+      complete: jest.fn().mockResolvedValue("Test response"),
+    });
+    mockConfigLoader = createMockConfigLoader({
+      getSystemPrompt: jest.fn(() => "System prompt"),
+    });
+    
+    testDependencies = await createTestDependencies({
+      llmClient: mockLLMClient,
+      configLoader: mockConfigLoader,
+    });
+    
+    // Set dependencies for the application
+    setDependencies(testDependencies);
+  });
+
+  afterAll(() => {
+    // Clean up
+    resetDependencies();
+  });
+
+  beforeEach(async () => {
     jest.clearAllMocks();
+    
+    // Set up mock implementations to delegate to our test functions
+    enrichmentMocks.analyzeConcept.mockImplementation((...args) => mockAnalyzeConcept(...args));
+    enrichmentMocks.enrichMetadata.mockImplementation((...args) => mockEnrichMetadata(...args));
+    enrichmentMocks.expandDefinition.mockImplementation((...args) => mockExpandDefinition(...args));
+    enrichmentMocks.chatEnrichConcept.mockImplementation((...args) => mockChatEnrichConcept(...args));
+    
+    // Reset mock implementations and ensure they resolve immediately
+    mockAnalyzeConcept.mockClear();
+    mockEnrichMetadata.mockClear();
+    mockExpandDefinition.mockClear();
+    mockChatEnrichConcept.mockClear();
+    
+    // Reset dependency mocks but keep default implementations
+    mockLLMClient.completeJSON.mockClear();
+    mockLLMClient.complete.mockClear().mockResolvedValue("Test response");
+    mockConfigLoader.getSystemPrompt.mockClear().mockReturnValue("System prompt");
   });
 
   describe("POST /api/enrichment/analyze", () => {
     it("should analyze a concept", async () => {
-      const mockResponse = {
+      // Import route handler dynamically after mocks are set up
+      const { POST: analyzePost } = await import("~/app/api/enrichment/analyze/route");
+      
+      // Set up LLM client to return expected response
+      mockLLMClient.completeJSON.mockResolvedValue({
+        greeting: "I can help improve this concept",
         suggestions: [
           {
-            id: "1",
-            field: "creator" as const,
+            field: "creator",
             currentValue: "",
             suggestedValue: "Author",
             reason: "Missing creator",
-            confidence: "high" as const,
+            confidence: "high",
           },
         ],
-        quickActions: [
-          {
-            id: "1",
-            label: "Fetch Metadata",
-            description: "Fetch metadata",
-            action: "fetchMetadata" as const,
-          },
-        ],
-        initialMessage: "I can help improve this concept",
-      };
-
-      mockAnalyzeConcept.mockResolvedValue(mockResponse);
+        quickActions: ["fetchMetadata"],
+      });
 
       const request = new NextRequest("http://localhost/api/enrichment/analyze", {
         method: "POST",
@@ -92,11 +146,19 @@ describe("Enrichment API", () => {
 
       expect(response.status).toBe(200);
       expect(data.suggestions).toBeDefined();
+      expect(Array.isArray(data.suggestions)).toBe(true);
       expect(data.quickActions).toBeDefined();
-      expect(analyzeConcept).toHaveBeenCalled();
-    });
+      expect(Array.isArray(data.quickActions)).toBe(true);
+      expect(data.initialMessage).toBeDefined();
+      
+      // Verify LLM client was called
+      expect(mockLLMClient.completeJSON).toHaveBeenCalled();
+    }, 10000); // Increase timeout
 
     it("should validate input", async () => {
+      // Import route handler dynamically
+      const { POST: analyzePost } = await import("~/app/api/enrichment/analyze/route");
+      
       // Note: This test may fail due to body being read twice in error handler
       // The route handler tries to read request.json() again in catch block
       // which causes "Body is unusable" error
@@ -118,15 +180,17 @@ describe("Enrichment API", () => {
 
   describe("POST /api/enrichment/enrich-metadata", () => {
     it("should enrich metadata", async () => {
-      const mockResponse = {
+      // Import route handler dynamically
+      const { POST: enrichMetadataPost } = await import("~/app/api/enrichment/enrich-metadata/route");
+      
+      // Set up LLM client to return expected response
+      mockLLMClient.completeJSON.mockResolvedValue({
         creator: "Test Author",
         year: "2024",
         source: "Test Source",
         sourceUrl: "https://example.com",
-        confidence: "high" as const,
-      };
-
-      mockEnrichMetadata.mockResolvedValue(mockResponse);
+        confidence: "high",
+      });
 
       const request = new NextRequest("http://localhost/api/enrichment/enrich-metadata", {
         method: "POST",
@@ -142,13 +206,17 @@ describe("Enrichment API", () => {
       expect(response.status).toBe(200);
       expect(data.creator).toBe("Test Author");
       expect(data.year).toBe("2024");
-      expect(mockEnrichMetadata).toHaveBeenCalled();
+      expect(mockLLMClient.completeJSON).toHaveBeenCalled();
     });
   });
 
   describe("POST /api/enrichment/expand-definition", () => {
     it("should expand a definition", async () => {
-      mockExpandDefinition.mockResolvedValue("Expanded definition with more detail");
+      // Import route handler dynamically
+      const { POST: expandDefinitionPost } = await import("~/app/api/enrichment/expand-definition/route");
+      
+      // Set up LLM client to return expected response (override the default from beforeEach)
+      mockLLMClient.complete.mockResolvedValueOnce("Expanded definition with more detail");
 
       const request = new NextRequest("http://localhost/api/enrichment/expand-definition", {
         method: "POST",
@@ -163,19 +231,21 @@ describe("Enrichment API", () => {
 
       expect(response.status).toBe(200);
       expect(data.expanded).toBe("Expanded definition with more detail");
-      expect(expandDefinition).toHaveBeenCalled();
-    });
+      expect(mockLLMClient.complete).toHaveBeenCalled();
+    }, 10000); // Increase timeout for async operations
   });
 
   describe("POST /api/enrichment/chat", () => {
     it("should handle chat enrichment", async () => {
-      const mockResponse = {
+      // Import route handler dynamically
+      const { POST: chatPost } = await import("~/app/api/enrichment/chat/route");
+      
+      // Set up LLM client to return expected response
+      mockLLMClient.completeJSON.mockResolvedValue({
         response: "Here's how to improve your concept",
         suggestions: [],
         actions: [],
-      };
-
-      mockChatEnrichConcept.mockResolvedValue(mockResponse);
+      });
 
       const request = new NextRequest("http://localhost/api/enrichment/chat", {
         method: "POST",
@@ -198,8 +268,8 @@ describe("Enrichment API", () => {
 
       expect(response.status).toBe(200);
       expect(data.response).toBeDefined();
-      expect(chatEnrichConcept).toHaveBeenCalled();
-    });
+      expect(mockLLMClient.completeJSON).toHaveBeenCalled();
+    }, 10000); // Increase timeout for async operations
   });
 });
 

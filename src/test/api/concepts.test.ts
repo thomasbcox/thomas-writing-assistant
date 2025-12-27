@@ -4,50 +4,50 @@
  * POST /api/concepts - Create concept
  */
 
-import { describe, it, expect, jest, beforeEach, beforeAll } from "@jest/globals";
+import { describe, it, expect, beforeEach, beforeAll, afterAll } from "@jest/globals";
 import { NextRequest } from "next/server";
-import { setupApiRouteMocks } from "./drizzle-mock-helper";
+import { cleanupTestData } from "../test-utils";
+import type { ReturnType } from "~/server/db";
+import { concept } from "~/server/schema";
+import { setupInMemoryDbMocks, initInMemoryDb, cleanupInMemoryDb } from "../utils/in-memory-db-setup";
 
-// Setup mocks (jest.mock is hoisted)
-setupApiRouteMocks();
+// Setup mocks (must be before route imports)
+setupInMemoryDbMocks();
 
-// Import route handler AFTER mocks are set up
-import { GET, POST } from "~/app/api/concepts/route";
+type Database = ReturnType<typeof import("~/server/db").db>;
 
-// Get mockDb reference after mocks are set up
-let mockDb: ReturnType<typeof import("./drizzle-mock-helper").createDrizzleMockDb>;
+// Create test database - will be initialized in beforeAll
+let testDb: Database;
+
 beforeAll(async () => {
-  const helpers = await import("~/server/api/helpers");
-  mockDb = (helpers as any).__mockDb;
+  testDb = await initInMemoryDb();
+});
+
+afterAll(() => {
+  cleanupInMemoryDb();
 });
 
 describe("Concepts API", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockDb._setSelectResult([]);
-    mockDb._setInsertResult([]);
+  beforeEach(async () => {
+    // Clean up test data before each test
+    await cleanupTestData(testDb);
   });
 
   describe("GET /api/concepts", () => {
     it("should return list of concepts", async () => {
-      const mockConcepts = [
-        {
-          id: "1",
-          title: "Test Concept",
-          description: "Test",
-          content: "Content",
-          creator: "Author",
-          source: "Source",
-          year: "2024",
-          status: "active",
-          identifier: "zettel-123",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          trashedAt: null,
-        },
-      ];
-
-      mockDb._setSelectResult(mockConcepts);
+      const { GET } = await import("~/app/api/concepts/route");
+      
+      // Create test data in real database
+      const [testConcept] = await testDb.insert(concept).values({
+        identifier: "zettel-123",
+        title: "Test Concept",
+        description: "Test",
+        content: "Content",
+        creator: "Author",
+        source: "Source",
+        year: "2024",
+        status: "active",
+      }).returning();
 
       const request = new NextRequest("http://localhost/api/concepts");
       const response = await GET(request);
@@ -56,46 +56,85 @@ describe("Concepts API", () => {
       expect(response.status).toBe(200);
       expect(data).toHaveLength(1);
       expect(data[0].title).toBe("Test Concept");
-      expect(mockDb.select).toHaveBeenCalled();
+      expect(data[0].id).toBe(testConcept.id);
     });
 
     it("should filter by search query", async () => {
-      mockDb._setSelectResult([]);
-
-      const request = new NextRequest("http://localhost/api/concepts?search=test");
-      await GET(request);
-
-      expect(mockDb.select).toHaveBeenCalled();
-    });
-
-    it("should include trash when includeTrash=true", async () => {
-      mockDb._setSelectResult([]);
-
-      const request = new NextRequest("http://localhost/api/concepts?includeTrash=true");
-      await GET(request);
-
-      expect(mockDb.select).toHaveBeenCalled();
-    });
-  });
-
-  describe("POST /api/concepts", () => {
-    it("should create a new concept", async () => {
-      const mockConcept = {
-        id: "1",
-        title: "New Concept",
-        description: "Description",
+      const { GET } = await import("~/app/api/concepts/route");
+      
+      // Create test concepts
+      await testDb.insert(concept).values({
+        identifier: "zettel-1",
+        title: "Test Concept",
+        description: "Test description",
         content: "Content",
         creator: "Author",
         source: "Source",
         year: "2024",
         status: "active",
-        identifier: "zettel-123",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        trashedAt: null,
-      };
+      });
+      
+      await testDb.insert(concept).values({
+        identifier: "zettel-2",
+        title: "Other Concept",
+        description: "Other description",
+        content: "Content",
+        creator: "Author",
+        source: "Source",
+        year: "2024",
+        status: "active",
+      });
 
-      mockDb._setInsertResult([mockConcept]);
+      const request = new NextRequest("http://localhost/api/concepts?search=Test");
+      const response = await GET(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data).toHaveLength(1);
+      expect(data[0].title).toBe("Test Concept");
+    });
+
+    it("should include trash when includeTrash=true", async () => {
+      const { GET } = await import("~/app/api/concepts/route");
+      
+      // Create active and trashed concepts
+      await testDb.insert(concept).values({
+        identifier: "zettel-active",
+        title: "Active Concept",
+        description: "Test",
+        content: "Content",
+        creator: "Author",
+        source: "Source",
+        year: "2024",
+        status: "active",
+      });
+      
+      await testDb.insert(concept).values({
+        identifier: "zettel-trashed",
+        title: "Trashed Concept",
+        description: "Test",
+        content: "Content",
+        creator: "Author",
+        source: "Source",
+        year: "2024",
+        status: "trashed",
+      });
+
+      const request = new NextRequest("http://localhost/api/concepts?includeTrash=true");
+      const response = await GET(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.length).toBeGreaterThanOrEqual(2);
+      const titles = data.map((c: any) => c.title);
+      expect(titles).toContain("Active Concept");
+      expect(titles).toContain("Trashed Concept");
+    });
+  });
+
+  describe("POST /api/concepts", () => {
+    it("should create a new concept", async () => {
+      const { POST } = await import("~/app/api/concepts/route");
 
       const request = new NextRequest("http://localhost/api/concepts", {
         method: "POST",
@@ -114,14 +153,29 @@ describe("Concepts API", () => {
 
       expect(response.status).toBe(201);
       expect(data.title).toBe("New Concept");
-      expect(mockDb.insert).toHaveBeenCalled();
+      expect(data.description).toBe("Description");
+      expect(data.content).toBe("Content");
+      expect(data.creator).toBe("Author");
+      expect(data.source).toBe("Source");
+      expect(data.year).toBe("2024");
+      expect(data.status).toBe("active");
+      expect(data.identifier).toMatch(/^zettel-/);
+      
+      // Verify it was actually created in the database
+      const created = await testDb.query.concept.findFirst({
+        where: (concept, { eq }) => eq(concept.id, data.id),
+      });
+      expect(created).toBeDefined();
+      expect(created?.title).toBe("New Concept");
     });
 
     it("should validate required fields", async () => {
+      const { POST } = await import("~/app/api/concepts/route");
+      
       const request = new NextRequest("http://localhost/api/concepts", {
         method: "POST",
         body: JSON.stringify({
-          // Missing required fields
+          // Missing required fields (title and content are required)
         }),
       });
 

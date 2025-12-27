@@ -6,23 +6,22 @@
 import { describe, it, expect, jest, beforeEach } from "@jest/globals";
 
 // Create mock functions that will be used in the mock factory
-const mockChatCompletionsCreate = jest.fn();
+// Store in a global object that can be accessed from both factory and tests
+const openaiMocks = {
+  chatCompletionsCreate: jest.fn(),
+};
 
 // Mock the OpenAI module - factory creates mocks inline
 jest.mock("openai", () => {
-  const mockCreate = jest.fn();
   const mockClient = {
     chat: {
       completions: {
-        create: mockCreate,
+        create: openaiMocks.chatCompletionsCreate,
       },
     },
   };
 
   const MockOpenAI = jest.fn().mockImplementation(() => mockClient);
-
-  // Export the mock create function so tests can access it
-  (MockOpenAI as any).__mockCreate = mockCreate;
 
   return {
     __esModule: true,
@@ -36,9 +35,8 @@ import OpenAI from "openai";
 
 // Helper to get the mock create function
 function getMockCreate() {
-  const MockOpenAI = OpenAI as any;
-  // Access the mock create function from the mock factory
-  return MockOpenAI.__mockCreate as jest.Mock;
+  // Access the mock create function from the global object
+  return openaiMocks.chatCompletionsCreate;
 }
 
 describe("OpenAIProvider", () => {

@@ -228,3 +228,4 @@ psql $DATABASE_URL -c "SELECT id, title, \"createdAt\" FROM \"Concept\" ORDER BY
 
 
 
+

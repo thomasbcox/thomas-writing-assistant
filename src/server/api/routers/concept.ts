@@ -9,8 +9,7 @@ import { TRPCError } from "@trpc/server";
 import { v4 as uuidv4 } from "uuid";
 import { eq, and, or, like, lte, desc } from "drizzle-orm";
 import { concept, link } from "~/server/schema";
-import { getLLMClient } from "~/server/services/llm/client";
-import { getConfigLoader } from "~/server/services/config";
+import { getDependencies } from "~/server/dependencies";
 
 export const conceptRouter = createTRPCRouter({
   list: publicProcedure
@@ -238,8 +237,7 @@ export const conceptRouter = createTRPCRouter({
       const { generateConceptCandidates } = await import(
         "~/server/services/conceptProposer"
       );
-      const llmClient = getLLMClient();
-      const configLoader = getConfigLoader();
+      const { llmClient, configLoader } = getDependencies();
       return generateConceptCandidates(
         input.text,
         input.instructions,

@@ -1,4 +1,7 @@
 import fs from "fs";
+// #region agent log
+(async () => { try { const fsLog = await import("fs"); fsLog.default.appendFileSync("/Users/thomasbcox/Projects/thomas-writing-assistant/.cursor/debug.log", JSON.stringify({location:'config.ts:1',message:'config.ts module loading fs',data:{fsType:typeof fs,fsExistsSyncType:typeof fs?.existsSync,isMock:!!(fs?.existsSync as any)?.mockImplementation},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})+"\n"); } catch {} })();
+// #endregion
 import path from "path";
 import yaml from "js-yaml";
 import { logger } from "~/lib/logger";
@@ -36,8 +39,10 @@ export class ConfigLoader {
   private styleGuide: StyleGuide = {};
   private credo: Credo = {};
   private constraints: Constraints = {};
+  private fsModule: typeof fs;
 
-  constructor() {
+  constructor(fsModule?: typeof fs) {
+    this.fsModule = (fsModule ?? fs) as typeof fs;
     this.loadConfigs();
   }
 
@@ -56,8 +61,8 @@ export class ConfigLoader {
     try {
       // Load style guide
       const styleGuidePath = path.join(configDir, "style_guide.yaml");
-      if (fs.existsSync(styleGuidePath)) {
-        const content = fs.readFileSync(styleGuidePath, "utf-8");
+      if (this.fsModule.existsSync(styleGuidePath)) {
+        const content = this.fsModule.readFileSync(styleGuidePath, "utf-8");
         this.styleGuide = (yaml.load(content) as StyleGuide) ?? {};
       }
     } catch (error) {
@@ -67,8 +72,8 @@ export class ConfigLoader {
     try {
       // Load credo
       const credoPath = path.join(configDir, "credo.yaml");
-      if (fs.existsSync(credoPath)) {
-        const content = fs.readFileSync(credoPath, "utf-8");
+      if (this.fsModule.existsSync(credoPath)) {
+        const content = this.fsModule.readFileSync(credoPath, "utf-8");
         this.credo = (yaml.load(content) as Credo) ?? {};
       }
     } catch (error) {
@@ -78,8 +83,8 @@ export class ConfigLoader {
     try {
       // Load constraints
       const constraintsPath = path.join(configDir, "constraints.yaml");
-      if (fs.existsSync(constraintsPath)) {
-        const content = fs.readFileSync(constraintsPath, "utf-8");
+      if (this.fsModule.existsSync(constraintsPath)) {
+        const content = this.fsModule.readFileSync(constraintsPath, "utf-8");
         this.constraints = (yaml.load(content) as Constraints) ?? {};
       }
     } catch (error) {
@@ -107,17 +112,23 @@ export class ConfigLoader {
     const configDir = path.join(process.cwd(), "config");
     
     const styleGuidePath = path.join(configDir, "style_guide.yaml");
-    const styleGuideExists = fs.existsSync(styleGuidePath);
+    // #region agent log
+    (async () => { try { const fsLog = await import("fs"); fsLog.default.appendFileSync("/Users/thomasbcox/Projects/thomas-writing-assistant/.cursor/debug.log", JSON.stringify({location:'config.ts:110',message:'Before existsSync call',data:{path:styleGuidePath,fsExistsSyncType:typeof this.fsModule.existsSync,isMock:!!(this.fsModule.existsSync as any)?.mockImplementation,styleGuideKeys:Object.keys(this.styleGuide).length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})+"\n"); } catch {} })();
+    // #endregion
+    const styleGuideExists = this.fsModule.existsSync(styleGuidePath);
+    // #region agent log
+    (async () => { try { const fsLog = await import("fs"); fsLog.default.appendFileSync("/Users/thomasbcox/Projects/thomas-writing-assistant/.cursor/debug.log", JSON.stringify({location:'config.ts:112',message:'After existsSync call',data:{styleGuideExists,styleGuideKeys:Object.keys(this.styleGuide).length,styleGuideLoaded:styleGuideExists && Object.keys(this.styleGuide).length > 0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})+"\n"); } catch {} })();
+    // #endregion
     const styleGuideLoaded = styleGuideExists && Object.keys(this.styleGuide).length > 0;
     const styleGuideEmpty = !styleGuideLoaded || Object.keys(this.styleGuide).length === 0;
 
     const credoPath = path.join(configDir, "credo.yaml");
-    const credoExists = fs.existsSync(credoPath);
+    const credoExists = this.fsModule.existsSync(credoPath);
     const credoLoaded = credoExists && Object.keys(this.credo).length > 0;
     const credoEmpty = !credoLoaded || Object.keys(this.credo).length === 0;
 
     const constraintsPath = path.join(configDir, "constraints.yaml");
-    const constraintsExists = fs.existsSync(constraintsPath);
+    const constraintsExists = this.fsModule.existsSync(constraintsPath);
     const constraintsLoaded = constraintsExists && Object.keys(this.constraints).length > 0;
     const constraintsEmpty = !constraintsLoaded || Object.keys(this.constraints).length === 0;
 

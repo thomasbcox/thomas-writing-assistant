@@ -17,11 +17,25 @@ interface Toast {
 
 export function CapsulesTab() {
   // Load full data with all nested relations for detailed view
+  // #region agent log
+  (async () => { try { const fs = await import("fs"); fs.default.appendFileSync("/Users/thomasbcox/Projects/thomas-writing-assistant/.cursor/debug.log", JSON.stringify({location:'CapsulesTab.tsx:20',message:'About to call useQuery',data:{hasApi:!!api,apiType:typeof api,hasCapsule:!!api?.capsule,hasList:!!api?.capsule?.list,hasUseQuery:!!api?.capsule?.list?.useQuery,useQueryType:typeof api?.capsule?.list?.useQuery,isMock:!!api?.capsule?.list?.useQuery?.mockImplementation},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})+"\n"); } catch {} })();
+  // #endregion
+  // #region agent log
+  (async () => { try { const fs = await import("fs"); fs.default.appendFileSync("/Users/thomasbcox/Projects/thomas-writing-assistant/.cursor/debug.log", JSON.stringify({location:'CapsulesTab.tsx:20',message:'About to call useQuery - H2',data:{apiSource:api?.constructor?.name,isProxy:api?.[Symbol.toStringTag]==='Proxy'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})+"\n"); } catch {} })();
+  // #endregion
   const { data: capsules, refetch } = api.capsule.list.useQuery({ summary: false });
+  // #region agent log
+  (async () => { try { const fs = await import("fs"); fs.default.appendFileSync("/Users/thomasbcox/Projects/thomas-writing-assistant/.cursor/debug.log", JSON.stringify({location:'CapsulesTab.tsx:22',message:'After useQuery call',data:{hasData:!!data,hasCapsules:!!capsules,hasRefetch:!!refetch},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})+"\n"); } catch {} })();
+  // #endregion
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   // Clear all tab state (refetch to reset any local state)
   const handleClear = () => {
+    // Clear local state
+    setExpandedCapsules(new Set());
+    setSelectedAnchorId(null);
+    setEditingAnchorId(null);
+    // Refetch data
     void refetch();
     addToast("Tab cleared", "success");
   };
@@ -148,21 +162,12 @@ export function CapsulesTab() {
         <button
           onClick={handleClear}
           className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm"
-          title="Clear and refresh tab"
+          title="Clear all selections and refresh tab"
         >
           Clear
         </button>
       </div>
       <div className="space-y-5">
-        <div className="flex justify-end mb-2">
-          <button
-            onClick={handleClear}
-            className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm"
-            title="Clear and refresh tab"
-          >
-            Clear
-          </button>
-        </div>
         <CapsuleInfoSection />
 
         <PDFUploadSection

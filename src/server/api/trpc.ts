@@ -11,7 +11,7 @@ import { type NextRequest } from "next/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
 
-import { db } from "~/server/db";
+import { getCurrentDb } from "~/server/db";
 
 /**
  * 1. CONTEXT
@@ -24,10 +24,13 @@ import { db } from "~/server/db";
  * wrap this and provides the required context.
  *
  * @see https://trpc.io/docs/server/context
+ * 
+ * IMPORTANT: Uses getCurrentDb() to ensure we always get the current database instance,
+ * even after reconnectDatabase() is called. This fixes issues with stale database connections.
  */
 export const createTRPCContext = async (opts: { headers: Headers }) => {
   return {
-    db,
+    db: getCurrentDb(),
     ...opts,
   };
 };

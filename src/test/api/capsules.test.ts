@@ -4,57 +4,46 @@
  * POST /api/capsules - Create capsule
  */
 
-import { describe, it, expect, jest, beforeEach, beforeAll } from "@jest/globals";
+import { describe, it, expect, beforeEach, beforeAll, afterAll } from "@jest/globals";
 import { NextRequest } from "next/server";
-import { setupApiRouteMocks } from "./drizzle-mock-helper";
+import { cleanupTestData } from "../test-utils";
+import type { ReturnType } from "~/server/db";
+import { capsule } from "~/server/schema";
+import { setupInMemoryDbMocks, initInMemoryDb, cleanupInMemoryDb } from "../utils/in-memory-db-setup";
 
-// Setup mocks (jest.mock is hoisted)
-setupApiRouteMocks();
+// Setup mocks (must be before route imports)
+setupInMemoryDbMocks();
 
-// Import route handler AFTER mocks are set up
-import { GET, POST } from "~/app/api/capsules/route";
+type Database = ReturnType<typeof import("~/server/db").db>;
 
-// Get mockDb reference after mocks are set up
-let mockDb: ReturnType<typeof import("./drizzle-mock-helper").createDrizzleMockDb>;
+// Create test database - will be initialized in beforeAll
+let testDb: Database;
+
 beforeAll(async () => {
-  const helpers = await import("~/server/api/helpers");
-  mockDb = (helpers as any).__mockDb;
+  testDb = await initInMemoryDb();
+});
+
+afterAll(() => {
+  cleanupInMemoryDb();
 });
 
 describe("Capsules API", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockDb._setSelectResult([]);
-    mockDb._setInsertResult([]);
+  beforeEach(async () => {
+    // Clean up test data before each test
+    await cleanupTestData(testDb);
   });
 
   describe("GET /api/capsules", () => {
     it("should return list of capsules", async () => {
-      const mockCapsules = [
-        {
-          id: "1",
-          title: "Test Capsule",
-          promise: "Promise",
-          cta: "CTA",
-          offerMapping: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ];
-
-      mockDb._setSelectResult(mockCapsules);
-      // Mock anchors query (empty)
-      mockDb._selectBuilder.from.mockReturnValueOnce({
-        where: jest.fn().mockReturnValueOnce({
-          orderBy: jest.fn(() => Promise.resolve([])),
-        }),
-      });
-      // Mock repurposed content query (empty)
-      mockDb._selectBuilder.from.mockReturnValueOnce({
-        where: jest.fn().mockReturnValueOnce({
-          orderBy: jest.fn(() => Promise.resolve([])),
-        }),
-      });
+      const { GET } = await import("~/app/api/capsules/route");
+      
+      // Create test capsule in real database
+      const [testCapsule] = await testDb.insert(capsule).values({
+        title: "Test Capsule",
+        promise: "Promise",
+        cta: "CTA",
+        offerMapping: null,
+      }).returning();
 
       const response = await GET();
       const data = await response.json();
@@ -63,11 +52,12 @@ describe("Capsules API", () => {
       expect(Array.isArray(data)).toBe(true);
       expect(data).toHaveLength(1);
       expect(data[0].title).toBe("Test Capsule");
-      expect(mockDb.select).toHaveBeenCalled();
+      expect(data[0].id).toBe(testCapsule.id);
+      expect(data[0].anchors).toEqual([]);
     });
 
     it("should return empty array when no capsules", async () => {
-      mockDb._setSelectResult([]);
+      const { GET } = await import("~/app/api/capsules/route");
 
       const response = await GET();
       const data = await response.json();
@@ -79,17 +69,7 @@ describe("Capsules API", () => {
 
   describe("POST /api/capsules", () => {
     it("should create a new capsule", async () => {
-      const mockCapsule = {
-        id: "1",
-        title: "New Capsule",
-        promise: "Promise",
-        cta: "CTA",
-        offerMapping: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      mockDb._setInsertResult([mockCapsule]);
+      const { POST } = await import("~/app/api/capsules/route");
 
       const request = new NextRequest("http://localhost/api/capsules", {
         method: "POST",
@@ -105,14 +85,24 @@ describe("Capsules API", () => {
 
       expect(response.status).toBe(201);
       expect(data.title).toBe("New Capsule");
-      expect(mockDb.insert).toHaveBeenCalled();
+      expect(data.promise).toBe("Promise");
+      expect(data.cta).toBe("CTA");
+      
+      // Verify it was actually created in the database
+      const created = await testDb.query.capsule.findFirst({
+        where: (capsule, { eq }) => eq(capsule.id, data.id),
+      });
+      expect(created).toBeDefined();
+      expect(created?.title).toBe("New Capsule");
     });
 
     it("should validate required fields", async () => {
+      const { POST } = await import("~/app/api/capsules/route");
+      
       const request = new NextRequest("http://localhost/api/capsules", {
         method: "POST",
         body: JSON.stringify({
-          // Missing required fields
+          // Missing required fields (title, promise, cta are required)
         }),
       });
 

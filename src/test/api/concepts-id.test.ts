@@ -3,33 +3,42 @@
  * GET/PUT/DELETE /api/concepts/[id]
  */
 
-import { describe, it, expect, jest, beforeEach, beforeAll } from "@jest/globals";
+import { describe, it, expect, beforeEach, beforeAll, afterAll } from "@jest/globals";
 import { NextRequest } from "next/server";
-import { setupApiRouteMocks } from "./drizzle-mock-helper";
+import { cleanupTestData } from "../test-utils";
+import type { ReturnType } from "~/server/db";
+import { concept } from "~/server/schema";
+import { setupInMemoryDbMocks, initInMemoryDb, cleanupInMemoryDb } from "../utils/in-memory-db-setup";
 
-// Setup mocks (jest.mock is hoisted)
-setupApiRouteMocks();
+// Setup mocks (must be before route imports)
+setupInMemoryDbMocks();
 
-// Import route handler AFTER mocks are set up
-import { GET, PUT, DELETE } from "~/app/api/concepts/[id]/route";
+type Database = ReturnType<typeof import("~/server/db").db>;
 
-// Get mockDb reference after mocks are set up
-let mockDb: ReturnType<typeof import("./drizzle-mock-helper").createDrizzleMockDb>;
+// Create test database - will be initialized in beforeAll
+let testDb: Database;
+
 beforeAll(async () => {
-  const helpers = await import("~/server/api/helpers");
-  mockDb = (helpers as any).__mockDb;
+  testDb = await initInMemoryDb();
+});
+
+afterAll(() => {
+  cleanupInMemoryDb();
 });
 
 describe("Concepts API - Individual Concept Endpoints", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockDb._setUpdateResult([]);
+  beforeEach(async () => {
+    // Clean up test data before each test
+    await cleanupTestData(testDb);
   });
 
   describe("GET /api/concepts/[id]", () => {
     it("should return concept by id", async () => {
-      const mockConcept = {
-        id: "1",
+      const { GET } = await import("~/app/api/concepts/[id]/route");
+      
+      // Create test concept in real database
+      const [testConcept] = await testDb.insert(concept).values({
+        identifier: "zettel-123",
         title: "Test Concept",
         description: "Test",
         content: "Content",
@@ -37,33 +46,26 @@ describe("Concepts API - Individual Concept Endpoints", () => {
         source: "Source",
         year: "2024",
         status: "active",
-        identifier: "zettel-123",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        trashedAt: null,
-        outgoingLinks: [],
-        incomingLinks: [],
-      };
+      }).returning();
 
-      mockDb.query.concept.findFirst.mockResolvedValue(mockConcept);
-
-      const request = new NextRequest("http://localhost/api/concepts/1");
+      const request = new NextRequest(`http://localhost/api/concepts/${testConcept.id}`);
       const response = await GET(request, {
-        params: Promise.resolve({ id: "1" }),
+        params: Promise.resolve({ id: testConcept.id }),
       });
       const data = await response.json();
 
       expect(response.status).toBe(200);
       expect(data.title).toBe("Test Concept");
-      expect(mockDb.query.concept.findFirst).toHaveBeenCalled();
+      expect(data.id).toBe(testConcept.id);
     });
 
     it("should return 404 for non-existent concept", async () => {
-      mockDb.query.concept.findFirst.mockResolvedValue(null);
-
-      const request = new NextRequest("http://localhost/api/concepts/999");
+      const { GET } = await import("~/app/api/concepts/[id]/route");
+      
+      const nonExistentId = "non-existent-id-12345";
+      const request = new NextRequest(`http://localhost/api/concepts/${nonExistentId}`);
       const response = await GET(request, {
-        params: Promise.resolve({ id: "999" }),
+        params: Promise.resolve({ id: nonExistentId }),
       });
       const data = await response.json();
 
@@ -74,27 +76,21 @@ describe("Concepts API - Individual Concept Endpoints", () => {
 
   describe("PUT /api/concepts/[id]", () => {
     it("should update concept", async () => {
-      const mockConcept = {
-        id: "1",
-        title: "Updated Concept",
-        description: "Updated",
+      const { PUT } = await import("~/app/api/concepts/[id]/route");
+      
+      // Create test concept in real database
+      const [testConcept] = await testDb.insert(concept).values({
+        identifier: "zettel-123",
+        title: "Original Concept",
+        description: "Original",
         content: "Content",
         creator: "Author",
         source: "Source",
         year: "2024",
         status: "active",
-        identifier: "zettel-123",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        trashedAt: null,
-      };
+      }).returning();
 
-      // First check if concept exists
-      mockDb.query.concept.findFirst.mockResolvedValue({ id: "1" });
-      // Then return updated concept
-      mockDb._setUpdateResult([mockConcept]);
-
-      const request = new NextRequest("http://localhost/api/concepts/1", {
+      const request = new NextRequest(`http://localhost/api/concepts/${testConcept.id}`, {
         method: "PUT",
         body: JSON.stringify({
           title: "Updated Concept",
@@ -103,19 +99,28 @@ describe("Concepts API - Individual Concept Endpoints", () => {
       });
 
       const response = await PUT(request, {
-        params: Promise.resolve({ id: "1" }),
+        params: Promise.resolve({ id: testConcept.id }),
       });
       const data = await response.json();
 
       expect(response.status).toBe(200);
       expect(data.title).toBe("Updated Concept");
-      expect(mockDb.update).toHaveBeenCalled();
+      expect(data.description).toBe("Updated");
+      expect(data.id).toBe(testConcept.id);
+      
+      // Verify it was actually updated in the database
+      const updated = await testDb.query.concept.findFirst({
+        where: (concept, { eq }) => eq(concept.id, testConcept.id),
+      });
+      expect(updated?.title).toBe("Updated Concept");
+      expect(updated?.description).toBe("Updated");
     });
 
     it("should return 404 for non-existent concept", async () => {
-      mockDb.query.concept.findFirst.mockResolvedValue(null);
-
-      const request = new NextRequest("http://localhost/api/concepts/999", {
+      const { PUT } = await import("~/app/api/concepts/[id]/route");
+      
+      const nonExistentId = "non-existent-id-12345";
+      const request = new NextRequest(`http://localhost/api/concepts/${nonExistentId}`, {
         method: "PUT",
         body: JSON.stringify({
           title: "Updated",
@@ -123,7 +128,7 @@ describe("Concepts API - Individual Concept Endpoints", () => {
       });
 
       const response = await PUT(request, {
-        params: Promise.resolve({ id: "999" }),
+        params: Promise.resolve({ id: nonExistentId }),
       });
       const data = await response.json();
 
@@ -134,40 +139,50 @@ describe("Concepts API - Individual Concept Endpoints", () => {
 
   describe("DELETE /api/concepts/[id]", () => {
     it("should soft delete concept", async () => {
-      const mockConcept = {
-        id: "1",
+      const { DELETE } = await import("~/app/api/concepts/[id]/route");
+      
+      // Create test concept in real database
+      const [testConcept] = await testDb.insert(concept).values({
+        identifier: "zettel-123",
         title: "Test Concept",
+        description: "Test",
+        content: "Content",
+        creator: "Author",
+        source: "Source",
+        year: "2024",
         status: "active",
-      };
+      }).returning();
 
-      // First check if concept exists
-      mockDb.query.concept.findFirst.mockResolvedValue(mockConcept);
-      // Then return updated concept with trashedAt
-      mockDb._setUpdateResult([
-        { ...mockConcept, status: "trash", trashedAt: new Date() },
-      ]);
-
-      const request = new NextRequest("http://localhost/api/concepts/1", {
+      const request = new NextRequest(`http://localhost/api/concepts/${testConcept.id}`, {
         method: "DELETE",
       });
 
       const response = await DELETE(request, {
-        params: Promise.resolve({ id: "1" }),
+        params: Promise.resolve({ id: testConcept.id }),
       });
+      const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(mockDb.update).toHaveBeenCalled();
+      expect(data.success).toBe(true);
+      
+      // Verify it was actually soft deleted in the database
+      const deleted = await testDb.query.concept.findFirst({
+        where: (concept, { eq }) => eq(concept.id, testConcept.id),
+      });
+      expect(deleted?.status).toBe("trash");
+      expect(deleted?.trashedAt).toBeDefined();
     });
 
     it("should return 404 for non-existent concept", async () => {
-      mockDb.query.concept.findFirst.mockResolvedValue(null);
-
-      const request = new NextRequest("http://localhost/api/concepts/999", {
+      const { DELETE } = await import("~/app/api/concepts/[id]/route");
+      
+      const nonExistentId = "non-existent-id-12345";
+      const request = new NextRequest(`http://localhost/api/concepts/${nonExistentId}`, {
         method: "DELETE",
       });
 
       const response = await DELETE(request, {
-        params: Promise.resolve({ id: "999" }),
+        params: Promise.resolve({ id: nonExistentId }),
       });
       const data = await response.json();
 

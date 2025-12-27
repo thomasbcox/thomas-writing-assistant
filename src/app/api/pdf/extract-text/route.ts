@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { handleApiError, parseJsonBody } from "~/server/api/helpers";
 import { logServiceError } from "~/lib/logger";
+import { extractPDFText, type PDFParseConstructor } from "~/server/services/pdfExtractor";
 
 const extractTextSchema = z.object({
   fileData: z.string(), // Base64 encoded PDF file
@@ -20,33 +21,30 @@ export async function POST(request: NextRequest) {
     const input = extractTextSchema.parse(body);
     fileName = input.fileName; // Store fileName before processing
 
+    // Import PDF parser - use dynamic import for lazy loading
+    // In tests, this will use the mock from setup.ts
     const pdfParseModule = await import("pdf-parse");
     
     type PDFParseModule = {
       default?: {
-        PDFParse?: new (options: { data: Buffer }) => PDFParser;
+        PDFParse?: PDFParseConstructor;
       };
-      PDFParse?: new (options: { data: Buffer }) => PDFParser;
+      PDFParse?: PDFParseConstructor;
     };
     
-    interface PDFParser {
-      getText(): Promise<{ text: string; total: number }>;
-      getInfo(): Promise<{ info: unknown; metadata: unknown }>;
-    }
-    
     const module = pdfParseModule as unknown as PDFParseModule;
-    const PDFParse = module.default?.PDFParse || module.PDFParse || (pdfParseModule as unknown as new (options: { data: Buffer }) => PDFParser);
+    // Try multiple access patterns for compatibility
+    const PDFParse = module.default?.PDFParse || module.PDFParse || (pdfParseModule as unknown as PDFParseConstructor);
+    
+    if (!PDFParse || typeof PDFParse !== "function") {
+      throw new Error("PDF parser not found in pdf-parse module");
+    }
 
     const pdfBuffer = Buffer.from(input.fileData, "base64");
-    const parser = new PDFParse({ data: pdfBuffer });
-    const textResult = await parser.getText();
-    const infoResult = await parser.getInfo();
+    const result = await extractPDFText(pdfBuffer, PDFParse);
 
     return NextResponse.json({
-      text: textResult.text,
-      numPages: textResult.total,
-      info: infoResult.info,
-      metadata: infoResult.metadata,
+      ...result,
       fileName: input.fileName,
     });
   } catch (error) {
@@ -56,4 +54,3 @@ export async function POST(request: NextRequest) {
     return handleApiError(error);
   }
 }
-

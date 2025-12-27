@@ -7,9 +7,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { handleApiError, parseJsonBody, getDb } from "~/server/api/helpers";
+import { getDependencies } from "~/server/dependencies";
 import { extractAnchorMetadata } from "~/server/services/anchorExtractor";
-import { getLLMClient } from "~/server/services/llm/client";
-import { getConfigLoader } from "~/server/services/config";
 import { eq } from "drizzle-orm";
 import { capsule, anchor, repurposedContent } from "~/server/schema";
 
@@ -73,8 +72,7 @@ export async function POST(
       );
     }
 
-    const llmClient = getLLMClient();
-    const configLoader = getConfigLoader();
+    const { llmClient, configLoader } = getDependencies();
 
     // Step 2: Extract metadata from PDF text
     const metadata = await extractAnchorMetadata(

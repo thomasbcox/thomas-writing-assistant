@@ -6,8 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { handleApiError, getDb } from "~/server/api/helpers";
-import { getLLMClient } from "~/server/services/llm/client";
-import { getConfigLoader } from "~/server/services/config";
+import { getDependencies } from "~/server/dependencies";
 import { safeJsonParseArray } from "~/lib/json-utils";
 import { eq } from "drizzle-orm";
 import { anchor, repurposedContent } from "~/server/schema";
@@ -42,8 +41,7 @@ export async function POST(
     const { repurposeAnchorContent } = await import(
       "~/server/services/repurposer"
     );
-    const llmClient = getLLMClient();
-    const configLoader = getConfigLoader();
+    const { llmClient, configLoader } = getDependencies();
 
     const repurposed = await repurposeAnchorContent(
       foundAnchor.title,

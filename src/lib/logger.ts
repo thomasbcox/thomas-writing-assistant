@@ -89,6 +89,7 @@ export function logTRPCError(
 
 /**
  * Helper to log service errors with full context
+ * Enhanced for AI-first diagnosis with comprehensive error information
  */
 export function logServiceError(
   error: unknown,
@@ -97,16 +98,31 @@ export function logServiceError(
 ) {
   const errorObj = error instanceof Error ? error : new Error(String(error));
 
+  // Build comprehensive error context for AI diagnosis
+  const errorContext = {
+    err: errorObj,
+    service,
+    timestamp: new Date().toISOString(),
+    // Error metadata
+    errorType: errorObj.constructor.name,
+    errorName: errorObj.name,
+    errorMessage: errorObj.message,
+    stack: errorObj.stack,
+    // Error cause chain (for nested errors)
+    errorCause: (errorObj as any).cause,
+    // Additional context
+    ...context,
+    // Environment context
+    nodeEnv: process.env.NODE_ENV,
+    // Request context if available
+    ...(context?.requestId && { requestId: context.requestId }),
+    ...(context?.path && { path: context.path }),
+    ...(context?.method && { method: context.method }),
+  };
+
   logger.error(
-    {
-      err: errorObj,
-      service,
-      ...context,
-      stack: errorObj.stack,
-      errorType: errorObj.constructor.name,
-      errorMessage: errorObj.message,
-    },
-    `Error in ${service}`,
+    errorContext,
+    `Error in ${service}: ${errorObj.message}`,
   );
 }
 

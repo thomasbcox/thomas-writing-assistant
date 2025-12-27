@@ -3,46 +3,54 @@
  * POST /api/capsules/[id]/anchors/[anchorId]/repurposed - Create repurposed content
  */
 
-import { describe, it, expect, jest, beforeEach, beforeAll } from "@jest/globals";
+import { describe, it, expect, beforeEach, beforeAll, afterAll } from "@jest/globals";
 import { NextRequest } from "next/server";
-import { setupApiRouteMocks } from "./drizzle-mock-helper";
+import { cleanupTestData } from "../test-utils";
+import type { ReturnType } from "~/server/db";
+import { capsule, anchor } from "~/server/schema";
+import { setupInMemoryDbMocks, initInMemoryDb, cleanupInMemoryDb } from "../utils/in-memory-db-setup";
 
-// Setup mocks (jest.mock is hoisted)
-setupApiRouteMocks();
+// Setup mocks (must be before route imports)
+setupInMemoryDbMocks();
 
-// Import route handler AFTER mocks are set up
-import { POST } from "~/app/api/capsules/[id]/anchors/[anchorId]/repurposed/route";
+type Database = ReturnType<typeof import("~/server/db").db>;
 
-// Get mockDb reference after mocks are set up
-let mockDb: ReturnType<typeof import("./drizzle-mock-helper").createDrizzleMockDb>;
+// Create test database - will be initialized in beforeAll
+let testDb: Database;
+
 beforeAll(async () => {
-  const helpers = await import("~/server/api/helpers");
-  mockDb = (helpers as any).__mockDb;
+  testDb = await initInMemoryDb();
+});
+
+afterAll(() => {
+  cleanupInMemoryDb();
 });
 
 describe("Repurposed Content API", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockDb._setInsertResult([]);
+  beforeEach(async () => {
+    // Clean up test data before each test
+    await cleanupTestData(testDb);
   });
 
   describe("POST /api/capsules/[id]/anchors/[anchorId]/repurposed", () => {
     it("should create repurposed content", async () => {
-      const mockRepurposed = {
-        id: "1",
-        anchorId: "anchor-1",
-        type: "social_post",
+      const { POST } = await import("~/app/api/capsules/[id]/anchors/[anchorId]/repurposed/route");
+      
+      // Create test capsule and anchor in real database
+      const [testCapsule] = await testDb.insert(capsule).values({
+        title: "Test Capsule",
+        promise: "Promise",
+        cta: "CTA",
+      }).returning();
+      
+      const [testAnchor] = await testDb.insert(anchor).values({
+        capsuleId: testCapsule.id,
+        title: "Test Anchor",
         content: "Content",
-        guidance: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      mockDb.query.anchor.findFirst.mockResolvedValue({ id: "anchor-1" });
-      mockDb._setInsertResult([mockRepurposed]);
+      }).returning();
 
       const request = new NextRequest(
-        "http://localhost/api/capsules/capsule-1/anchors/anchor-1/repurposed",
+        `http://localhost/api/capsules/${testCapsule.id}/anchors/${testAnchor.id}/repurposed`,
         {
           method: "POST",
           body: JSON.stringify({
@@ -53,20 +61,30 @@ describe("Repurposed Content API", () => {
       );
 
       const response = await POST(request, {
-        params: Promise.resolve({ id: "capsule-1", anchorId: "anchor-1" }),
+        params: Promise.resolve({ id: testCapsule.id, anchorId: testAnchor.id }),
       });
       const data = await response.json();
 
       expect(response.status).toBe(201);
       expect(data.type).toBe("social_post");
-      expect(mockDb.insert).toHaveBeenCalled();
+      expect(data.content).toBe("Content");
+      expect(data.anchorId).toBe(testAnchor.id);
     });
 
     it("should return 404 for non-existent anchor", async () => {
-      mockDb.query.anchor.findFirst.mockResolvedValue(null);
+      const { POST } = await import("~/app/api/capsules/[id]/anchors/[anchorId]/repurposed/route");
+      
+      // Create test capsule but not anchor
+      const [testCapsule] = await testDb.insert(capsule).values({
+        title: "Test Capsule",
+        promise: "Promise",
+        cta: "CTA",
+      }).returning();
+      
+      const nonExistentAnchorId = "non-existent-anchor-12345";
 
       const request = new NextRequest(
-        "http://localhost/api/capsules/capsule-1/anchors/999/repurposed",
+        `http://localhost/api/capsules/${testCapsule.id}/anchors/${nonExistentAnchorId}/repurposed`,
         {
           method: "POST",
           body: JSON.stringify({
@@ -77,7 +95,7 @@ describe("Repurposed Content API", () => {
       );
 
       const response = await POST(request, {
-        params: Promise.resolve({ id: "capsule-1", anchorId: "999" }),
+        params: Promise.resolve({ id: testCapsule.id, anchorId: nonExistentAnchorId }),
       });
       const data = await response.json();
 
@@ -86,20 +104,33 @@ describe("Repurposed Content API", () => {
     });
 
     it("should validate required fields", async () => {
-      mockDb.query.anchor.findFirst.mockResolvedValue({ id: "anchor-1" });
+      const { POST } = await import("~/app/api/capsules/[id]/anchors/[anchorId]/repurposed/route");
+      
+      // Create test capsule and anchor
+      const [testCapsule] = await testDb.insert(capsule).values({
+        title: "Test Capsule",
+        promise: "Promise",
+        cta: "CTA",
+      }).returning();
+      
+      const [testAnchor] = await testDb.insert(anchor).values({
+        capsuleId: testCapsule.id,
+        title: "Test Anchor",
+        content: "Content",
+      }).returning();
 
       const request = new NextRequest(
-        "http://localhost/api/capsules/capsule-1/anchors/anchor-1/repurposed",
+        `http://localhost/api/capsules/${testCapsule.id}/anchors/${testAnchor.id}/repurposed`,
         {
           method: "POST",
           body: JSON.stringify({
-            // Missing required fields
+            // Missing required fields (type and content are required)
           }),
         },
       );
 
       const response = await POST(request, {
-        params: Promise.resolve({ id: "capsule-1", anchorId: "anchor-1" }),
+        params: Promise.resolve({ id: testCapsule.id, anchorId: testAnchor.id }),
       });
       expect(response.status).toBe(400);
     });

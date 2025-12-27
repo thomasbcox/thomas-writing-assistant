@@ -6,8 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { handleApiError, parseJsonBody } from "~/server/api/helpers";
-import { getLLMClient } from "~/server/services/llm/client";
-import { getConfigLoader } from "~/server/services/config";
+import { getDependencies } from "~/server/dependencies";
 import { chatEnrichConcept, type ConceptFormData, type ChatMessage } from "~/server/services/conceptEnricher";
 import { logServiceError } from "~/lib/logger";
 
@@ -37,8 +36,7 @@ export async function POST(request: NextRequest) {
     body = await parseJsonBody(request);
     const input = chatSchema.parse(body);
     
-    const llmClient = getLLMClient();
-    const configLoader = getConfigLoader();
+    const { llmClient, configLoader } = getDependencies();
     
     const history: ChatMessage[] = input.chatHistory.map((msg) => ({
       ...msg,
@@ -55,7 +53,15 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json(result);
   } catch (error) {
-    logServiceError(error, "enrichment.chat", { conceptTitle: body?.conceptData?.title || "unknown" });
+    // Enhanced error logging for AI diagnosis
+    logServiceError(error, "enrichment.chat", {
+      conceptTitle: body?.conceptData?.title || "unknown",
+      hasMessage: !!body?.message,
+      messageLength: body?.message?.length || 0,
+      chatHistoryLength: body?.chatHistory?.length || 0,
+      hasConceptData: !!body?.conceptData,
+      errorPhase: "chatEnrichConcept",
+    });
     return handleApiError(error);
   }
 }

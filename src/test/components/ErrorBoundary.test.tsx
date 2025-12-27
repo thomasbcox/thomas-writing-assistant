@@ -1,7 +1,17 @@
 import { describe, it, expect, jest } from "@jest/globals";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 import { ErrorBoundary } from "~/components/ErrorBoundary";
+
+// Mock logger to prevent setImmediate error in jsdom
+jest.mock("~/lib/logger", () => ({
+  logger: {
+    error: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+  },
+}));
 
 // Component that throws an error
 function ThrowError({ shouldThrow }: { shouldThrow: boolean }) {
@@ -22,17 +32,21 @@ describe("ErrorBoundary", () => {
     expect(screen.getByText("Test content")).toBeDefined();
   });
 
-  it("should catch and display error", () => {
-    // Suppress console.error for this test
+  it("should catch and display error", async () => {
+    // Suppress console.error for this test (React logs errors to console)
     const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
 
+    // Error boundaries need to be wrapped properly for React 18+
     render(
       <ErrorBoundary>
         <ThrowError shouldThrow={true} />
       </ErrorBoundary>,
     );
 
-    expect(screen.getByText("Something went wrong")).toBeDefined();
+    // Wait for error boundary to catch the error (React 18+ async rendering)
+    await waitFor(() => {
+      expect(screen.getByText("Something went wrong")).toBeDefined();
+    }, { timeout: 2000 });
     expect(screen.getByText("Test error")).toBeDefined();
     expect(screen.getByText("Try again")).toBeDefined();
 
