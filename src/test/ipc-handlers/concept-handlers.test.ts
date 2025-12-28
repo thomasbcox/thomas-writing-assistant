@@ -5,7 +5,6 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from "@jest/globals";
 
 // CRITICAL: Mock electron/db.js BEFORE any handler imports it
-// The mock factory returns a jest.fn() which we'll configure in beforeEach
 jest.mock("../../../electron/db.js", () => ({
   __esModule: true,
   getDb: jest.fn(),
@@ -44,10 +43,6 @@ describe("Concept IPC Handlers", () => {
   const mockConfigLoader = new MockConfigLoader();
 
   beforeEach(async () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'concept-handlers.test.ts:45',message:'beforeEach started',data:{mockGetDbType:typeof mockGetDb,mockGetDbIsMock:!!mockGetDb.mockReturnValue},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-    
     // Clear all registered handlers first
     const { ipcMain: electronIpcMain } = await import("electron");
     const channels = ["concept:list", "concept:getById", "concept:create", "concept:update", "concept:delete", "concept:restore", "concept:purgeTrash", "concept:proposeLinks", "concept:generateCandidates"];
@@ -57,42 +52,27 @@ describe("Concept IPC Handlers", () => {
     
     // Create and migrate test database
     testDb = createTestDb();
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'concept-handlers.test.ts:56',message:'testDb created',data:{hasTestDb:!!testDb,testDbId:testDb ? 'exists' : 'null'},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     await migrateTestDb(testDb);
     
     // Verify tables were created
     const sqlite = (testDb as any).session?.client;
     if (sqlite) {
       const tables = sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{ name: string }>;
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'concept-handlers.test.ts:63',message:'tables verified after migration',data:{tableCount:tables.length,tableNames:tables.map(t=>t.name)},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       if (tables.length === 0) {
         throw new Error("Database migration failed: no tables created");
       }
     }
     
     // Configure mock getDb to return test database
-    (getDb as jest.Mock).mockReturnValue(testDb);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'concept-handlers.test.ts:72',message:'mockGetDb set',data:{mockReturnValue:mockGetDb(testDb) ? 'set' : 'not set'},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
+    const mockedDbModule = jest.requireMock("../../../electron/db.js");
+    mockedDbModule.getDb.mockReturnValue(testDb);
     
     // Mock LLM client and config loader
     mockGetLLMClient.mockReturnValue(mockLLMClient);
     mockGetConfigLoader.mockReturnValue(mockConfigLoader);
     
     // Register handlers AFTER database is ready
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'concept-handlers.test.ts:81',message:'about to register handlers',data:{mockGetDbMocked:!!mockGetDb.mockReturnValue},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     registerConceptHandlers();
-    // #region agent log
-    const handlersAfter = electronIpcMain.listeners("concept:list");
-    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'concept-handlers.test.ts:84',message:'handlers registered',data:{handlerCount:handlersAfter.length},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
     
     // Clear any previous mock calls
     jest.clearAllMocks();
@@ -104,14 +84,8 @@ describe("Concept IPC Handlers", () => {
 
   describe("concept:list", () => {
     it("should return empty array when no concepts exist", async () => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'concept-handlers.test.ts:116',message:'test started',data:{mockGetDbReturnValue:mockGetDb() ? 'has-value' : 'no-value'},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       const mockEvent = { sender: { send: jest.fn() } } as any;
       const handler = ipcMain.listeners("concept:list")[0] as any;
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'concept-handlers.test.ts:119',message:'about to call handler',data:{hasHandler:!!handler},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
       const result = await handler(mockEvent, { includeTrash: false });
       expect(result).toEqual([]);
     });
