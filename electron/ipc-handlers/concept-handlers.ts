@@ -62,20 +62,11 @@ const generateCandidatesInputSchema = z.object({
 });
 
 export function registerConceptHandlers() {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'electron/ipc-handlers/concept-handlers.ts:65',message:'registerConceptHandlers called',data:{hasIpcMain:typeof ipcMain !== 'undefined',ipcMainType:typeof ipcMain,ipcMainHandleType:typeof ipcMain?.handle},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'D'})}).catch(()=>{});
-  // #endregion
   // List concepts
   ipcMain.handle("concept:list", async (_event, input: unknown) => {
     const parsed = listInputSchema.parse(input);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'electron/ipc-handlers/concept-handlers.ts:70',message:'concept:list handler executing',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
     const db = getDb();
-    // #region agent log
     const sqlite = (db as any).session?.client;
-    const dbId = sqlite ? 'has-sqlite' : 'no-sqlite';
-    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'electron/ipc-handlers/concept-handlers.ts:74',message:'getDb returned',data:{hasDb:!!db,dbId},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C'})}).catch(()=>{});
     // #endregion
 
     const conditions = [];

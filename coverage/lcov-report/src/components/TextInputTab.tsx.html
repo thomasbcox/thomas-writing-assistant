@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">23.07% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>12/52</span>
+                <span class='fraction'>0/52</span>
             </div>
         
             
@@ -37,16 +37,16 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">8.33% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>1/12</span>
+                <span class='fraction'>0/12</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">23.52% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>12/51</span>
+                <span class='fraction'>0/51</span>
             </div>
         
             
@@ -270,12 +270,12 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">19x</span>
-<span class="cline-any cline-yes">18x</span>
-<span class="cline-any cline-yes">18x</span>
-<span class="cline-any cline-yes">18x</span>
-<span class="cline-any cline-yes">18x</span>
-<span class="cline-any cline-yes">18x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -283,13 +283,12 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">18x</span>
-<span class="cline-any cline-yes">18x</span>
-<span class="cline-any cline-yes">18x</span>
-<span class="cline-any cline-yes">18x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">18x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -300,9 +299,10 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">18x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -454,7 +454,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">"use client";
 &nbsp;
 import { useState, useEffect } from "react";
-import { api } from "~/lib/trpc/react";
+import { api } from "~/hooks/useIPC";
 import { ConceptCandidateList } from "./ConceptCandidateList";
 import { ContextualHelp } from "./ui/ContextualHelp";
 import { LoadingSpinner } from "./ui/LoadingSpinner";
@@ -463,13 +463,13 @@ import { PDFUploader } from "./PDFUploader";
 import { TextInputForm } from "./TextInputForm";
 import { ConceptGenerationStatus } from "./ConceptGenerationStatus";
 &nbsp;
-export function TextInputTab() {
-  const [text, setText] = useState("");
-  const [instructions, setInstructions] = useState("");
-  const [maxCandidates, setMaxCandidates] = useState(5);
-  const [defaultCreator, setDefaultCreator] = useState("");
-  const [defaultYear, setDefaultYear] = useState("");
-  const [candidates, setCandidates] = useState&lt;
+export function <span class="fstat-no" title="function not covered" >TextInputTab(</span>) {
+  const [text, setText] = <span class="cstat-no" title="statement not covered" >useState("");</span>
+  const [instructions, setInstructions] = <span class="cstat-no" title="statement not covered" >useState("");</span>
+  const [maxCandidates, setMaxCandidates] = <span class="cstat-no" title="statement not covered" >useState(5);</span>
+  const [defaultCreator, setDefaultCreator] = <span class="cstat-no" title="statement not covered" >useState("");</span>
+  const [defaultYear, setDefaultYear] = <span class="cstat-no" title="statement not covered" >useState("");</span>
+  const [candidates, setCandidates] = <span class="cstat-no" title="statement not covered" >useState&lt;</span>
     Array&lt;{
       title: string;
       content: string;
@@ -477,13 +477,13 @@ export function TextInputTab() {
       description?: string;
     }&gt;
   &gt;([]);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generationStartTime, setGenerationStartTime] = useState&lt;number | null&gt;(null);
-  const [elapsedTime, setElapsedTime] = useState(0);
-  const { toasts, addToast, removeToast } = useToast();
+  const [isGenerating, setIsGenerating] = <span class="cstat-no" title="statement not covered" >useState(false);</span>
+  const [generationStartTime, setGenerationStartTime] = <span class="cstat-no" title="statement not covered" >useState&lt;number | null&gt;(null);</span>
+  const [elapsedTime, setElapsedTime] = <span class="cstat-no" title="statement not covered" >useState(0);</span>
+  const { toasts, addToast, removeToast } = <span class="cstat-no" title="statement not covered" >useToast();</span>
 &nbsp;
   // Clear all tab state
-  const handleClear = <span class="fstat-no" title="function not covered" >() =</span>&gt; {
+  const handleClear = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >() =</span>&gt; {</span>
 <span class="cstat-no" title="statement not covered" >    setText("");</span>
 <span class="cstat-no" title="statement not covered" >    setInstructions("");</span>
 <span class="cstat-no" title="statement not covered" >    setMaxCandidates(5);</span>
@@ -496,7 +496,7 @@ export function TextInputTab() {
 <span class="cstat-no" title="statement not covered" >    addToast("Tab cleared", "success");</span>
   };
 &nbsp;
-  const generateMutation = api.concept.generateCandidates.useMutation({
+  const generateMutation = <span class="cstat-no" title="statement not covered" >api.concept.generateCandidates.useMutation({</span>
     onSuccess: <span class="fstat-no" title="function not covered" >(r</span>esult) =&gt; {
 <span class="cstat-no" title="statement not covered" >      setCandidates(result);</span>
 <span class="cstat-no" title="statement not covered" >      addToast(</span>
@@ -652,7 +652,7 @@ export function TextInputTab() {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-23T03:30:14.355Z
+                at 2025-12-28T15:58:47.308Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

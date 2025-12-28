@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">9.52% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>6/63</span>
+                <span class='fraction'>0/63</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">14.58% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>7/48</span>
+                <span class='fraction'>0/48</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">6.66% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>2/30</span>
+                <span class='fraction'>0/30</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">10.34% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>6/58</span>
+                <span class='fraction'>0/58</span>
             </div>
         
             
@@ -347,29 +347,19 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">15x</span>
-<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">14x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">14x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">14x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -402,6 +392,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -415,7 +406,16 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -606,7 +606,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">"use client";
 &nbsp;
 import { useState, useEffect } from "react";
-import { api } from "~/lib/trpc/react";
+import { api } from "~/hooks/useIPC";
 import { LoadingSpinner } from "./ui/LoadingSpinner";
 import { ToastContainer, type ToastType } from "./ui/Toast";
 &nbsp;
@@ -616,11 +616,11 @@ interface Toast {
   type: ToastType;
 }
 &nbsp;
-export function ConfigTab() {
-  const [activeSection, setActiveSection] = useState&lt;"style" | "credo" | "constraints"&gt;("style");
-  const [toasts, setToasts] = useState&lt;Toast[]&gt;([]);
+export function <span class="fstat-no" title="function not covered" >ConfigTab(</span>) {
+  const [activeSection, setActiveSection] = <span class="cstat-no" title="statement not covered" >useState&lt;"style" | "credo" | "constraints"&gt;("style");</span>
+  const [toasts, setToasts] = <span class="cstat-no" title="statement not covered" >useState&lt;Toast[]&gt;([]);</span>
 &nbsp;
-  const addToast = <span class="fstat-no" title="function not covered" >(m</span>essage: string, type: ToastType) =&gt; {
+  const addToast = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(m</span>essage: string, type: ToastType) =&gt; {</span>
     const id = <span class="cstat-no" title="statement not covered" >Math.random().toString(36).substring(7);</span>
 <span class="cstat-no" title="statement not covered" >    setToasts(<span class="fstat-no" title="function not covered" >(p</span>rev) =&gt; <span class="cstat-no" title="statement not covered" >[...prev, { id, message, type }])</span>;</span>
 <span class="cstat-no" title="statement not covered" >    setTimeout(<span class="fstat-no" title="function not covered" >() =</span>&gt; {</span>
@@ -628,11 +628,11 @@ export function ConfigTab() {
     }, 5000);
   };
 &nbsp;
-  const removeToast = <span class="fstat-no" title="function not covered" >(i</span>d: string) =&gt; {
+  const removeToast = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(i</span>d: string) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >    setToasts(<span class="fstat-no" title="function not covered" >(p</span>rev) =&gt; <span class="cstat-no" title="statement not covered" >prev.filter(<span class="fstat-no" title="function not covered" >(t</span>) =&gt; <span class="cstat-no" title="statement not covered" >t.id !== id)</span>)</span>;</span>
   };
 &nbsp;
-  return (
+<span class="cstat-no" title="statement not covered" >  return (</span>
     &lt;div className="space-y-6"&gt;
       &lt;ToastContainer toasts={toasts} onRemove={removeToast} /&gt;
       
@@ -646,7 +646,7 @@ export function ConfigTab() {
             className={`px-6 py-3 font-semibold transition-all ${
               activeSection === "style"
                 ? "text-white bg-blue-600 border-b-4 border-blue-800"
-                : <span class="branch-1 cbranch-no" title="branch not covered" >"text-gray-600 hover:text-blue-700 hover:bg-blue-50"</span>
+                : "text-gray-600 hover:text-blue-700 hover:bg-blue-50"
             } rounded-t-lg`}
           &gt;
             Style Guide
@@ -655,7 +655,7 @@ export function ConfigTab() {
             onClick={<span class="fstat-no" title="function not covered" >() =</span>&gt; <span class="cstat-no" title="statement not covered" >setActiveSection("credo")}</span>
             className={`px-6 py-3 font-semibold transition-all ${
               activeSection === "credo"
-                ? <span class="branch-0 cbranch-no" title="branch not covered" >"text-white bg-blue-600 border-b-4 border-blue-800"</span>
+                ? "text-white bg-blue-600 border-b-4 border-blue-800"
                 : "text-gray-600 hover:text-blue-700 hover:bg-blue-50"
             } rounded-t-lg`}
           &gt;
@@ -665,7 +665,7 @@ export function ConfigTab() {
             onClick={<span class="fstat-no" title="function not covered" >() =</span>&gt; <span class="cstat-no" title="statement not covered" >setActiveSection("constraints")}</span>
             className={`px-6 py-3 font-semibold transition-all ${
               activeSection === "constraints"
-                ? <span class="branch-0 cbranch-no" title="branch not covered" >"text-white bg-blue-600 border-b-4 border-blue-800"</span>
+                ? "text-white bg-blue-600 border-b-4 border-blue-800"
                 : "text-gray-600 hover:text-blue-700 hover:bg-blue-50"
             } rounded-t-lg`}
           &gt;
@@ -676,16 +676,16 @@ export function ConfigTab() {
         {/* Content */}
         &lt;div className="mt-6"&gt;
           {activeSection === "style" &amp;&amp; &lt;StyleGuideEditor onToast={addToast} /&gt;}
-          {activeSection === "credo" &amp;&amp; <span class="branch-1 cbranch-no" title="branch not covered" >&lt;CredoEditor onToast={addToast} /&gt;}</span>
-          {activeSection === "constraints" &amp;&amp; <span class="branch-1 cbranch-no" title="branch not covered" >&lt;ConstraintsEditor onToast={addToast} /&gt;}</span>
+          {activeSection === "credo" &amp;&amp; &lt;CredoEditor onToast={addToast} /&gt;}
+          {activeSection === "constraints" &amp;&amp; &lt;ConstraintsEditor onToast={addToast} /&gt;}
         &lt;/div&gt;
       &lt;/div&gt;
     &lt;/div&gt;
   );
 }
 &nbsp;
-function StyleGuideEditor({ onToast }: { onToast: (message: string, type: ToastType) =&gt; void }) {
-  const { data, isLoading, refetch } = api.config.getStyleGuideRaw.useQuery();
+function <span class="fstat-no" title="function not covered" >StyleGuideEditor(</span>{ onToast }: { onToast: (message: string, type: ToastType) =&gt; void }) {
+  const { data, isLoading, refetch } = <span class="cstat-no" title="statement not covered" >api.config.getStyleGuideRaw.useQuery();</span>
   const updateMutation = <span class="cstat-no" title="statement not covered" >api.config.updateStyleGuide.useMutation({</span>
     onSuccess: <span class="fstat-no" title="function not covered" >() =</span>&gt; {
 <span class="cstat-no" title="statement not covered" >      onToast("Style guide updated and reloaded successfully!", "success");</span>
@@ -736,11 +736,11 @@ function StyleGuideEditor({ onToast }: { onToast: (message: string, type: ToastT
       &lt;div className="flex justify-end"&gt;
         &lt;button
           onClick={handleSave}
-          disabled={updateMutation.isPending || !content}
+          disabled={updateMutation.isLoading || !content}
           className="px-8 py-4 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg text-base flex items-center gap-2"
         &gt;
-          {updateMutation.isPending &amp;&amp; &lt;LoadingSpinner size="sm" /&gt;}
-          {updateMutation.isPending ? "Saving..." : "Save &amp; Reload Style Guide"}
+          {updateMutation.isLoading &amp;&amp; &lt;LoadingSpinner size="sm" /&gt;}
+          {updateMutation.isLoading ? "Saving..." : "Save &amp; Reload Style Guide"}
         &lt;/button&gt;
       &lt;/div&gt;
     &lt;/div&gt;
@@ -799,11 +799,11 @@ function <span class="fstat-no" title="function not covered" >CredoEditor(</span
       &lt;div className="flex justify-end"&gt;
         &lt;button
           onClick={handleSave}
-          disabled={updateMutation.isPending || !content}
+          disabled={updateMutation.isLoading || !content}
           className="px-8 py-4 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg text-base flex items-center gap-2"
         &gt;
-          {updateMutation.isPending &amp;&amp; &lt;LoadingSpinner size="sm" /&gt;}
-          {updateMutation.isPending ? "Saving..." : "Save &amp; Reload Credo"}
+          {updateMutation.isLoading &amp;&amp; &lt;LoadingSpinner size="sm" /&gt;}
+          {updateMutation.isLoading ? "Saving..." : "Save &amp; Reload Credo"}
         &lt;/button&gt;
       &lt;/div&gt;
     &lt;/div&gt;
@@ -862,11 +862,11 @@ function <span class="fstat-no" title="function not covered" >ConstraintsEditor(
       &lt;div className="flex justify-end"&gt;
         &lt;button
           onClick={handleSave}
-          disabled={updateMutation.isPending || !content}
+          disabled={updateMutation.isLoading || !content}
           className="px-8 py-4 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg text-base flex items-center gap-2"
         &gt;
-          {updateMutation.isPending &amp;&amp; &lt;LoadingSpinner size="sm" /&gt;}
-          {updateMutation.isPending ? "Saving..." : "Save &amp; Reload Constraints"}
+          {updateMutation.isLoading &amp;&amp; &lt;LoadingSpinner size="sm" /&gt;}
+          {updateMutation.isLoading ? "Saving..." : "Save &amp; Reload Constraints"}
         &lt;/button&gt;
       &lt;/div&gt;
     &lt;/div&gt;
@@ -880,7 +880,7 @@ function <span class="fstat-no" title="function not covered" >ConstraintsEditor(
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-23T03:30:14.355Z
+                at 2025-12-28T15:58:47.308Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

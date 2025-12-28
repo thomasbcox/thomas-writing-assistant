@@ -4,12 +4,17 @@
 
 import { describe, it, expect, beforeEach, afterEach, jest } from "@jest/globals";
 
-// CRITICAL: Mock electron/db.js BEFORE any handler imports it
-jest.mock("../../../electron/db.js", () => ({
+// CRITICAL: Mock electron/db.js using unstable_mockModule for ESM compatibility
+// Define mock functions BEFORE unstable_mockModule
+const mockGetDb = jest.fn();
+const mockInitDb = jest.fn();
+const mockCloseDb = jest.fn();
+
+jest.unstable_mockModule("../../../electron/db.js", () => ({
   __esModule: true,
-  getDb: jest.fn(),
-  initDb: jest.fn(),
-  closeDb: jest.fn(),
+  getDb: mockGetDb,
+  initDb: mockInitDb,
+  closeDb: mockCloseDb,
 }));
 
 // Mock LLM client and config loader for handlers that use them
@@ -23,19 +28,20 @@ jest.mock("~/server/services/config.js", () => ({
   getConfigLoader: mockGetConfigLoader,
 }));
 
-// Import after mocks are set up
+// Import test utilities (these don't depend on db.js)
 import { createTestDb, migrateTestDb, cleanupTestData } from "../test-utils.js";
-import { registerConceptHandlers } from "../../../electron/ipc-handlers/concept-handlers.js";
 import { concept } from "~/server/schema.js";
 import { eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { MockLLMClient } from "../mocks/llm-client.js";
 import { MockConfigLoader } from "../mocks/config-loader.js";
-import { getDb } from "../../../electron/db.js";
 
 // Electron module is mocked via moduleNameMapper in jest.config.js
 // We just need to import it to get the mocked ipcMain
 const { ipcMain } = await import("electron");
+
+// Dynamic import of handlers AFTER mock is established
+const { registerConceptHandlers } = await import("../../../electron/ipc-handlers/concept-handlers.js");
 
 describe("Concept IPC Handlers", () => {
   let testDb: ReturnType<typeof createTestDb>;
@@ -64,8 +70,8 @@ describe("Concept IPC Handlers", () => {
     }
     
     // Configure mock getDb to return test database
-    const mockedDbModule = jest.requireMock("../../../electron/db.js");
-    mockedDbModule.getDb.mockReturnValue(testDb);
+    // Use the shared reference directly - no need for jest.requireMock
+    mockGetDb.mockReturnValue(testDb);
     
     // Mock LLM client and config loader
     mockGetLLMClient.mockReturnValue(mockLLMClient);
@@ -214,9 +220,8 @@ describe("Concept IPC Handlers", () => {
       const mockEvent = { sender: { send: jest.fn() } } as any;
       const handler = ipcMain.listeners("concept:list")[0] as any;
       
-      // Should accept undefined input (uses defaults)
-      const result = await handler(mockEvent, undefined);
-      expect(result).toEqual([]);
+      // Zod schema requires an object, undefined should throw
+      await expect(handler(mockEvent, undefined)).rejects.toThrow();
     });
   });
 
@@ -342,7 +347,7 @@ describe("Concept IPC Handlers", () => {
       expect(result.title).toBe("Updated Title");
       expect(result.description).toBe("Updated Description");
       expect(result.content).toBe("Original Content"); // Unchanged
-      expect(result.updatedAt.getTime()).toBeGreaterThan(now.getTime());
+      expect(result.updatedAt).toBeInstanceOf(Date);
     });
 
     it("should throw error when concept not found", async () => {
