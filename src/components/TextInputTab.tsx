@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { api } from "~/lib/trpc/react";
+import { api } from "~/hooks/useIPC";
 import { ConceptCandidateList } from "./ConceptCandidateList";
 import { ContextualHelp } from "./ui/ContextualHelp";
 import { LoadingSpinner } from "./ui/LoadingSpinner";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { api } from "~/lib/trpc/react";
+import { api } from "~/hooks/useIPC";
 import { LoadingSpinner } from "./ui/LoadingSpinner";
 import { ToastContainer, type ToastType } from "./ui/Toast";
 
@@ -131,11 +131,11 @@ function StyleGuideEditor({ onToast }: { onToast: (message: string, type: ToastT
       <div className="flex justify-end">
         <button
           onClick={handleSave}
-          disabled={updateMutation.isPending || !content}
+          disabled={updateMutation.isLoading || !content}
           className="px-8 py-4 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg text-base flex items-center gap-2"
         >
-          {updateMutation.isPending && <LoadingSpinner size="sm" />}
-          {updateMutation.isPending ? "Saving..." : "Save & Reload Style Guide"}
+          {updateMutation.isLoading && <LoadingSpinner size="sm" />}
+          {updateMutation.isLoading ? "Saving..." : "Save & Reload Style Guide"}
         </button>
       </div>
     </div>
@@ -194,11 +194,11 @@ function CredoEditor({ onToast }: { onToast: (message: string, type: ToastType) 
       <div className="flex justify-end">
         <button
           onClick={handleSave}
-          disabled={updateMutation.isPending || !content}
+          disabled={updateMutation.isLoading || !content}
           className="px-8 py-4 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg text-base flex items-center gap-2"
         >
-          {updateMutation.isPending && <LoadingSpinner size="sm" />}
-          {updateMutation.isPending ? "Saving..." : "Save & Reload Credo"}
+          {updateMutation.isLoading && <LoadingSpinner size="sm" />}
+          {updateMutation.isLoading ? "Saving..." : "Save & Reload Credo"}
         </button>
       </div>
     </div>
@@ -257,11 +257,11 @@ function ConstraintsEditor({ onToast }: { onToast: (message: string, type: Toast
       <div className="flex justify-end">
         <button
           onClick={handleSave}
-          disabled={updateMutation.isPending || !content}
+          disabled={updateMutation.isLoading || !content}
           className="px-8 py-4 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg text-base flex items-center gap-2"
         >
-          {updateMutation.isPending && <LoadingSpinner size="sm" />}
-          {updateMutation.isPending ? "Saving..." : "Save & Reload Constraints"}
+          {updateMutation.isLoading && <LoadingSpinner size="sm" />}
+          {updateMutation.isLoading ? "Saving..." : "Save & Reload Constraints"}
         </button>
       </div>
     </div>

@@ -6,12 +6,18 @@ dotenvConfig();
 /** @type {import('jest').Config} */
 const config = {
   preset: 'ts-jest/presets/default-esm',
-  roots: ['<rootDir>/src'],
+  roots: ['<rootDir>/src', '<rootDir>/electron'],
   testMatch: ['**/__tests__/**/*.ts', '**/__tests__/**/*.tsx', '**/?(*.)+(spec|test).ts', '**/?(*.)+(spec|test).tsx'],
+  modulePathIgnorePatterns: ['<rootDir>/dist-electron'],
   moduleNameMapper: {
+    // Handle relative imports with .js extensions (for TypeScript ESM)
+    // Matches: "./foo.js" or "../bar.js" -> Maps to: "./foo" or "../bar"
+    '^(\\.{1,2}/.*)\\.js$': '$1',
     '^~/(.*)$': '<rootDir>/src/$1',
     // Map @prisma/client directly to the generated client to bypass ESM issues
     '^@prisma/client$': '<rootDir>/node_modules/.prisma/client/client.ts',
+    // Map electron module to mock for tests
+    '^electron$': '<rootDir>/src/test/__mocks__/electron.ts',
   },
   // Transform Prisma packages - need to handle both .ts and .mjs
   transformIgnorePatterns: [
@@ -37,13 +43,17 @@ const config = {
     {
       displayName: 'node',
       testEnvironment: 'node',
+      roots: ['<rootDir>/src', '<rootDir>/electron'],
       testMatch: ['<rootDir>/src/test/**/*.test.ts', '!<rootDir>/src/test/components/**'],
+      modulePathIgnorePatterns: ['<rootDir>/dist-electron'],
       transform: {
         '^.+\\.ts$': ['ts-jest', {
           useESM: true,
           tsconfig: {
             esModuleInterop: true,
             allowSyntheticDefaultImports: true,
+            moduleResolution: 'node',
+            allowJs: true,
           },
         }],
         '^.+\\.mjs$': ['ts-jest', {
@@ -54,8 +64,11 @@ const config = {
         }],
       },
       moduleNameMapper: {
+        // Handle relative imports with .js extensions (for TypeScript ESM)
+        '^(\\.{1,2}/.*)\\.js$': '$1',
         '^~/(.*)$': '<rootDir>/src/$1',
         '^@prisma/client$': '<rootDir>/node_modules/.prisma/client/client.ts',
+        '^electron$': '<rootDir>/src/test/__mocks__/electron.ts',
       },
       transformIgnorePatterns: [
         'node_modules/(?!(@prisma|.prisma)/)',

@@ -5,8 +5,6 @@
 
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
-import { createCallerFactory } from "~/server/api/trpc";
-import { appRouter } from "~/server/api/root";
 import * as schema from "~/server/schema";
 import type { ReturnType } from "~/server/db";
 
@@ -30,22 +28,6 @@ export function createTestDbFile(testDbPath: string = "./test.db") {
   const sqlite = new Database(testDbPath);
   const db = drizzle(sqlite, { schema });
   return { db, dbPath: testDbPath };
-}
-
-/**
- * Create a test tRPC caller with a test database
- */
-export function createTestCaller(testDb: Database) {
-  // Create context with test database
-  const createContext = async () => {
-    return {
-      db: testDb,
-      headers: new Headers(),
-    };
-  };
-
-  const createCaller = createCallerFactory(appRouter);
-  return createCaller(createContext);
 }
 
 /**
@@ -93,6 +75,7 @@ export async function cleanupTestData(db: Database) {
 /**
  * Initialize test database schema
  * Run migrations or create tables manually
+ * Note: This function is synchronous but marked async for API consistency
  */
 export async function initTestDb(db: Database) {
   // For in-memory databases, we need to create the schema
@@ -203,15 +186,25 @@ export async function initTestDb(db: Database) {
     .filter((s) => s.length > 0);
 
   // Get the underlying SQLite database from Drizzle
-  // Drizzle wraps better-sqlite3, we need to access it
+  // Drizzle stores it at db.session.client for better-sqlite3
   const sqlite = (db as any).session?.client as Database | undefined;
   
   if (!sqlite) {
-    throw new Error("Could not access SQLite database from Drizzle instance");
+    throw new Error("Could not access SQLite database from Drizzle instance. Expected db.session.client to exist.");
   }
 
   for (const statement of statements) {
-    sqlite.exec(statement);
+    try {
+      sqlite.exec(statement);
+    } catch (error) {
+      throw new Error(`Failed to execute statement: ${statement.substring(0, 50)}... Error: ${error}`);
+    }
+  }
+  
+  // Verify tables were created
+  const tables = sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{ name: string }>;
+  if (tables.length === 0) {
+    throw new Error("initTestDb: No tables were created after executing schema SQL");
   }
 }
 
@@ -220,7 +213,17 @@ export async function initTestDb(db: Database) {
  * This creates tables directly using raw SQL
  */
 export async function migrateTestDb(db: Database) {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'test-utils.ts:215',message:'migrateTestDb called',data:{hasDb:!!db,dbType:typeof db},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
   await initTestDb(db);
+  // #region agent log
+  const sqlite = (db as any).session?.client;
+  if (sqlite) {
+    const tables = sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{ name: string }>;
+    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'test-utils.ts:222',message:'migrateTestDb completed',data:{tableCount:tables.length,tableNames:tables.map(t=>t.name)},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
+  }
+  // #endregion
 }
 
 /**

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { api } from "~/lib/trpc/react";
+import { api } from "~/hooks/useIPC";
 import { LoadingSpinner } from "./ui/LoadingSpinner";
 import type { ToastType } from "./ui/Toast";
 

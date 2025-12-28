@@ -115,9 +115,9 @@ export function logServiceError(
     // Environment context
     nodeEnv: process.env.NODE_ENV,
     // Request context if available
-    ...(context?.requestId && { requestId: context.requestId }),
-    ...(context?.path && { path: context.path }),
-    ...(context?.method && { method: context.method }),
+    ...(context?.requestId ? { requestId: context.requestId } : {}),
+    ...(context?.path ? { path: context.path } : {}),
+    ...(context?.method ? { method: context.method } : {}),
   };
 
   logger.error(

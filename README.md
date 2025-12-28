@@ -15,45 +15,48 @@ A unified suite of AI writing tools that:
 
 ## 🚧 Status: In Development
 
-This is a **Next.js application** built with the T3 Stack (Next.js, TypeScript, tRPC, Prisma, Tailwind CSS) that provides:
+This is an **Electron desktop application** built with React, TypeScript, and Drizzle ORM that provides:
 - **Zettelkasten knowledge base** - Extract and link core concepts from your existing writings
 - **Capsule content system** - Create evergreen anchor posts and repurpose into multiple formats
 - **AI-powered content generation** with style-aware LLM integration
+- **Native desktop experience** - Runs as a standalone application with proper lifecycle management
 
 ## 📋 Project Structure
 
 ```
 thomas-writing-assistant/
+├── electron/
+│   ├── main.ts                 # Electron main process (database, IPC handlers)
+│   ├── preload.ts             # Preload script (exposes IPC API)
+│   └── ipc-handlers/          # IPC handler modules
+│       ├── concept-handlers.ts
+│       ├── link-handlers.ts
+│       ├── capsule-handlers.ts
+│       ├── config-handlers.ts
+│       ├── pdf-handlers.ts
+│       └── ai-handlers.ts
 ├── src/
-│   ├── app/                    # Next.js app directory
-│   │   ├── api/trpc/          # tRPC API route handler
-│   │   ├── layout.tsx          # Root layout
-│   │   └── page.tsx            # Home page
 │   ├── components/             # React components
 │   │   ├── ConceptsTab.tsx    # Concept management UI
 │   │   ├── LinksTab.tsx       # Link management UI
 │   │   ├── CapsulesTab.tsx    # Capsule content UI
 │   │   └── ...
+│   ├── lib/
+│   │   ├── ipc-client.ts      # IPC client (replaces HTTP API)
+│   │   └── ...
+│   ├── hooks/
+│   │   └── useIPC.ts          # IPC React hooks
 │   ├── server/
-│   │   ├── api/
-│   │   │   ├── routers/        # tRPC routers
-│   │   │   │   ├── concept.ts  # Concept CRUD operations
-│   │   │   │   ├── link.ts     # Link management
-│   │   │   │   ├── linkName.ts # Link name management
-│   │   │   │   ├── capsule.ts  # Capsule content
-│   │   │   │   └── ai.ts       # AI operations
-│   │   │   └── trpc.ts         # tRPC setup
-│   │   ├── db.ts               # Drizzle ORM database connection
-│   │   ├── schema.ts           # Drizzle schema definitions
-│   │   └── services/           # Business logic services
-│   ├── lib/                    # Shared utilities
-│   └── test/                   # Test files
-├── drizzle/                    # Drizzle migrations (generated)
-│   └── migrations/             # Database migrations
+│   │   ├── services/          # Business logic services
+│   │   ├── schema.ts          # Drizzle schema definitions
+│   │   └── db.ts              # Database utilities (used by main process)
+│   └── main.tsx               # React entry point
 ├── config/                     # Configuration files
 │   ├── style_guide.yaml        # Writing voice and preferences
 │   ├── credo.yaml              # Core beliefs and values
 │   └── constraints.yaml        # Hard rules and boundaries
+├── drizzle/                    # Drizzle migrations (generated)
+│   └── migrations/             # Database migrations
 ├── input/
 │   └── pdfs/                   # PDF files for processing
 ├── archive/                    # Archived Python code (legacy)
@@ -86,34 +89,21 @@ Following Jana Osofsky's strategy:
 
 ## 🏗️ Tech Stack
 
-- **Next.js 16** - React framework with App Router
+- **Electron** - Desktop application framework
+- **React** - UI framework
+- **Vite** - Build tool and dev server
 - **TypeScript** - Type safety across the stack
-- **tRPC** - End-to-end type-safe APIs
+- **IPC (Inter-Process Communication)** - Direct communication between renderer and main process
 - **Drizzle ORM** - Lightweight, TypeScript-first ORM with SQLite
 - **Tailwind CSS** - Utility-first styling
 - **Jest** - Testing framework
-- **@testing-library/react** - Component testing utilities
-- **@testing-library/user-event** - User interaction simulation
-- **SQLite** - Local database (can migrate to Postgres later)
+- **SQLite** - Local database (stored in app user data directory)
 
 ## 🧪 Testing
 
-- **Test Framework**: Jest with separate environments for Node.js (services/routers) and jsdom (components)
-- **Current Coverage**: 
-  - Statements: 73.11% (1009/1380)
-  - Branches: 46.93% (345/735) ⚠️
-  - Functions: 75.53% (210/278)
-  - Lines: 74.69% (986/1320)
-- **Test Count**: 369 total tests (253 passing, 115 failing, 1 skipped)
-- **Test Files**: 60 test files across API routes, routers, services, and components
-- **Test Categories**:
-  - ✅ Service layer tests (high coverage for critical services)
-  - ✅ Router/integration tests (comprehensive API testing)
-  - ✅ Component unit tests (basic components)
-  - ⚠️ Component flow tests (some need tRPC provider setup)
-  - ⚠️ Branch coverage needs improvement (edge cases)
-
-**Note**: See `docs/test-coverage-quality.md` for detailed coverage report and recommendations. Some component tests require tRPC React Query provider setup to work properly.
+- **Test Framework**: Jest with separate environments for Node.js (services) and jsdom (components)
+- **Test Strategy**: Test services and IPC handlers directly (no HTTP mocking needed)
+- **Component Tests**: Will be updated to test with IPC mocks
 
 ## 📝 Features Implemented
 
@@ -123,15 +113,13 @@ Following Jana Osofsky's strategy:
 4. ✅ Custom link names with full CRUD operations
 5. ✅ AI-proposed links between concepts
 6. ✅ Concept editing, deletion, and trash/restore system
-7. ✅ Modern Next.js web interface with tab-based UI
-8. ✅ Comprehensive test suite with Jest (197 tests: 163 passing, 33 component tests need tRPC provider setup)
-9. ✅ Capsule content system (Jana Osofsky strategy)
-10. ✅ **Multi-provider LLM support** - OpenAI and Google Gemini
-11. ✅ Style-aware LLM integration with configurable providers
-12. ✅ **Writing Configuration UI** - Edit style guide, credo, and constraints with immediate reload
-13. ✅ Prisma 7 with SQLite adapter
-14. ✅ Pino error logging with AI-friendly structured format
-15. ✅ Data preservation and backup system
+7. ✅ Modern Electron desktop interface with tab-based UI
+8. ✅ Capsule content system (Jana Osofsky strategy)
+9. ✅ **Multi-provider LLM support** - OpenAI and Google Gemini
+10. ✅ Style-aware LLM integration with configurable providers
+11. ✅ **Writing Configuration UI** - Edit style guide, credo, and constraints with immediate reload
+12. ✅ Pino error logging with AI-friendly structured format
+13. ✅ Data preservation and backup system
 
 ## 🔧 Setup
 
@@ -149,11 +137,11 @@ Following Jana Osofsky's strategy:
 
 2. **Set up the database:**
    ```bash
-   # Generate Prisma client
+   # Generate migrations
    npm run db:generate
    
    # Run migrations
-   npm run db:migrate
+   npm run db:push
    ```
 
 3. **Configure environment variables:**
@@ -172,33 +160,34 @@ Following Jana Osofsky's strategy:
    ```bash
    npm run dev
    ```
+   
+   This will:
+   - Start Vite dev server on port 5173
+   - Compile Electron main process
+   - Launch Electron window
 
-5. **Access the application:**
-   
-   Open [http://localhost:3051](http://localhost:3051) in your browser.
-   
-   **Note:** The app runs on port 3051 by default. See [SERVER_MANAGEMENT.md](./SERVER_MANAGEMENT.md) for production server setup.
+5. **Build for production:**
+   ```bash
+   npm run build:all
+   npm run package
+   ```
 
 ### Database Management
 
-- **View database in Prisma Studio:**
+- **View database in Drizzle Studio:**
   ```bash
   npm run db:studio
   ```
 
 - **Create a new migration:**
   ```bash
-  npm run db:migrate
-  ```
-
-- **Regenerate Prisma client after schema changes:**
-  ```bash
   npm run db:generate
+  npm run db:migrate
   ```
 
 ## 🧪 Testing
 
-The project uses **Jest** for testing with full Prisma 7 support.
+The project uses **Jest** for testing.
 
 - **Run tests:**
   ```bash
@@ -215,40 +204,43 @@ The project uses **Jest** for testing with full Prisma 7 support.
   npm run test:coverage
   ```
 
-See [TESTING.md](./TESTING.md) for detailed testing documentation.
-
 ## 📚 Development
 
 ### Project Structure
 
-- **`src/app/`** - Next.js App Router pages and API routes
+- **`electron/`** - Electron main process and IPC handlers
 - **`src/components/`** - React components
-- **`src/server/api/routers/`** - tRPC routers (API endpoints)
+- **`src/hooks/useIPC.ts`** - IPC React hooks (replaces tRPC)
+- **`src/lib/ipc-client.ts`** - IPC client library
 - **`src/server/services/`** - Business logic and service layer
-- **`src/server/db.ts`** - Prisma client configuration
-- **`prisma/schema.prisma`** - Database schema definition
+- **`src/server/schema.ts`** - Database schema definition
+- **`electron/main.ts`** - Main process (database initialization, IPC handlers)
 
-## 🧪 Testing
+### Architecture
 
-The project uses **Jest** for testing with full Prisma 7 support. See [TESTING.md](./TESTING.md) for details.
+**Before (Next.js + tRPC):**
+```
+React Components → tRPC over HTTP → Next.js API Routes → Services → Database
+```
 
-**Current Coverage:**
-- **105 tests** total (all passing)
-- **13 test suites** (all passing)
-- Routers: 97.1% (excellent coverage)
-- Logger: 100% (complete)
-- PDF processing: Tested and working
+**Now (Electron + IPC):**
+```
+React Components → IPC → Electron Main Process → Services → Database
+```
+
+Benefits:
+- No HTTP overhead - direct function calls
+- Proper app lifecycle - database closes cleanly
+- Simpler architecture - fewer layers
+- Better file access - native file dialogs
+- Easier testing - test handlers directly
 
 ### Adding New Features
 
-1. **Database changes:** Update `prisma/schema.prisma`, then run `npm run db:migrate`
-2. **API endpoints:** Add new procedures to routers in `src/server/api/routers/`
-3. **UI components:** Add components in `src/components/`
-4. **Tests:** Add test files in `src/test/`
-
-## 🔄 Migration from Python
-
-The original Python/Flask implementation has been archived in the `archive/python-app/` directory. The Next.js application provides the same functionality with improved type safety, modern tooling, and better developer experience.
+1. **Database changes:** Update `src/server/schema.ts`, then run `npm run db:generate` and `npm run db:push`
+2. **IPC handlers:** Add new handlers in `electron/ipc-handlers/`
+3. **UI components:** Add components in `src/components/` using IPC hooks from `src/hooks/useIPC.ts`
+4. **Tests:** Add test files in `src/test/` - test services and IPC handlers directly
 
 ## 📖 Documentation
 
@@ -256,7 +248,6 @@ The original Python/Flask implementation has been archived in the `archive/pytho
 - **[Roadmap](./ROADMAP.md)** - Current status and future plans
 - **[Data Preservation](./DATA_PRESERVATION.md)** - Database backup and migration safety
 - **[Gemini Integration](./GEMINI_INTEGRATION.md)** - Using Google Gemini as LLM provider
-- **[Server Management](./SERVER_MANAGEMENT.md)** - PM2 setup and server management
 - **[Testing](./TESTING.md)** - Testing documentation and guidelines
 
 ## 🤝 Contributing

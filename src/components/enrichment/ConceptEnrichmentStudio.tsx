@@ -327,12 +327,12 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
           </button>
           <button
             onClick={handleSave}
-            disabled={createMutation.isPending || updateMutation.isPending}
+            disabled={createMutation.isLoading || updateMutation.isLoading}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            {(createMutation.isPending || updateMutation.isPending) && <LoadingSpinner size="sm" />}
+            {(createMutation.isLoading || updateMutation.isLoading) && <LoadingSpinner size="sm" />}
             <span>
-              {createMutation.isPending || updateMutation.isPending
+              {createMutation.isLoading || updateMutation.isLoading
                 ? isNewConcept ? "Creating..." : "Saving..."
                 : isNewConcept ? "Save as Concept" : "Save Changes"}
             </span>

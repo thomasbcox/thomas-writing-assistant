@@ -547,6 +547,49 @@ try {
 
 ---
 
-**Last Updated**: December 20, 2025
+### Jest Module Resolution for TypeScript ESM with .js Extensions (December 27, 2025)
+
+**Issue**: IPC handler tests failing with `Cannot find module '../main.js' from 'electron/ipc-handlers/concept-handlers.ts'`
+
+**Root Cause**: TypeScript in ESM mode requires `.js` extensions in import statements (e.g., `import { getDb } from "../main.js"`), but Jest's default resolver expects those files to actually exist on disk during resolution. The source files are `.ts`, not `.js`, so Jest couldn't find them.
+
+**Initial Misconception**: Initially thought `moduleNameMapper` only worked for absolute imports, but this was incorrect. `moduleNameMapper` works on the import string itself, not the file system path, so it CAN handle relative imports.
+
+**Solution**: Added a regex pattern to `moduleNameMapper` that strips `.js` extensions from relative imports, allowing Jest to resolve them to `.ts` files:
+
+```javascript
+'^(\\.{1,2}/.*)\\.js$': '$1',
+```
+
+This pattern:
+- Matches relative imports ending in `.js` (e.g., `../main.js`, `./foo.js`)
+- Captures the path without extension (e.g., `../main`, `./foo`)
+- Replaces with the captured group, allowing Jest's default resolver to find the `.ts` file
+
+**Key Insight**: Pattern order matters - the relative import mapper must come **first** in `moduleNameMapper` so it runs before other patterns.
+
+**Implementation**:
+- Added pattern to both top-level and node project `moduleNameMapper` in `jest.config.js`
+- Also added `electron/` to Jest `roots` configuration
+- Added `modulePathIgnorePatterns` to exclude `dist-electron/` from Jest scanning
+- Updated all mock paths to use `.js` extension to match handler imports
+
+**Result**: 
+- ✅ Module resolution errors completely resolved
+- ✅ All 7 IPC handler test suites now execute
+- ✅ 28 tests run (previously 0 tests could run)
+- ✅ Tests now fail on actual test logic issues, not infrastructure problems
+
+**Files Modified**:
+- `jest.config.js` - Added relative import mapper pattern and electron/ to roots
+- `src/test/ipc-handlers/*.test.ts` (7 files) - Updated mock paths to use `.js` extension
+
+**Pattern Established**: When using TypeScript with ESM and Jest, always map relative `.js` imports to strip the extension in `moduleNameMapper`, allowing Jest's resolver to find the `.ts` source files.
+
+**Reference**: This is a known pattern for Jest + ts-jest + ESM. The solution was provided by advisor guidance clarifying that `moduleNameMapper` works on import strings, not file paths.
+
+---
+
+**Last Updated**: December 27, 2025
 
 *This document is maintained as an ongoing narrative. Major changes, decisions, and incidents should be added here to preserve institutional memory.*

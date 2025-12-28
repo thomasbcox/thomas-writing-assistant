@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { api } from "~/lib/trpc/react";
+import { api } from "~/hooks/useIPC";
 import { ToastContainer, type ToastType } from "./ui/Toast";
 import { AnchorEditor } from "./AnchorEditor";
 import { CapsuleInfoSection } from "./capsules/CapsuleInfoSection";
@@ -17,16 +17,7 @@ interface Toast {
 
 export function CapsulesTab() {
   // Load full data with all nested relations for detailed view
-  // #region agent log
-  (async () => { try { const fs = await import("fs"); fs.default.appendFileSync("/Users/thomasbcox/Projects/thomas-writing-assistant/.cursor/debug.log", JSON.stringify({location:'CapsulesTab.tsx:20',message:'About to call useQuery',data:{hasApi:!!api,apiType:typeof api,hasCapsule:!!api?.capsule,hasList:!!api?.capsule?.list,hasUseQuery:!!api?.capsule?.list?.useQuery,useQueryType:typeof api?.capsule?.list?.useQuery,isMock:!!api?.capsule?.list?.useQuery?.mockImplementation},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})+"\n"); } catch {} })();
-  // #endregion
-  // #region agent log
-  (async () => { try { const fs = await import("fs"); fs.default.appendFileSync("/Users/thomasbcox/Projects/thomas-writing-assistant/.cursor/debug.log", JSON.stringify({location:'CapsulesTab.tsx:20',message:'About to call useQuery - H2',data:{apiSource:api?.constructor?.name,isProxy:api?.[Symbol.toStringTag]==='Proxy'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})+"\n"); } catch {} })();
-  // #endregion
   const { data: capsules, refetch } = api.capsule.list.useQuery({ summary: false });
-  // #region agent log
-  (async () => { try { const fs = await import("fs"); fs.default.appendFileSync("/Users/thomasbcox/Projects/thomas-writing-assistant/.cursor/debug.log", JSON.stringify({location:'CapsulesTab.tsx:22',message:'After useQuery call',data:{hasData:!!data,hasCapsules:!!capsules,hasRefetch:!!refetch},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})+"\n"); } catch {} })();
-  // #endregion
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   // Clear all tab state (refetch to reset any local state)
@@ -179,7 +170,7 @@ export function CapsulesTab() {
         <CreateCapsuleForm onSuccess={handleCapsuleCreateSuccess} />
 
         <CapsuleList
-          capsules={capsules}
+          capsules={capsules as any as import("~/types/database").CapsuleWithAnchors[] | undefined}
           expandedCapsules={expandedCapsules}
           selectedAnchorId={selectedAnchorId}
           onToggleExpand={handleToggleExpand}
@@ -189,10 +180,10 @@ export function CapsulesTab() {
           onRegenerateDerivatives={handleRegenerateDerivatives}
           onUpdateDerivative={handleUpdateDerivative}
           onDeleteDerivative={handleDeleteDerivative}
-          isDeletingAnchor={deleteAnchorMutation.isPending}
-          isRegenerating={regenerateMutation.isPending}
-          isUpdatingDerivative={updateDerivativeMutation.isPending}
-          isDeletingDerivative={deleteDerivativeMutation.isPending}
+          isDeletingAnchor={deleteAnchorMutation.isLoading}
+          isRegenerating={regenerateMutation.isLoading}
+          isUpdatingDerivative={updateDerivativeMutation.isLoading}
+          isDeletingDerivative={deleteDerivativeMutation.isLoading}
         />
 
         {editingAnchorId && (

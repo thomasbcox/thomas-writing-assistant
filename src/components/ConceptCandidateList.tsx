@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { api } from "~/lib/trpc/react";
+import { api } from "~/hooks/useIPC";
 import { ToastContainer, useToast } from "./ui/Toast";
 import { LoadingSpinner } from "./ui/LoadingSpinner";
 
@@ -186,11 +186,11 @@ export function ConceptCandidateList({
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleCreate(index)}
-                    disabled={createMutation.isPending}
+                    disabled={createMutation.isLoading}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    {createMutation.isPending && <LoadingSpinner size="sm" />}
-                    <span>{createMutation.isPending ? "Creating..." : "Create Concept"}</span>
+                    {createMutation.isLoading && <LoadingSpinner size="sm" />}
+                    <span>{createMutation.isLoading ? "Creating..." : "Create Concept"}</span>
                   </button>
                   <button
                     onClick={() => setEditingIndex(null)}

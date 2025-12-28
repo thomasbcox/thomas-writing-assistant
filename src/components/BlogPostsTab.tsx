@@ -258,10 +258,10 @@ export function BlogPostsTab() {
             {/* Generate Button */}
             <button
               onClick={handleGenerate}
-              disabled={generateMutation.isPending || !topic.trim() || selectedConceptIds.size === 0}
+              disabled={generateMutation.isLoading || !topic.trim() || selectedConceptIds.size === 0}
               className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
             >
-              {generateMutation.isPending ? "Generating..." : "Generate Blog Post"}
+              {generateMutation.isLoading ? "Generating..." : "Generate Blog Post"}
             </button>
           </div>
         </div>

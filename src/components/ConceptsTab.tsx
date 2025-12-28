@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { api } from "~/lib/trpc/react";
+import { api } from "~/hooks/useIPC";
 import { ConceptEditor } from "./ConceptEditor";
 import { ConceptViewer } from "./ConceptViewer";
 import { ToastContainer, type ToastType } from "./ui/Toast";
@@ -155,7 +155,7 @@ export function ConceptsTab() {
           {showCreateConceptForm && (
             <ConceptCreateForm
               onSubmit={handleCreateConcept}
-              isPending={createMutation.isPending}
+              isPending={createMutation.isLoading}
             />
           )}
         </div>
@@ -179,7 +179,7 @@ export function ConceptsTab() {
                 onPurgeTrash={() => purgeMutation.mutate({ daysOld: 30 })}
                 purgeConfirm={purgeConfirm}
                 onSetPurgeConfirm={setPurgeConfirm}
-                isPurging={purgeMutation.isPending}
+                isPurging={purgeMutation.isLoading}
               />
             </div>
           </div>

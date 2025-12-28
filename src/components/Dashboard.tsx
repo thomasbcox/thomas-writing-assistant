@@ -1,6 +1,6 @@
 "use client";
 
-import { api } from "~/lib/trpc/react";
+import { api } from "~/hooks/useIPC";
 import { LoadingSpinner } from "./ui/LoadingSpinner";
 import { HealthStatusCard } from "./ui/HealthStatusCard";
 import { useHealthStatus } from "~/lib/api/health";
@@ -32,15 +32,15 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const linkCount = links?.length || 0;
   const capsuleCount = capsules?.length || 0;
   const anchorCount = (capsules && Array.isArray(capsules)) 
-    ? capsules.reduce((acc: number, cap: CapsuleWithAnchors) => acc + (cap.anchors?.length || 0), 0) 
+    ? capsules.reduce((acc: number, cap: any) => acc + (cap.anchors?.length || 0), 0) 
     : 0;
 
   const isLoading = conceptsLoading || linksLoading || capsulesLoading;
 
   const linkedConcepts = (concepts && Array.isArray(concepts) && links && Array.isArray(links))
     ? concepts.filter((c: ConceptListItem) => {
-        const hasOutgoing = links.some((l: LinkWithConcepts) => l.sourceId === c.id);
-        const hasIncoming = links.some((l: LinkWithConcepts) => l.targetId === c.id);
+        const hasOutgoing = (links as any[]).some((l: any) => l.sourceId === c.id);
+        const hasIncoming = (links as any[]).some((l: any) => l.targetId === c.id);
         return hasOutgoing || hasIncoming;
       }).length
     : 0;

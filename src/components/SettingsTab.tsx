@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { api } from "~/lib/trpc/react";
+import { api } from "~/hooks/useIPC";
 import { LoadingSpinner } from "./ui/LoadingSpinner";
 import { ToastContainer, type ToastType } from "./ui/Toast";
 
@@ -161,11 +161,11 @@ export function SettingsTab() {
         <div className="pt-4 border-t border-gray-200">
           <button
             onClick={handleSave}
-            disabled={updateMutation.isPending}
+            disabled={updateMutation.isLoading}
             className="px-8 py-4 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg text-base flex items-center gap-2"
           >
-            {updateMutation.isPending && <LoadingSpinner size="sm" />}
-            {updateMutation.isPending ? "Saving..." : "Save Settings"}
+            {updateMutation.isLoading && <LoadingSpinner size="sm" />}
+            {updateMutation.isLoading ? "Saving..." : "Save Settings"}
           </button>
         </div>
 

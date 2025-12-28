@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { api } from "~/lib/trpc/react";
+import { api } from "~/hooks/useIPC";
 import type { CapsuleWithAnchors, AnchorWithRepurposed, RepurposedContent } from "~/types/database";
 import { PDFProcessingStatus } from "./PDFProcessingStatus";
 
@@ -301,12 +301,12 @@ export function PDFUploadSection({ capsules, onSuccess, onError }: PDFUploadSect
             !pdfFile ||
             (!createNewCapsule && !selectedCapsuleId) ||
             (createNewCapsule && (!showNewCapsuleForm || !newCapsuleData.title || !newCapsuleData.promise || !newCapsuleData.cta)) ||
-            createAnchorFromPDFMutation.isPending ||
-            createCapsuleMutation.isPending
+            createAnchorFromPDFMutation.isLoading ||
+            createCapsuleMutation.isLoading
           }
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
-          {createAnchorFromPDFMutation.isPending || createCapsuleMutation.isPending
+          {createAnchorFromPDFMutation.isLoading || createCapsuleMutation.isLoading
             ? "Processing..."
             : "Upload & Generate Derivatives"}
         </button>

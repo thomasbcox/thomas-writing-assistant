@@ -34,10 +34,17 @@ Quick start guide for the Thomas Writing Assistant.
    ```bash
    npm run dev
    ```
-
-5. **Open your browser:**
    
-   Navigate to [http://localhost:3051](http://localhost:3051)
+   This will:
+   - Start Vite dev server on port 5173
+   - Compile Electron main process
+   - Launch Electron window automatically
+
+5. **Build for production:**
+   ```bash
+   npm run build:all
+   npm run package
+   ```
 
 ## First Steps
 
@@ -79,7 +86,7 @@ Use the **Writing Config** tab in the UI to edit your configuration files:
 - **Credo & Values** - Your core beliefs, values, and ethical guidelines
 - **Constraints** - Hard rules, boundaries, and formatting requirements
 
-Changes are saved immediately and automatically reloaded - no server restart needed! The AI will use your updated preferences in all future content generation.
+Changes are saved immediately and automatically reloaded - no app restart needed! The AI will use your updated preferences in all future content generation.
 
 ### Manual Configuration (Alternative)
 
@@ -89,7 +96,7 @@ You can also edit the YAML files directly in the `config/` directory:
 - **`credo.yaml`** - Your core beliefs and values
 - **`constraints.yaml`** - Hard rules and boundaries
 
-If you edit files manually, restart the server for changes to take effect.
+If you edit files manually, restart the app for changes to take effect.
 
 These files are used by the AI to maintain consistency across all generated content.
 
@@ -104,30 +111,32 @@ npm test
 # Run tests in watch mode
 npm test -- --watch
 
-# Run tests with UI
-npm run test:ui
+# Run tests with coverage
+npm run test:coverage
 ```
 
 ### Database Management
 
 ```bash
-# Open Prisma Studio (database GUI)
+# Open Drizzle Studio (database GUI)
 npm run db:studio
 
 # Create a new migration
+npm run db:generate
 npm run db:migrate
 
-# Regenerate Prisma client
-npm run db:generate
+# Push schema changes directly
+npm run db:push
 ```
 
 ### Project Structure
 
-- `src/app/` - Next.js pages and API routes
+- `electron/` - Electron main process and IPC handlers
 - `src/components/` - React UI components
-- `src/server/api/routers/` - tRPC API endpoints
+- `src/hooks/useIPC.ts` - IPC React hooks (replaces HTTP API)
 - `src/server/services/` - Business logic
-- `prisma/` - Database schema and migrations
+- `src/server/schema.ts` - Database schema
+- `drizzle/` - Database migrations
 
 ## Troubleshooting
 
@@ -138,17 +147,16 @@ If you encounter database errors:
 1. Delete `dev.db` and regenerate:
    ```bash
    rm dev.db
-   npm run db:migrate
+   npm run db:push
    ```
 
-2. Check Prisma client is generated:
-   ```bash
-   npm run db:generate
-   ```
+2. Check database is in the correct location:
+   - Development: `./dev.db` or `./prod.db`
+   - Production: `app.getPath("userData")/dev.db` or `prod.db`
 
 ### Port Configuration
 
-The app runs on port 3051 by default. To change this, update the `dev` and `start` scripts in `package.json`.
+The Vite dev server runs on port 5173 by default. Electron will automatically connect to it in development mode.
 
 ### API Key Issues
 
@@ -166,4 +174,3 @@ See [GEMINI_INTEGRATION.md](./GEMINI_INTEGRATION.md) for more details.
 - Check the [Roadmap](./ROADMAP.md) for current status and upcoming features
 - Review [Data Preservation](./DATA_PRESERVATION.md) for backup strategies
 - See [Gemini Integration](./GEMINI_INTEGRATION.md) for LLM provider options
-

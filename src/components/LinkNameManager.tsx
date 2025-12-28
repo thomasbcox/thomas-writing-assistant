@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { api } from "~/lib/trpc/react";
+import { api } from "~/hooks/useIPC";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
 import { InputDialog } from "./ui/InputDialog";
 
@@ -173,10 +173,10 @@ export function LinkNameManager() {
         </div>
         <button
           onClick={handleCreate}
-          disabled={!newForwardName.trim() || createMutation.isPending}
+          disabled={!newForwardName.trim() || createMutation.isLoading}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {createMutation.isPending ? "Creating..." : "Create Pair"}
+          {createMutation.isLoading ? "Creating..." : "Create Pair"}
         </button>
       </div>
 

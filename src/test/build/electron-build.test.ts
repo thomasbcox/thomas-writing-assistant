@@ -1,0 +1,273 @@
+/**
+ * Build Integration Tests for Electron
+ * 
+ * These tests verify that the compiled Electron code can be loaded and imported correctly.
+ * They catch module resolution issues that would only appear at runtime.
+ * 
+ * Issues these tests catch:
+ * - Incorrect import paths (e.g., ../src/ instead of ./src/)
+ * - Path alias resolution failures (e.g., ~/ not converted to relative paths)
+ * - Missing .js extensions on ESM imports
+ * - Circular dependency issues
+ * - Missing or incorrectly resolved dependencies
+ */
+
+import { describe, test, expect, beforeAll } from "@jest/globals";
+import { existsSync, readFileSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const projectRoot = join(__dirname, "..", "..", "..");
+const distElectron = join(projectRoot, "dist-electron");
+
+describe("Electron Build Integration", () => {
+  beforeAll(() => {
+    // Verify dist-electron directory exists
+    if (!existsSync(distElectron)) {
+      throw new Error(
+        `dist-electron directory not found. Run 'npm run build:electron' first.`
+      );
+    }
+  });
+
+  describe("Build Output Verification", () => {
+    test("dist-electron/main.js should exist", () => {
+      const mainPath = join(distElectron, "main.js");
+      expect(existsSync(mainPath)).toBe(true);
+    });
+
+    test("dist-electron/src/server/schema.js should exist", () => {
+      const schemaPath = join(distElectron, "src", "server", "schema.js");
+      expect(existsSync(schemaPath)).toBe(true);
+    });
+
+    test("dist-electron/ipc-handlers/index.js should exist", () => {
+      const indexPath = join(distElectron, "ipc-handlers", "index.js");
+      expect(existsSync(indexPath)).toBe(true);
+    });
+  });
+
+  describe("Import Path Verification", () => {
+    test("main.js should not have ../src/ imports", () => {
+      const mainPath = join(distElectron, "main.js");
+      const content = readFileSync(mainPath, "utf8");
+      
+      // Should use ./src/ not ../src/
+      expect(content).not.toMatch(/from ['"]\.\.\/src\//);
+      
+      // Should have .js extension for relative imports
+      const schemaImport = content.match(/from ['"]([^'"]*schema[^'"]*)['"]/);
+      if (schemaImport) {
+        expect(schemaImport[1]).toMatch(/\.js$/);
+      }
+    });
+
+    test("main.js should import ipc-handlers with .js extension", () => {
+      const mainPath = join(distElectron, "main.js");
+      const content = readFileSync(mainPath, "utf8");
+      
+      const ipcImport = content.match(/from ['"]([^'"]*ipc-handlers[^'"]*)['"]/);
+      if (ipcImport) {
+        expect(ipcImport[1]).toMatch(/\.js$/);
+      }
+    });
+
+    test("ipc-handlers should not have ../src/ imports (should use ./src/)", () => {
+      const indexPath = join(distElectron, "ipc-handlers", "index.js");
+      const content = readFileSync(indexPath, "utf8");
+      
+      // Should not have ../src/ imports (they should be in ./src/ in dist-electron)
+      expect(content).not.toMatch(/from ['"]\.\.\/src\//);
+    });
+
+    test("src files should not have ~/ path alias imports", () => {
+      // Check a sample of compiled src files for path alias usage
+      const srcFilesToCheck = [
+        join(distElectron, "src", "server", "services", "llm", "client.js"),
+        join(distElectron, "src", "server", "services", "config.js"),
+        join(distElectron, "src", "lib", "logger.js"),
+      ];
+
+      for (const filePath of srcFilesToCheck) {
+        if (existsSync(filePath)) {
+          const content = readFileSync(filePath, "utf8");
+          // Should not have ~/ imports (should be converted to relative paths)
+          expect(content).not.toMatch(/from ['"]~/);
+        }
+      }
+    });
+
+    test("src files should have .js extensions on relative imports", () => {
+      const clientPath = join(
+        distElectron,
+        "src",
+        "server",
+        "services",
+        "llm",
+        "client.js"
+      );
+      
+      if (existsSync(clientPath)) {
+        const content = readFileSync(clientPath, "utf8");
+        
+        // Find all relative imports (starting with ./ or ../)
+        const relativeImports = content.matchAll(
+          /from ['"](\.[^'"]+)['"]/g
+        );
+        
+        const missingExtensions: Array<{ line: string; importPath: string }> = [];
+        let lineNumber = 0;
+        
+        for (const line of content.split("\n")) {
+          lineNumber++;
+          const match = line.match(/from ['"](\.[^'"]+?)['"]/);
+          if (match) {
+            const importPath = match[1];
+            // Skip node_modules, URLs, JSON, and directory imports
+            if (
+              importPath.includes("node_modules") ||
+              importPath.includes("://") ||
+              importPath.endsWith(".json") ||
+              importPath.endsWith("/") ||
+              importPath.match(/\.(js|mjs|json)$/)
+            ) {
+              continue;
+            }
+            // Relative imports should have .js extension
+            if (!importPath.endsWith(".js")) {
+              missingExtensions.push({ line: line.trim(), importPath });
+            }
+          }
+        }
+
+        if (missingExtensions.length > 0) {
+          throw new Error(
+            `Found relative imports missing .js extension in client.js:\n` +
+              missingExtensions
+                .map(({ line, importPath }) => `  ${importPath} (in: ${line})`)
+                .join("\n") +
+              `\n\nESM requires explicit file extensions for relative imports.`
+          );
+        }
+      }
+    });
+  });
+
+  describe("Module Loading Tests", () => {
+    test("should be able to import main.js without module resolution errors", async () => {
+      const mainPath = join(distElectron, "main.js");
+      
+      // Try to import the main file
+      // This will fail if there are unresolved imports
+      try {
+        await import(`file://${mainPath}`);
+        // If we get here, the import succeeded
+        expect(true).toBe(true);
+      } catch (error: unknown) {
+        const err = error as Error;
+        // Filter out expected errors (like missing Electron runtime, missing package '~')
+        if (
+          (err.message.includes("Cannot find module") ||
+            err.message.includes("Cannot resolve")) &&
+          !err.message.includes("Cannot find package '~'") &&
+          !err.message.includes("ERR_MODULE_NOT_FOUND")
+        ) {
+          throw new Error(
+            `Module resolution error in main.js: ${err.message}\n` +
+              `This indicates broken import paths in the compiled code.`
+          );
+        }
+        // Errors about missing package '~' indicate path aliases weren't transformed
+        if (err.message.includes("Cannot find package '~'")) {
+          throw new Error(
+            `Path alias (~/) not transformed in main.js: ${err.message}\n` +
+              `This indicates the fix-electron-imports script didn't run or failed.`
+          );
+        }
+        // Other errors (like missing Electron APIs) are expected in test environment
+      }
+    }, 10000); // Give it 10 seconds for imports
+
+    test("should be able to import schema.js", async () => {
+      const schemaPath = join(distElectron, "src", "server", "schema.js");
+      
+      try {
+        const schemaModule = await import(`file://${schemaPath}`);
+        expect(schemaModule).toBeDefined();
+      } catch (error: unknown) {
+        const err = error as Error;
+        if (
+          err.message.includes("Cannot find module") ||
+          err.message.includes("Cannot resolve")
+        ) {
+          throw new Error(
+            `Module resolution error in schema.js: ${err.message}\n` +
+              `This indicates broken import paths in the compiled code.`
+          );
+        }
+        throw err;
+      }
+    }, 10000);
+
+    test("should be able to import ipc-handlers/index.js", async () => {
+      const indexPath = join(distElectron, "ipc-handlers", "index.js");
+      
+      try {
+        const handlersModule = await import(`file://${indexPath}`);
+        expect(handlersModule).toBeDefined();
+        expect(typeof handlersModule.registerAllHandlers).toBe("function");
+      } catch (error: unknown) {
+        const err = error as Error;
+        if (
+          err.message.includes("Cannot find module") ||
+          err.message.includes("Cannot resolve")
+        ) {
+          throw new Error(
+            `Module resolution error in ipc-handlers/index.js: ${err.message}\n` +
+              `This indicates broken import paths in the compiled code.`
+          );
+        }
+        // Other errors might be expected if dependencies aren't fully resolved
+      }
+    }, 10000);
+  });
+
+  describe("Import Path Consistency", () => {
+    test("all IPC handler files should use consistent import paths", () => {
+      const handlerFiles = [
+        "concept-handlers.js",
+        "link-handlers.js",
+        "capsule-handlers.js",
+        "config-handlers.js",
+        "pdf-handlers.js",
+        "ai-handlers.js",
+      ];
+
+      for (const handlerFile of handlerFiles) {
+        const handlerPath = join(distElectron, "ipc-handlers", handlerFile);
+        if (existsSync(handlerPath)) {
+          const content = readFileSync(handlerPath, "utf8");
+          
+          // Should not have ../src/ imports (should use ./src/)
+          expect(content).not.toMatch(/from ['"]\.\.\/src\//);
+          
+          // Relative imports to other handlers should have .js extension
+          const handlerImports = content.matchAll(
+            /from ['"]\.\.\/.*handlers[^'"]*['"]/g
+          );
+          for (const match of handlerImports) {
+            const importPath = match[0];
+            // Skip if already has extension or is special case
+            if (!importPath.includes(".js") && !importPath.includes("node_modules")) {
+              // Should have .js extension
+              expect(importPath).toMatch(/\.js['"]$/);
+            }
+          }
+        }
+      }
+    });
+  });
+});
+

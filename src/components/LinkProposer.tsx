@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { api } from "~/lib/trpc/react";
+import { api } from "~/hooks/useIPC";
 import { LoadingSpinner } from "./ui/LoadingSpinner";
 import { useTimer } from "~/hooks/useTimer";
 import { ToastContainer, useToast } from "./ui/Toast";
@@ -99,7 +99,7 @@ export function LinkProposer({ conceptId, conceptTitle }: LinkProposerProps) {
               proposal={proposal}
               linkNamePairs={linkNamePairs}
               onConfirm={handleConfirm}
-              isCreatingLink={createLinkMutation.isPending}
+              isCreatingLink={createLinkMutation.isLoading}
             />
           ))}
         </div>

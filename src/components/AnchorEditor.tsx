@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { api } from "~/lib/trpc/react";
+import { api } from "~/hooks/useIPC";
 import type { CapsuleWithAnchors, AnchorWithRepurposed } from "~/types/database";
 import { safeJsonParseArray } from "~/lib/json-utils";
 
@@ -16,8 +16,8 @@ export function AnchorEditor({ anchorId, onClose, onSave }: AnchorEditorProps) {
   // Need full data to find the anchor being edited
   const { data: capsules } = api.capsule.list.useQuery({ summary: false });
   const anchor = capsules
-    ?.flatMap((c: CapsuleWithAnchors) => c.anchors)
-    .find((a: AnchorWithRepurposed) => a.id === anchorId);
+    ?.flatMap((c) => c.anchors || [])
+    .find((a) => a.id === anchorId);
 
   const updateMutation = api.capsule.updateAnchor.useMutation({
     onSuccess: () => {
@@ -234,10 +234,10 @@ export function AnchorEditor({ anchorId, onClose, onSave }: AnchorEditorProps) {
             </button>
             <button
               type="submit"
-              disabled={updateMutation.isPending}
+              disabled={updateMutation.isLoading}
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
             >
-              {updateMutation.isPending ? "Saving..." : "Save Changes"}
+              {updateMutation.isLoading ? "Saving..." : "Save Changes"}
             </button>
           </div>
         </form>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { api } from "~/lib/trpc/react";
+import { api } from "~/hooks/useIPC";
 
 interface CreateCapsuleFormProps {
   onSuccess?: () => void;
@@ -105,10 +105,10 @@ export function CreateCapsuleForm({ onSuccess }: CreateCapsuleFormProps) {
           </div>
           <button
             type="submit"
-            disabled={createCapsuleMutation.isPending}
+            disabled={createCapsuleMutation.isLoading}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
-            {createCapsuleMutation.isPending ? "Creating..." : "Create Capsule"}
+            {createCapsuleMutation.isLoading ? "Creating..." : "Create Capsule"}
           </button>
         </form>
       )}

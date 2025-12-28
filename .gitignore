@@ -2,6 +2,10 @@
 node_modules
 .next
 
+# Build outputs
+dist/
+dist-electron/
+
 # Environment variables
 .env
 .env.local

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { api } from "~/lib/trpc/react";
+import { api } from "~/hooks/useIPC";
 import { LinkProposer } from "./LinkProposer";
 import { LinkNameManager } from "./LinkNameManager";
 import { ToastContainer, useToast } from "./ui/Toast";
@@ -68,10 +68,7 @@ export function LinksTab() {
   const deleteLinkMutation = api.link.delete.useMutation({
     onSuccess: () => {
       addToast("Link deleted successfully", "success");
-      if (selectedConceptId) {
-        void utils.link.getByConcept.invalidate({ conceptId: selectedConceptId });
-      }
-      void utils.link.getAll.invalidate();
+      // Refetch will be handled by component state updates
     },
     onError: (error) => {
       addToast(error.message || "Failed to delete link", "error");
@@ -88,17 +85,15 @@ export function LinksTab() {
         notes: "",
       });
       setShowManualLinkForm(false);
-      if (selectedConceptId) {
-        void utils.link.getByConcept.invalidate({ conceptId: selectedConceptId });
-      }
-      void utils.link.getAll.invalidate();
+      // Refetch will be handled by component state updates
     },
     onError: (error) => {
       addToast(error.message || "Failed to create link", "error");
     },
   });
 
-  const utils = api.useUtils();
+  // Note: useUtils() from React Query is not available in IPC hooks
+  // Components should use refetch() from individual queries instead
 
   const selectedConcept = concepts?.find((c: ConceptListItem) => c.id === selectedConceptId);
 
@@ -236,10 +231,10 @@ export function LinksTab() {
             <div className="flex gap-2">
               <button
                 onClick={handleCreateLink}
-                disabled={createLinkMutation.isPending}
+                disabled={createLinkMutation.isLoading}
                 className="px-6 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg text-base"
               >
-                {createLinkMutation.isPending ? "Creating..." : "Create Link"}
+                {createLinkMutation.isLoading ? "Creating..." : "Create Link"}
               </button>
               <button
                 onClick={() => {
@@ -297,7 +292,7 @@ export function LinksTab() {
                 OUTGOING:
               </h3>
               <div className="space-y-2">
-                {links.outgoing.map((link: LinkWithConcepts) => (
+                {links.outgoing.map((link: any) => (
                   <div
                     key={link.id}
                     className="flex items-center justify-between p-3 bg-gray-50 rounded border"
@@ -332,7 +327,7 @@ export function LinksTab() {
                 INCOMING:
               </h3>
               <div className="space-y-2">
-                {links.incoming.map((link: LinkWithConcepts) => (
+                {links.incoming.map((link: any) => (
                   <div
                     key={link.id}
                     className="flex items-center justify-between p-3 bg-gray-50 rounded border"
