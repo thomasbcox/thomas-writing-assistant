@@ -590,6 +590,36 @@ This pattern:
 
 ---
 
+---
+
+### Fixed Test Infrastructure Issue - Broken Debug Logging (December 27, 2025)
+
+**Problem**: Tests were failing with `ReferenceError: mockGetDb is not defined` in `concept-handlers.test.ts`. Tests were crashing before any setup could complete.
+
+**Root Cause** (Identified by code advisor): Broken debug logging code in the test's `beforeEach` block was referencing a non-existent `mockGetDb` variable, causing the setup to crash immediately before any mocks could be configured. The error occurred at the first line of `beforeEach`, preventing all subsequent setup code from executing.
+
+**Solution**: Removed all broken debug logging statements (28 lines) that referenced undefined variables like `mockGetDb`. The `beforeEach` setup now completes successfully.
+
+**Results**:
+- ✅ Fixed the `ReferenceError` that was preventing test setup
+- ✅ Tests now progress past the `beforeEach` block
+- ✅ 5 tests now passing (up from 0) - schema validation tests that don't require database access
+- ⚠️ 17 tests still failing due to Jest ESM mocking issue (separate from the debug logging fix)
+
+**Key Lesson**: Always check the first error in the stack trace - it's usually where the problem originates. The `ReferenceError: mockGetDb is not defined` error was the root cause; subsequent errors were cascading failures. Execution flow matters - when code crashes early, nothing after it runs.
+
+**Files Changed**:
+- `src/test/ipc-handlers/concept-handlers.test.ts`: Removed broken debug logging code
+
+**Documentation**:
+- Added `ADVISOR_FEEDBACK_ANALYSIS.md`: Critique of initial diagnosis vs. advisor's correct diagnosis
+- Updated `TEST_FAILURE_DIAGNOSIS.md`: Documented the debug logging issue
+- Added `CURRENT_STATE.md`: Comprehensive state review document
+
+**Pattern Established**: Debug logging code must be carefully reviewed - references to undefined variables crash test setup immediately. When diagnosing test failures, trace execution flow and verify variable existence before assuming complex architectural issues.
+
+---
+
 **Last Updated**: December 27, 2025
 
 *This document is maintained as an ongoing narrative. Major changes, decisions, and incidents should be added here to preserve institutional memory.*
