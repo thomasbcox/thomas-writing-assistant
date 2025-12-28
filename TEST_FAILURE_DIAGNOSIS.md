@@ -13,21 +13,23 @@
 
 ### Problem 1: Mock Not Returning Test Database
 
-**Error Pattern**:
-```
-TypeError: Cannot read properties of undefined (reading 'session')
-at cleanupTestData (src/test/test-utils.ts:38:12)
-```
+**Error Patterns**:
+1. `ReferenceError: mockGetDb is not defined` - Debug logs reference a variable that doesn't exist
+2. `TypeError: Cannot read properties of undefined (reading 'session')` - `getDb()` returns `undefined`
+3. `TypeError: Cannot read properties of undefined (reading 'delete')` - Database operations fail
 
 **What's Happening**:
 1. The `jest.mock("../../../electron/db.js")` is correctly set up to replace the module
-2. In `beforeEach`, we call `(getDb as jest.Mock).mockReturnValue(testDb)`
-3. However, when handlers call `getDb()`, it returns `undefined` instead of `testDb`
+2. We import `getDb` from the mocked module: `import { getDb } from "../../../electron/db.js"`
+3. In `beforeEach`, we try to configure: `(getDb as jest.Mock).mockReturnValue(testDb)`
+4. However, the type cast `(getDb as jest.Mock)` doesn't actually work correctly with Jest ESM
+5. When handlers call `getDb()`, it returns `undefined` instead of `testDb`
 
 **Why This Happens**:
-- When we import `getDb` from the mocked module, Jest creates a new mock function
-- The `(getDb as jest.Mock)` cast doesn't actually give us access to the same mock instance
-- We're trying to configure a different mock function than the one being used by handlers
+- TypeScript type assertions don't change runtime behavior - they're compile-time only
+- The `as jest.Mock` cast doesn't actually make `getDb` a Jest mock function at runtime
+- Jest ESM mocking requires using Jest's utilities to properly access and configure mocks
+- The imported `getDb` might not be the same instance that handlers are using
 
 ### Problem 2: Mock Configuration Timing
 
@@ -49,12 +51,17 @@ The mock is configured in `beforeEach`, but handlers might be importing `getDb` 
 
 **Implementation**:
 ```typescript
-import { jest, jest as jestType } from "@jest/globals";
+import { jest } from "@jest/globals";
 import { getDb } from "../../../electron/db.js";
 
 // In beforeEach:
 jest.mocked(getDb).mockReturnValue(testDb);
 ```
+
+**Note**: `jest.mocked()` is a utility function that:
+- Returns the actual mock function instance
+- Provides proper TypeScript types
+- Works correctly with Jest's ESM module system
 
 **Pros**:
 - Type-safe
