@@ -169,9 +169,13 @@ export function registerCapsuleHandlers() {
       // Generate repurposed content if requested
       const savedRepurposed = [];
       if (parsed.autoRepurpose) {
+        const painPoints = newAnchor.painPoints ? JSON.parse(newAnchor.painPoints) : null;
+        const solutionSteps = newAnchor.solutionSteps ? JSON.parse(newAnchor.solutionSteps) : null;
         const repurposed = await repurposeAnchorContent(
-          newAnchor.id,
-          db,
+          newAnchor.title,
+          newAnchor.content,
+          painPoints,
+          solutionSteps,
           llmClient,
           configLoader,
         );

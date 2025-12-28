@@ -1,7 +1,9 @@
 # Architecture Review: Testing tRPC Components
 
+> **⚠️ NOTE: This document describes testing issues with the OLD architecture (Next.js + tRPC). The system has been migrated to Electron + IPC. See [ARCHITECTURE.md](./ARCHITECTURE.md) for current architecture and [TESTING.md](./TESTING.md) for current testing approach.**
+
 **Date:** 2025-12-15  
-**Status:** Critical Issues Identified
+**Status:** Historical - Architecture Migrated
 
 ## Executive Summary
 

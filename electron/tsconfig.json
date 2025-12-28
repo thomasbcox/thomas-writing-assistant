@@ -11,6 +11,7 @@
     "strict": false,
     "noImplicitAny": false,
     "noEmitOnError": false,
+    "skipLibCheck": true,
     "outDir": "../dist-electron",
     "sourceMap": true,
     "types": ["node"],

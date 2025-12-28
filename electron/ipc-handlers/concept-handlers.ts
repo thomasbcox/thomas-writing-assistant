@@ -245,7 +245,7 @@ export function registerConceptHandlers() {
     return proposeLinksForConcept(
       parsed.conceptId,
       parsed.maxProposals,
-      db,
+      db as any,
       llmClient,
       configLoader,
     );

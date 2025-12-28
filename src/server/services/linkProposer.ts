@@ -8,11 +8,11 @@ import { getConfigLoader } from "./config";
 import { logServiceError, logger } from "~/lib/logger";
 import type { LLMClient } from "./llm/client";
 import type { ConfigLoader } from "./config";
-import type { ReturnType } from "~/server/db";
+import type { getCurrentDb } from "~/server/db";
 import { eq, and, not, notInArray, inArray } from "drizzle-orm";
 import { concept, link, linkName } from "~/server/schema";
 
-type Database = ReturnType<typeof import("~/server/db").db>;
+type Database = ReturnType<typeof getCurrentDb>;
 
 export interface LinkProposal {
   source: string;
@@ -107,7 +107,7 @@ export async function proposeLinksForConcept(
   ];
 
   if (allLinkedIds.length > 0) {
-    conditions.push(notInArray(concept.id, allLinkedIds));
+    conditions.push(notInArray(concept.id, allLinkedIds as string[]));
   }
 
   const candidates = await dbInstance
@@ -219,7 +219,7 @@ async function proposeLinksWithLLM(
 
   const allLinkNames = [
     ...defaultNames,
-    ...linkNames.map((ln) => ln.name),
+    ...linkNames.map((ln) => ln.forwardName),
   ].join(", ");
 
   const systemPrompt = configLoader.getSystemPrompt(

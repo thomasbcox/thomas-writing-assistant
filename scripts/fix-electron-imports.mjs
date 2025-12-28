@@ -1,58 +1,87 @@
 #!/usr/bin/env node
 /**
  * Post-build script to fix import paths in compiled Electron files
- * Replaces ../src/ imports with ./src/ for runtime resolution
+ * Replaces ~/ path aliases with relative paths and ensures .js extensions
  */
 
 import { readFileSync, writeFileSync, readdirSync, statSync } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, relative, sep } from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const distElectron = join(__dirname, '..', 'dist-electron');
+const distElectronSrc = join(distElectron, 'src');
 
 function fixImportsInFile(filePath) {
   try {
     let content = readFileSync(filePath, 'utf8');
     const originalContent = content;
     
-    // Calculate relative path from this file's directory to dist-electron/src
-    // filePath is absolute, distElectron is absolute, so normalize both
-    const normalizedFilePath = filePath.replace(/\\/g, '/');
-    const normalizedDistElectron = distElectron.replace(/\\/g, '/');
-    const relativePath = normalizedFilePath.replace(normalizedDistElectron + '/', '').replace(/\/[^/]+$/, ''); // Remove filename, get directory
-    const pathParts = relativePath.split('/').filter(p => p && p !== 'src'); // Exclude 'src' itself
-    const depth = pathParts.length; // How many directories deep we are (excluding src)
+    // Calculate relative path from current file's directory to dist-electron/src
+    // This is where ~/ imports should resolve to
+    const currentDir = dirname(filePath);
     
     // Fix ~/ imports - convert to relative paths
     // ~/ means src/, so calculate relative path from current file's directory to src
-    content = content.replace(/from (['"])~(\/[^'"]+?)(\.js)?\1/g, (match, quote, aliasPath, ext) => {
-      // For files in dist-electron/src/server/services/llm/, ~/env means src/env
-      // We need to go up 'depth' levels to get to src/, then reference the aliasPath
-      const relativeToSrc = '../'.repeat(depth) + aliasPath.slice(1); // Remove leading / from aliasPath
-      const withExt = ext ? relativeToSrc : relativeToSrc + '.js';
-      return `from ${quote}${withExt}${quote}`;
+    content = content.replace(/from\s+(['"])~\/(.*?)(\.js)?\1/g, (match, quote, aliasPath, ext) => {
+      // Calculate relative path from current file's directory to dist-electron/src
+      let relativePath = relative(currentDir, distElectronSrc);
+      
+      // Normalize path separators for cross-platform compatibility
+      relativePath = relativePath.split(sep).join('/');
+      
+      // If same directory, use '.'
+      if (!relativePath || relativePath === '') {
+        relativePath = '.';
+      }
+      // If not starting with . or .., prepend ./
+      if (!relativePath.startsWith('.')) {
+        relativePath = './' + relativePath;
+      }
+      
+      // Construct new import path
+      let newImportPath = `${relativePath}/${aliasPath}`;
+      
+      // Ensure .js extension if it's a file import (not ending in .json or already .js)
+      if (!ext && !newImportPath.endsWith('.json') && !newImportPath.endsWith('.js')) {
+        newImportPath += '.js';
+      }
+      
+      return `from ${quote}${newImportPath}${quote}`;
     });
     
     // Fix ../src/ imports - replace with correct relative path and add .js extension if missing
-    content = content.replace(/from (['"])(\.\.\/src\/[^'"]+?)(\.js)?\1/g, (match, quote, path, ext) => {
-      // For files at dist-electron root (depth 0), ../src/ should become ./src/
-      // For files in subdirectories, keep ../src/ but adjust if needed
-      const newPath = depth === 0 ? path.replace(/^\.\.\/src\//, './src/') : path;
+    content = content.replace(/from\s+(['"])(\.\.\/src\/[^'"]+?)(\.js)?\1/g, (match, quote, importPath, ext) => {
+      // Calculate relative path from current file to dist-electron/src
+      let relativePath = relative(currentDir, distElectronSrc);
+      relativePath = relativePath.split(sep).join('/');
+      
+      // If same directory, use '.'
+      if (!relativePath || relativePath === '') {
+        relativePath = '.';
+      }
+      if (!relativePath.startsWith('.')) {
+        relativePath = './' + relativePath;
+      }
+      
+      // Extract the path after src/ from the import
+      const pathAfterSrc = importPath.replace(/^\.\.\/src\//, '');
+      const newPath = `${relativePath}/${pathAfterSrc}`;
       const withExt = ext ? newPath : newPath + '.js';
       return `from ${quote}${withExt}${quote}`;
     });
     
-    // Fix other relative imports (./something) - add .js extension if missing
+    // Fix other relative imports (./something or ../something) - add .js extension if missing
     // Skip if already has extension, or if it's a node_modules import, or absolute URL
-    content = content.replace(/from (['"])(\.[^'"]+?)(\1)/g, (match, quote, path, endQuote) => {
-      // Skip if already has .js extension, or if it's a special case
-      if (path.endsWith('.js') || path.includes('node_modules') || path.includes('://')) {
+    content = content.replace(/from\s+(['"])(\.{1,2}\/[^'"]+?)(\1)/g, (match, quote, importPath, endQuote) => {
+      // Skip if already has .js or .json extension, or if it's a special case
+      if (importPath.endsWith('.js') || importPath.endsWith('.json') || 
+          importPath.includes('node_modules') || importPath.includes('://')) {
         return match;
       }
       // Add .js extension
-      return `from ${quote}${path}.js${endQuote}`;
+      return `from ${quote}${importPath}.js${endQuote}`;
     });
     
     if (content !== originalContent) {
@@ -93,4 +122,32 @@ function processDirectory(dir) {
 // Process dist-electron directory
 const fixedCount = processDirectory(distElectron);
 console.log(`✅ Fixed import paths in ${fixedCount} file(s)`);
+
+// Create symlink for Electron main entry point
+// Electron sometimes looks for dist-electron/main.js instead of dist-electron/electron/main.js
+import { symlinkSync, existsSync as fileExists, unlinkSync } from 'fs';
+const mainSymlinkPath = join(distElectron, 'main.js');
+const mainActualPath = join(distElectron, 'electron', 'main.js');
+
+try {
+  // Remove existing symlink or file if it exists
+  if (fileExists(mainSymlinkPath)) {
+    try {
+      unlinkSync(mainSymlinkPath);
+    } catch (e) {
+      // Ignore errors removing old symlink
+    }
+  }
+  
+  // Create symlink if the actual file exists
+  // Use relative path for portability
+  if (fileExists(mainActualPath)) {
+    const relativePath = relative(distElectron, mainActualPath);
+    symlinkSync(relativePath, mainSymlinkPath);
+    console.log(`✅ Created symlink: ${mainSymlinkPath} -> ${relativePath}`);
+  }
+} catch (error) {
+  // Symlink creation is optional, don't fail the build
+  console.warn(`⚠️  Could not create main.js symlink: ${error.message}`);
+}
 

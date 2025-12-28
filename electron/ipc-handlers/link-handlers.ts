@@ -73,9 +73,9 @@ export function registerLinkHandlers() {
         linkNameIds.length > 0 ? db.select().from(linkName).where(inArray(linkName.id, linkNameIds)) : [],
       ]);
 
-      const sourceMap = new Map(allSources.map(c => [c.id, c]));
-      const targetMap = new Map(allTargets.map(c => [c.id, c]));
-      const linkNameMap = new Map(allLinkNames.map(ln => [ln.id, ln]));
+      const sourceMap = new Map(allSources.map(c => [c.id, c] as [string, typeof c]));
+      const targetMap = new Map(allTargets.map(c => [c.id, c] as [string, typeof c]));
+      const linkNameMap = new Map(allLinkNames.map(ln => [ln.id, ln] as [string, typeof ln]));
 
       return linksData.map(l => ({
         ...l,
@@ -142,9 +142,9 @@ export function registerLinkHandlers() {
         linkNameIds.length > 0 ? db.select().from(linkName).where(inArray(linkName.id, linkNameIds)) : [],
       ]);
 
-      const sourceMap = new Map(allSources.map(c => [c.id, c]));
-      const targetMap = new Map(allTargets.map(c => [c.id, c]));
-      const linkNameMap = new Map(allLinkNames.map(ln => [ln.id, ln]));
+      const sourceMap = new Map(allSources.map(c => [c.id, c] as [string, typeof c]));
+      const targetMap = new Map(allTargets.map(c => [c.id, c] as [string, typeof c]));
+      const linkNameMap = new Map(allLinkNames.map(ln => [ln.id, ln] as [string, typeof ln]));
 
       const mapLink = (l: typeof outgoingData[0]) => ({
         ...l,

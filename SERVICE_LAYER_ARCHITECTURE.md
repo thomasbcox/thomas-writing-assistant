@@ -1,15 +1,18 @@
 # Service Layer Architecture Analysis
 
+> **⚠️ NOTE: This document has been updated to reflect the current Electron + IPC architecture. The service layer structure remains similar, but the API layer has changed from tRPC to IPC handlers.**
+
 ## Architecture Overview
 
 The service layer follows a **layered architecture pattern** with clear separation of concerns:
 
 ```
 ┌─────────────────────────────────────┐
-│   tRPC Routers (API Layer)          │  ← HTTP/API interface
-│   - concept.ts                      │
-│   - link.ts                         │
-│   - ai.ts                           │
+│   IPC Handlers (API Layer)           │  ← IPC interface (Electron)
+│   - concept-handlers.ts             │
+│   - link-handlers.ts                │
+│   - capsule-handlers.ts             │
+│   - ai-handlers.ts                  │
 └──────────────┬──────────────────────┘
                │ calls
                ▼
@@ -18,15 +21,15 @@ The service layer follows a **layered architecture pattern** with clear separati
 │   - conceptProposer.ts              │
 │   - linkProposer.ts                 │
 │   - repurposer.ts                   │
-│   - llm.ts                          │
+│   - llm/client.ts                   │
 │   - config.ts                       │
 └──────────────┬──────────────────────┘
                │ uses
                ▼
 ┌─────────────────────────────────────┐
 │   Infrastructure Layer               │
-│   - Database (Prisma)               │
-│   - OpenAI API                       │
+│   - Database (Drizzle ORM + SQLite)  │
+│   - OpenAI/Gemini API                │
 │   - File System (config files)      │
 │   - Logger (Pino)                    │
 └─────────────────────────────────────┘
@@ -117,14 +120,14 @@ These services orchestrate LLM calls to generate content:
 
 ### 2. **Database Dependencies**
 
-**Problem**: Services like `linkProposer.ts` directly use `db` (Prisma client)
+**Problem**: Services like `linkProposer.ts` directly use `db` (Drizzle ORM instance)
 - Requires database setup
 - Needs test data
 - Complex queries with multiple joins
 
 **Current State**: 
-- Test utilities exist (`createTestDb()`) but services aren't using them
-- Services import `db` directly instead of accepting it as parameter
+- Test utilities exist (`createTestDb()`) and services can use in-memory databases
+- Services use `getDb()` or `getCurrentDb()` which supports test database injection
 
 **Solution Needed**: Dependency injection pattern
 
