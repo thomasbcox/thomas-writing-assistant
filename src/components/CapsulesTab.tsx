@@ -162,7 +162,7 @@ export function CapsulesTab() {
         <CapsuleInfoSection />
 
         <PDFUploadSection
-          capsules={capsules}
+          capsules={Array.isArray(capsules) ? capsules as any : undefined}
           onSuccess={handlePDFSuccess}
           onError={handlePDFError}
         />

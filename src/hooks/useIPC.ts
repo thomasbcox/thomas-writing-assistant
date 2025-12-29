@@ -233,6 +233,91 @@ export const api = {
           onError: options?.onError,
         }),
     },
+    updateAnchor: {
+      useMutation: (
+        options?: {
+          onSuccess?: (data: any) => void;
+          onError?: (error: Error) => void;
+        },
+      ) =>
+        useIPCMutation(
+          async (input: { id: string; title?: string; content?: string; painPoints?: string[]; solutionSteps?: string[]; proof?: string }) => {
+            throw new Error("updateAnchor not yet implemented");
+          },
+          {
+            onSuccess: options?.onSuccess,
+            onError: options?.onError,
+          },
+        ),
+    },
+    deleteAnchor: {
+      useMutation: (
+        options?: {
+          onSuccess?: (data: any) => void;
+          onError?: (error: Error) => void;
+        },
+      ) =>
+        useIPCMutation(
+          async (input: { id: string }) => {
+            throw new Error("deleteAnchor not yet implemented");
+          },
+          {
+            onSuccess: options?.onSuccess,
+            onError: options?.onError,
+          },
+        ),
+    },
+    regenerateRepurposedContent: {
+      useMutation: (
+        options?: {
+          onSuccess?: (data: any) => void;
+          onError?: (error: Error) => void;
+        },
+      ) =>
+        useIPCMutation(
+          async (input: { anchorId: string }) => {
+            throw new Error("regenerateRepurposedContent not yet implemented");
+          },
+          {
+            onSuccess: options?.onSuccess,
+            onError: options?.onError,
+          },
+        ),
+    },
+    updateRepurposedContent: {
+      useMutation: (
+        options?: {
+          onSuccess?: (data: any) => void;
+          onError?: (error: Error) => void;
+        },
+      ) =>
+        useIPCMutation(
+          async (input: { id: string; content?: string }) => {
+            throw new Error("updateRepurposedContent not yet implemented");
+          },
+          {
+            onSuccess: options?.onSuccess,
+            onError: options?.onError,
+          },
+        ),
+    },
+    deleteRepurposedContent: {
+      useMutation: (
+        options?: {
+          onSuccess?: (data: any) => void;
+          onError?: (error: Error) => void;
+        },
+      ) =>
+        useIPCMutation(
+          async (input: { id: string }) => {
+            throw new Error("deleteRepurposedContent not yet implemented");
+          },
+          {
+            onSuccess: options?.onSuccess,
+            onError: options?.onError,
+          },
+        ),
+    },
   },
   link: {
     getAll: {

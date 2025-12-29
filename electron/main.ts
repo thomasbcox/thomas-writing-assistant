@@ -1,21 +1,10 @@
 import { app, BrowserWindow, ipcMain } from "electron";
-import { join, dirname, resolve } from "path";
+import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { readFileSync, existsSync } from "fs";
 import { initDb, closeDb } from "./db.js";
-
-// #region agent log
-fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.ts:8',message:'Electron main.ts loaded',data:{__filename:import.meta.url,processCwd:process.cwd()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-// #endregion
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
-// #region agent log
-const packageJsonPath = resolve(process.cwd(), 'package.json');
-const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
-fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.ts:16',message:'Package.json read in main.ts',data:{packageJsonMain:packageJson.main,packageJsonPath,__dirname,resolvedMain:resolve(process.cwd(),packageJson.main),fileExists:existsSync(resolve(process.cwd(),packageJson.main))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-// #endregion
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -29,7 +18,10 @@ function createWindow() {
   });
 
   // Load the app
-  if (process.env.NODE_ENV === "development") {
+  // Check if we're in development mode (either via NODE_ENV or if Vite dev server is available)
+  const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
+  
+  if (isDev) {
     // In development, load from Vite dev server
     mainWindow.loadURL("http://localhost:5173");
     mainWindow.webContents.openDevTools();

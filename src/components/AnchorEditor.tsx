@@ -15,9 +15,11 @@ export function AnchorEditor({ anchorId, onClose, onSave }: AnchorEditorProps) {
   // Get anchor from the capsule query
   // Need full data to find the anchor being edited
   const { data: capsules } = api.capsule.list.useQuery({ summary: false });
-  const anchor = capsules
-    ?.flatMap((c) => c.anchors || [])
-    .find((a) => a.id === anchorId);
+  const anchor = Array.isArray(capsules)
+    ? capsules
+        .flatMap((c: any) => c.anchors || [])
+        .find((a: any) => a.id === anchorId)
+    : undefined;
 
   const updateMutation = api.capsule.updateAnchor.useMutation({
     onSuccess: () => {

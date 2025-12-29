@@ -88,25 +88,13 @@ export function PDFUploadSection({ capsules, onSuccess, onError }: PDFUploadSect
       setPdfProcessingStatus({ stage: "creating_capsule" });
 
       try {
-        const newCapsule = await new Promise<string>((resolve, reject) => {
-          createCapsuleMutation.mutate(
-            {
-              title: newCapsuleData.title,
-              promise: newCapsuleData.promise,
-              cta: newCapsuleData.cta,
-              offerMapping: undefined,
-            },
-            {
-              onSuccess: (capsule) => {
-                resolve(capsule.id);
-              },
-              onError: (error) => {
-                reject(error);
-              },
-            },
-          );
+        const capsule = await createCapsuleMutation.mutateAsync({
+          title: newCapsuleData.title,
+          promise: newCapsuleData.promise,
+          cta: newCapsuleData.cta,
+          offerMapping: undefined,
         });
-        capsuleId = newCapsule;
+        capsuleId = capsule.id;
       } catch (error) {
         setPdfProcessingStatus({ stage: "error" });
         onError?.(`Error creating capsule: ${error instanceof Error ? error.message : "Unknown error"}`);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+// import { useRouter } from "next/navigation"; // Not available in Electron - using callback prop instead
 import { useConcept, useCreateConcept, useUpdateConcept } from "~/lib/api/concepts";
 import {
   useAnalyzeConcept,
@@ -26,7 +26,7 @@ interface ConceptEnrichmentStudioProps {
 }
 
 export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnrichmentStudioProps) {
-  const router = useRouter();
+  // const router = useRouter(); // Not available in Electron
   const isNewConcept = !conceptId;
 
   // Load existing concept if conceptId provided
@@ -279,7 +279,8 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
     if (isNewConcept) {
       createMutation.mutate(formData, {
         onSuccess: () => {
-          router.push("/?tab=concepts");
+          // router.push("/?tab=concepts"); // TODO: Implement navigation in Electron app
+          window.location.reload(); // Temporary: reload to go back
         },
       });
     } else if (conceptId) {
@@ -296,7 +297,7 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
         },
       );
     }
-  }, [isNewConcept, conceptId, formData, createMutation, updateMutation, router]);
+  }, [isNewConcept, conceptId, formData, createMutation, updateMutation]);
 
   if (conceptLoading) {
     return (
@@ -320,7 +321,7 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
             </span>
           )}
           <button
-            onClick={() => router.back()}
+            onClick={() => window.history.back()} // Use browser history instead of Next.js router
             className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
           >
             Cancel

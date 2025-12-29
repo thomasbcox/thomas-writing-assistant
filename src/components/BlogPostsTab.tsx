@@ -53,7 +53,7 @@ export function BlogPostsTab() {
     });
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!topic.trim()) {
       addToast("Please enter a topic", "error");
       return;
@@ -64,8 +64,8 @@ export function BlogPostsTab() {
       return;
     }
 
-    generateMutation.mutate(
-      {
+    try {
+      const data = await generateMutation.mutateAsync({
         topic: topic.trim(),
         title: title.trim() || undefined,
         conceptIds: Array.from(selectedConceptIds),
@@ -73,17 +73,12 @@ export function BlogPostsTab() {
         tone,
         includeCTA,
         ctaText: ctaText.trim() || undefined,
-      },
-      {
-        onSuccess: (data) => {
-          setGeneratedPost(data);
-          addToast("Blog post generated successfully!", "success");
-        },
-        onError: (error) => {
-          addToast(error.message || "Failed to generate blog post", "error");
-        },
-      },
-    );
+      });
+      setGeneratedPost(data);
+      addToast("Blog post generated successfully!", "success");
+    } catch (error: any) {
+      addToast(error.message || "Failed to generate blog post", "error");
+    }
   };
 
   const handleCopyToClipboard = async (text: string) => {
@@ -157,8 +152,8 @@ export function BlogPostsTab() {
                 <LoadingSpinner />
               ) : (
                 <div className="max-h-64 overflow-y-auto border border-gray-300 rounded-lg p-4 space-y-2">
-                  {concepts && concepts.length > 0 ? (
-                    concepts.map((concept) => (
+                  {concepts && Array.isArray(concepts) && concepts.length > 0 ? (
+                    concepts.map((concept: any) => (
                       <label
                         key={concept.id}
                         className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded cursor-pointer"
