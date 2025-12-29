@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { api } from "~/hooks/useIPC";
+import { ipc } from "~/lib/ipc-client";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
 import { InputDialog } from "./ui/InputDialog";
 
@@ -23,7 +24,10 @@ export function LinkNameManager() {
   const [deletingPair, setDeletingPair] = useState<LinkNamePair | null>(null);
   const [replacingPair, setReplacingPair] = useState<{ pair: LinkNamePair; usageCount: number } | null>(null);
 
-  const { data: linkNames, refetch } = api.linkName.getAll.useQuery();
+  const { data: linkNamesData, refetch } = api.linkName.getAll.useQuery();
+  const linkNames = (linkNamesData && Array.isArray(linkNamesData)) 
+    ? linkNamesData as LinkNamePair[] 
+    : undefined;
 
   const createMutation = api.linkName.create.useMutation({
     onSuccess: () => {
@@ -73,8 +77,10 @@ export function LinkNameManager() {
     }
     
     try {
-      const { data: usage } = await api.linkName.getUsage.useQuery({ id: pair.id });
-      const usageCount = usage?.count ?? 0;
+      const usage = await ipc.linkName.getUsage({ id: pair.id });
+      const usageCount = (usage && typeof usage === "object" && "count" in usage) 
+        ? (usage as { count: number }).count 
+        : 0;
 
       if (usageCount > 0) {
         setReplacingPair({ pair, usageCount });
@@ -114,7 +120,7 @@ export function LinkNameManager() {
     setReplacingPair(null);
   };
 
-  const filteredPairs = (linkNames || []).filter((pair) => {
+  const filteredPairs = (linkNames || []).filter((pair: LinkNamePair) => {
     const searchLower = searchFilter.toLowerCase();
     return (
       pair.forwardName?.toLowerCase().includes(searchLower) ||
@@ -270,9 +276,9 @@ function LinkNameItem({ pair, onUpdate, onDelete }: LinkNameItemProps) {
             <span className="ml-2 text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded">default</span>
           )}
         </div>
-        {usage && typeof usage.count === "number" && (
+        {usage && typeof usage === "object" && "count" in usage && typeof (usage as { count: number }).count === "number" && (
           <span className="text-sm text-gray-500">
-            Used in {usage.count} link{usage.count !== 1 ? "s" : ""}
+            Used in {(usage as { count: number }).count} link{(usage as { count: number }).count !== 1 ? "s" : ""}
           </span>
         )}
       </div>

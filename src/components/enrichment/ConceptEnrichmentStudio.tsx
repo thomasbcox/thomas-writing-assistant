@@ -17,8 +17,8 @@ import { EnrichmentEditorPanel } from "./EnrichmentEditorPanel";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
 import type { ConceptFormData } from "~/server/services/conceptEnricher";
 
-// Use API types for component state
-type ChatMessage = APIChatMessage;
+// Use API types for component state, but ensure id is always present
+type ChatMessage = Omit<APIChatMessage, 'id'> & { id: string };
 
 interface ConceptEnrichmentStudioProps {
   conceptId?: string; // If undefined, this is a new concept from candidate
@@ -69,14 +69,15 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
         source: initialData.source ?? "",
         year: initialData.year ?? "",
       });
-    } else if (existingConcept) {
+    } else if (existingConcept && typeof existingConcept === "object") {
+      const concept = existingConcept as { title: string; description?: string | null; content: string; creator: string; source: string; year: string };
       setFormData({
-        title: existingConcept.title,
-        description: existingConcept.description ?? "",
-        content: existingConcept.content,
-        creator: existingConcept.creator || "",
-        source: existingConcept.source || "",
-        year: existingConcept.year || "",
+        title: concept.title,
+        description: concept.description ?? "",
+        content: concept.content,
+        creator: concept.creator || "",
+        source: concept.source || "",
+        year: concept.year || "",
       });
     }
   }, [existingConcept, initialData, isNewConcept]);
@@ -91,7 +92,7 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
           setMessages([
             {
               id: `msg-${Date.now()}`,
-              role: "assistant",
+              role: "assistant" as const,
               content: result.initialMessage,
               timestamp: new Date(),
               suggestions: result.suggestions,
@@ -116,7 +117,12 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
         updateMutation.mutate(
           {
             id: conceptId,
-            data: formData,
+            title: formData.title,
+            description: formData.description,
+            content: formData.content,
+            creator: formData.creator,
+            source: formData.source,
+            year: formData.year,
           },
           {
             onSuccess: () => {
@@ -149,8 +155,7 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
         switch (action.action) {
           case "fetchMetadata":
             const metadata = await enrichMetadataMutation.mutateAsync({
-              title: formData.title,
-              description: formData.description,
+              conceptId: conceptId || "",
             });
             if (metadata.creator) handleFormChange({ creator: metadata.creator });
             if (metadata.year) handleFormChange({ year: metadata.year });
@@ -169,10 +174,10 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
 
           case "expandDefinition":
             const expanded = await expandDefinitionMutation.mutateAsync({
+              conceptId: conceptId || "",
               currentDefinition: formData.description,
-              conceptTitle: formData.title,
             });
-            handleFormChange({ description: expanded.expanded });
+            handleFormChange({ description: expanded.expandedDefinition });
 
             setMessages((prev) => [
               ...prev,
@@ -188,16 +193,16 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
           default:
             // For other actions, use chat
             const chatResult = await chatMutation.mutateAsync({
+              conceptId: conceptId || "",
               message: `Please ${action.label.toLowerCase()}`,
-              conceptData: formData,
-              chatHistory: messages,
+              history: messages,
             });
             setMessages((prev) => [
               ...prev,
               {
                 id: `msg-${Date.now()}`,
-                role: "assistant",
-                content: chatResult.response,
+                role: "assistant" as const,
+                content: chatResult.content,
                 timestamp: new Date(),
                 suggestions: chatResult.suggestions,
               },
@@ -228,7 +233,7 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
       // Add user message
       const userMessage: ChatMessage = {
         id: `msg-${Date.now()}`,
-        role: "user",
+        role: "user" as const,
         content: message,
         timestamp: new Date(),
       };
@@ -237,15 +242,15 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
 
       try {
         const result = await chatMutation.mutateAsync({
+          conceptId: conceptId || "",
           message,
-          conceptData: formData,
-          chatHistory: [...messages, userMessage],
+          history: [...messages, userMessage],
         });
 
         const assistantMessage: ChatMessage = {
           id: `msg-${Date.now() + 1}`,
-          role: "assistant",
-          content: result.response,
+          role: "assistant" as const,
+          content: result.content,
           timestamp: new Date(),
           suggestions: result.suggestions,
           actions: result.actions,
@@ -263,7 +268,7 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
           ...prev,
           {
             id: `msg-${Date.now() + 1}`,
-            role: "assistant",
+            role: "assistant" as const,
             content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : "Unknown error"}`,
             timestamp: new Date(),
           },
@@ -287,7 +292,12 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
       updateMutation.mutate(
         {
           id: conceptId,
-          data: formData,
+          title: formData.title,
+          description: formData.description,
+          content: formData.content,
+          creator: formData.creator,
+          source: formData.source,
+          year: formData.year,
         },
         {
           onSuccess: () => {

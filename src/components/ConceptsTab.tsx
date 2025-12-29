@@ -50,7 +50,7 @@ export function ConceptsTab() {
   }, []);
 
   const {
-    data: concepts,
+    data: conceptsData,
     isLoading: conceptsLoading,
     error: conceptsError,
     refetch,
@@ -58,6 +58,8 @@ export function ConceptsTab() {
     includeTrash: showTrash,
     search: search || undefined,
   });
+
+  const concepts = (conceptsData && Array.isArray(conceptsData)) ? conceptsData : undefined;
 
   const createMutation = api.concept.create.useMutation({
     onSuccess: () => {
@@ -207,9 +209,9 @@ export function ConceptsTab() {
           />
         )}
 
-        {viewingConcept && (
+        {viewingId && viewingConcept && typeof viewingConcept === "object" && "id" in viewingConcept && (
           <ConceptViewer
-            concept={viewingConcept}
+            concept={viewingConcept as ConceptListItem}
             onClose={() => setViewingId(null)}
           />
         )}

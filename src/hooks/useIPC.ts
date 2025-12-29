@@ -3,8 +3,29 @@
  * Mimics React Query API for easier migration from tRPC
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { ipc } from "~/lib/ipc-client";
+import type { Concept, ConceptListItem } from "~/types/database";
+
+// Type definitions for IPC return values
+export type ConceptListResult = ConceptListItem[];
+export type ConceptResult = Concept;
+export type LinkListResult = unknown[];
+export type LinkNameListResult = unknown[];
+export type CapsuleListResult = unknown[];
+export type CapsuleResult = unknown;
+export type ConfigResult = { content: string };
+export type HealthStatusResult = { status: string; environment?: string };
+export type AISettingsResult = unknown;
+export type ConceptCandidatesResult = Array<{
+  title: string;
+  content: string;
+  summary: string;
+  description?: string;
+}>;
+
+// Global query cache for useUtils
+const queryCache = new Map<string, () => Promise<void>>();
 
 // Query hook (for read operations)
 export function useIPCQuery<T>(
@@ -12,14 +33,31 @@ export function useIPCQuery<T>(
   options?: {
     enabled?: boolean;
     refetchOnMount?: boolean;
+    queryKey?: string; // For useUtils invalidation
+    inputs?: any[]; // Input values to track for change detection (prevents infinite loops)
   },
 ) {
   const [data, setData] = useState<T | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const queryKeyRef = useRef(options?.queryKey);
 
   const enabled = options?.enabled !== false;
   const refetchOnMount = options?.refetchOnMount !== false;
+
+  // Store queryFn in a ref to avoid recreating fetchData on every render
+  // This prevents infinite loops when queryFn is recreated
+  const queryFnRef = useRef(queryFn);
+  
+  // Update ref when queryFn changes, but don't trigger re-renders
+  useEffect(() => {
+    queryFnRef.current = queryFn;
+  }, [queryFn]);
+
+  // Create a stable key from inputs to detect when they actually change
+  // This prevents infinite loops when input objects are recreated with same values
+  const inputsKey = options?.inputs ? JSON.stringify(options.inputs) : null;
+  const prevInputsKeyRef = useRef<string | null>(inputsKey);
 
   const fetchData = useCallback(async () => {
     if (!enabled) {
@@ -31,28 +69,52 @@ export function useIPCQuery<T>(
     setError(null);
 
     try {
-      const result = await queryFn();
+      const result = await queryFnRef.current();
       setData(result);
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
       setIsLoading(false);
     }
-  }, [queryFn, enabled]);
-
-  useEffect(() => {
-    if (enabled && (refetchOnMount || data === null)) {
-      fetchData();
-    } else if (!enabled) {
-      setIsLoading(false);
-    }
-  }, [fetchData, refetchOnMount, data, enabled]);
+  }, [enabled]); // Removed queryFn from deps to prevent loops
 
   const refetch = useCallback(() => {
     if (enabled) {
       return fetchData();
     }
+    return Promise.resolve();
   }, [fetchData, enabled]);
+
+  // Register refetch function for useUtils
+  useEffect(() => {
+    if (queryKeyRef.current) {
+      queryCache.set(queryKeyRef.current, refetch);
+      return () => {
+        queryCache.delete(queryKeyRef.current!);
+      };
+    }
+  }, [refetch]);
+
+  // Track if inputs actually changed (by value, not reference)
+  const inputsChanged = inputsKey !== null && inputsKey !== prevInputsKeyRef.current;
+  
+  // Update the ref when inputs change
+  useEffect(() => {
+    prevInputsKeyRef.current = inputsKey;
+  }, [inputsKey]);
+
+  useEffect(() => {
+    // Only refetch if:
+    // 1. Enabled and (refetchOnMount OR data is null OR inputs changed)
+    // 2. This prevents infinite loops from function reference changes
+    if (enabled && (refetchOnMount || data === null || inputsChanged)) {
+      fetchData();
+    } else if (!enabled) {
+      setIsLoading(false);
+    }
+    // Depend on inputsKey to trigger when input values change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchData, refetchOnMount, enabled, inputsKey, data === null]);
 
   return {
     data,
@@ -75,19 +137,19 @@ export function useIPCMutation<TData, TVariables>(
   const [data, setData] = useState<TData | null>(null);
 
   const mutate = useCallback(
-    async (variables: TVariables) => {
+    async (variables: TVariables, callOptions?: { onSuccess?: (data: TData) => void; onError?: (error: Error) => void }) => {
       setIsLoading(true);
       setError(null);
 
       try {
         const result = await mutationFn(variables);
         setData(result);
-        options?.onSuccess?.(result);
+        callOptions?.onSuccess?.(result) ?? options?.onSuccess?.(result);
         return result;
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
         setError(error);
-        options?.onError?.(error);
+        callOptions?.onError?.(error) ?? options?.onError?.(error);
         throw error;
       } finally {
         setIsLoading(false);
@@ -112,16 +174,60 @@ export function useIPCMutation<TData, TVariables>(
   };
 }
 
+// useUtils hook for query invalidation
+export function useUtils() {
+  return {
+    concept: {
+      list: {
+        invalidate: () => {
+          const refetch = queryCache.get("concept:list");
+          if (refetch) {
+            return refetch();
+          }
+          return Promise.resolve();
+        },
+      },
+    },
+    link: {
+      getByConcept: {
+        invalidate: (input: { conceptId: string }) => {
+          const refetch = queryCache.get(`link:getByConcept:${input.conceptId}`);
+          if (refetch) {
+            return refetch();
+          }
+          return Promise.resolve();
+        },
+      },
+      getAll: {
+        invalidate: () => {
+          const refetch = queryCache.get("link:getAll");
+          if (refetch) {
+            return refetch();
+          }
+          return Promise.resolve();
+        },
+      },
+    },
+  };
+}
+
 // Convenience hooks that match tRPC API structure
 export const api = {
+  useUtils,
   concept: {
     list: {
       useQuery: (input: { includeTrash?: boolean; search?: string }) =>
-        useIPCQuery(() => ipc.concept.list(input)),
+        useIPCQuery<ConceptListResult>(
+          () => ipc.concept.list(input) as Promise<ConceptListResult>,
+          { queryKey: "concept:list", inputs: [input.includeTrash, input.search] },
+        ),
     },
     getById: {
       useQuery: (input: { id: string }, options?: { enabled?: boolean }) =>
-        useIPCQuery(() => ipc.concept.getById(input), options),
+        useIPCQuery<ConceptResult>(
+          () => ipc.concept.getById(input) as Promise<ConceptResult>,
+          { ...options, queryKey: `concept:getById:${input.id}`, inputs: [input.id] },
+        ),
     },
     create: {
       useMutation: (
@@ -185,29 +291,41 @@ export const api = {
     },
     proposeLinks: {
       useQuery: (input: { conceptId: string; maxProposals?: number }) =>
-        useIPCQuery(() => ipc.concept.proposeLinks(input)),
+        useIPCQuery(
+          () => ipc.concept.proposeLinks(input) as Promise<unknown>,
+          { inputs: [input.conceptId, input.maxProposals] },
+        ),
     },
     generateCandidates: {
       useMutation: (
         options?: {
-          onSuccess?: (data: any) => void;
+          onSuccess?: (data: ConceptCandidatesResult) => void;
           onError?: (error: Error) => void;
         },
       ) =>
-        useIPCMutation(ipc.concept.generateCandidates, {
-          onSuccess: options?.onSuccess,
-          onError: options?.onError,
-        }),
+        useIPCMutation<ConceptCandidatesResult, Parameters<typeof ipc.concept.generateCandidates>[0]>(
+          ipc.concept.generateCandidates as (input: Parameters<typeof ipc.concept.generateCandidates>[0]) => Promise<ConceptCandidatesResult>,
+          {
+            onSuccess: options?.onSuccess,
+            onError: options?.onError,
+          },
+        ),
     },
   },
   capsule: {
     list: {
       useQuery: (input?: { summary?: boolean }) =>
-        useIPCQuery(() => ipc.capsule.list(input)),
+        useIPCQuery<CapsuleListResult>(
+          () => ipc.capsule.list(input) as Promise<CapsuleListResult>,
+          { queryKey: "capsule:list", inputs: [input?.summary] },
+        ),
     },
     getById: {
       useQuery: (input: { id: string }) =>
-        useIPCQuery(() => ipc.capsule.getById(input)),
+        useIPCQuery<CapsuleResult>(
+          () => ipc.capsule.getById(input) as Promise<CapsuleResult>,
+          { queryKey: `capsule:getById:${input.id}`, inputs: [input.id] },
+        ),
     },
     create: {
       useMutation: (
@@ -322,11 +440,17 @@ export const api = {
   link: {
     getAll: {
       useQuery: (input?: { summary?: boolean }) =>
-        useIPCQuery(() => ipc.link.getAll(input)),
+        useIPCQuery<LinkListResult>(
+          () => ipc.link.getAll(input) as Promise<LinkListResult>,
+          { queryKey: "link:getAll", inputs: [input?.summary] },
+        ),
     },
     getByConcept: {
       useQuery: (input: { conceptId: string }) =>
-        useIPCQuery(() => ipc.link.getByConcept(input)),
+        useIPCQuery<LinkListResult>(
+          () => ipc.link.getByConcept(input) as Promise<LinkListResult>,
+          { queryKey: `link:getByConcept:${input.conceptId}`, inputs: [input.conceptId] },
+        ),
     },
     create: {
       useMutation: (
@@ -355,7 +479,11 @@ export const api = {
   },
   linkName: {
     getAll: {
-      useQuery: () => useIPCQuery(() => ipc.linkName.getAll()),
+      useQuery: () =>
+        useIPCQuery<LinkNameListResult>(
+          () => ipc.linkName.getAll() as Promise<LinkNameListResult>,
+          { queryKey: "linkName:getAll", inputs: [] },
+        ),
     },
     create: {
       useMutation: (
@@ -395,66 +523,106 @@ export const api = {
     },
     getUsage: {
       useQuery: (input: { id: string }) =>
-        useIPCQuery(() => ipc.linkName.getUsage(input)),
+        useIPCQuery(
+          () => ipc.linkName.getUsage(input) as Promise<unknown>,
+          { inputs: [input.id] },
+        ),
     },
   },
   config: {
     getStyleGuide: {
-      useQuery: () => useIPCQuery(() => ipc.config.getStyleGuide()),
+      useQuery: () =>
+        useIPCQuery<ConfigResult>(
+          () => ipc.config.getStyleGuide() as Promise<ConfigResult>,
+          { queryKey: "config:getStyleGuide", inputs: [] },
+        ),
     },
     getCredo: {
-      useQuery: () => useIPCQuery(() => ipc.config.getCredo()),
+      useQuery: () =>
+        useIPCQuery<ConfigResult>(
+          () => ipc.config.getCredo() as Promise<ConfigResult>,
+          { queryKey: "config:getCredo", inputs: [] },
+        ),
     },
     getConstraints: {
-      useQuery: () => useIPCQuery(() => ipc.config.getConstraints()),
+      useQuery: () =>
+        useIPCQuery<ConfigResult>(
+          () => ipc.config.getConstraints() as Promise<ConfigResult>,
+          { queryKey: "config:getConstraints", inputs: [] },
+        ),
     },
     getStyleGuideRaw: {
-      useQuery: () => useIPCQuery(() => ipc.config.getStyleGuideRaw()),
+      useQuery: () =>
+        useIPCQuery<ConfigResult>(
+          () => ipc.config.getStyleGuideRaw() as Promise<ConfigResult>,
+          { queryKey: "config:getStyleGuideRaw", inputs: [] },
+        ),
     },
     getCredoRaw: {
-      useQuery: () => useIPCQuery(() => ipc.config.getCredoRaw()),
+      useQuery: () =>
+        useIPCQuery<ConfigResult>(
+          () => ipc.config.getCredoRaw() as Promise<ConfigResult>,
+          { queryKey: "config:getCredoRaw", inputs: [] },
+        ),
     },
     getConstraintsRaw: {
-      useQuery: () => useIPCQuery(() => ipc.config.getConstraintsRaw()),
+      useQuery: () =>
+        useIPCQuery<ConfigResult>(
+          () => ipc.config.getConstraintsRaw() as Promise<ConfigResult>,
+          { queryKey: "config:getConstraintsRaw", inputs: [] },
+        ),
     },
     updateStyleGuide: {
       useMutation: (
         options?: {
-          onSuccess?: (data: any) => void;
+          onSuccess?: (data: ConfigResult) => void;
           onError?: (error: Error) => void;
         },
       ) =>
-        useIPCMutation(ipc.config.updateStyleGuide, {
-          onSuccess: options?.onSuccess,
-          onError: options?.onError,
-        }),
+        useIPCMutation<ConfigResult, Parameters<typeof ipc.config.updateStyleGuide>[0]>(
+          ipc.config.updateStyleGuide as (input: Parameters<typeof ipc.config.updateStyleGuide>[0]) => Promise<ConfigResult>,
+          {
+            onSuccess: options?.onSuccess,
+            onError: options?.onError,
+          },
+        ),
     },
     updateCredo: {
       useMutation: (
         options?: {
-          onSuccess?: (data: any) => void;
+          onSuccess?: (data: ConfigResult) => void;
           onError?: (error: Error) => void;
         },
       ) =>
-        useIPCMutation(ipc.config.updateCredo, {
-          onSuccess: options?.onSuccess,
-          onError: options?.onError,
-        }),
+        useIPCMutation<ConfigResult, Parameters<typeof ipc.config.updateCredo>[0]>(
+          ipc.config.updateCredo as (input: Parameters<typeof ipc.config.updateCredo>[0]) => Promise<ConfigResult>,
+          {
+            onSuccess: options?.onSuccess,
+            onError: options?.onError,
+          },
+        ),
     },
     updateConstraints: {
       useMutation: (
         options?: {
-          onSuccess?: (data: any) => void;
+          onSuccess?: (data: ConfigResult) => void;
           onError?: (error: Error) => void;
         },
       ) =>
-        useIPCMutation(ipc.config.updateConstraints, {
-          onSuccess: options?.onSuccess,
-          onError: options?.onError,
-        }),
+        useIPCMutation<ConfigResult, Parameters<typeof ipc.config.updateConstraints>[0]>(
+          ipc.config.updateConstraints as (input: Parameters<typeof ipc.config.updateConstraints>[0]) => Promise<ConfigResult>,
+          {
+            onSuccess: options?.onSuccess,
+            onError: options?.onError,
+          },
+        ),
     },
     getStatus: {
-      useQuery: () => useIPCQuery(() => ipc.config.getStatus()),
+      useQuery: () =>
+        useIPCQuery<HealthStatusResult>(
+          () => ipc.config.getStatus() as Promise<HealthStatusResult>,
+          { queryKey: "config:getStatus", inputs: [] },
+        ),
     },
   },
   pdf: {
@@ -473,22 +641,33 @@ export const api = {
   },
   ai: {
     getSettings: {
-      useQuery: () => useIPCQuery(() => ipc.ai.getSettings()),
+      useQuery: () =>
+        useIPCQuery<AISettingsResult>(
+          () => ipc.ai.getSettings() as Promise<AISettingsResult>,
+          { queryKey: "ai:getSettings", inputs: [] },
+        ),
     },
     updateSettings: {
       useMutation: (
         options?: {
-          onSuccess?: (data: any) => void;
+          onSuccess?: (data: AISettingsResult) => void;
           onError?: (error: Error) => void;
         },
       ) =>
-        useIPCMutation(ipc.ai.updateSettings, {
-          onSuccess: options?.onSuccess,
-          onError: options?.onError,
-        }),
+        useIPCMutation<AISettingsResult, Parameters<typeof ipc.ai.updateSettings>[0]>(
+          ipc.ai.updateSettings as (input: Parameters<typeof ipc.ai.updateSettings>[0]) => Promise<AISettingsResult>,
+          {
+            onSuccess: options?.onSuccess,
+            onError: options?.onError,
+          },
+        ),
     },
     getAvailableModels: {
-      useQuery: () => useIPCQuery(() => ipc.ai.getAvailableModels()),
+      useQuery: () =>
+        useIPCQuery<unknown[]>(
+          () => ipc.ai.getAvailableModels() as Promise<unknown[]>,
+          { queryKey: "ai:getAvailableModels", inputs: [] },
+        ),
     },
   },
 };

@@ -20,58 +20,19 @@ export function useDatabaseToggle(externalToast?: { addToast: (message: string, 
   const internalToast = useToast();
   const addToast = externalToast?.addToast ?? internalToast.addToast;
 
-  // Fetch current database preference
-  const fetchCurrentDatabase = async () => {
-    try {
-      const response = await fetch("/api/database/toggle");
-      if (response.ok) {
-        const data = (await response.json()) as DatabaseStatus;
-        setCurrentDatabase(data.database);
-      }
-    } catch (error) {
-      console.error("Failed to fetch database preference:", error);
-    }
-  };
+  // #region agent log
+  // Debug: Log that useDatabaseToggle initialized without fetch
+  fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDatabaseToggle.ts:22',message:'useDatabaseToggle initialized - no fetch',data:{currentDatabase},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4-H5'})}).catch(()=>{});
+  // #endregion
 
-  // Toggle database
+  // In Electron app, database preference is managed by NODE_ENV
+  // This hook is kept for compatibility but doesn't actually toggle databases
+  // The database is determined by the main process based on NODE_ENV
   const toggleDatabase = async () => {
-    setIsLoading(true);
-    try {
-      const newDatabase: DatabasePreference = currentDatabase === "dev" ? "prod" : "dev";
-      const response = await fetch("/api/database/toggle", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ database: newDatabase }),
-      });
-
-      if (response.ok) {
-        const data = (await response.json()) as DatabaseStatus & { warning?: string };
-        setCurrentDatabase(data.database);
-        addToast(data.message, "success");
-        if (data.warning) {
-          addToast(data.warning, "warning");
-        }
-        // Refresh the page to ensure all data is reloaded from the new database
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
-      } else {
-        const errorData = (await response.json()) as { error?: string };
-        addToast(errorData.error || "Failed to toggle database", "error");
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to toggle database";
-      addToast(errorMessage, "error");
-      console.error("Error toggling database:", error);
-    } finally {
-      setIsLoading(false);
-    }
+    addToast("Database toggle is not available in Electron app. Use NODE_ENV to switch databases.", "info");
   };
 
-  // Fetch on mount
-  useEffect(() => {
-    void fetchCurrentDatabase();
-  }, []);
+  // No need to fetch on mount in Electron - always use the environment's database
 
   return {
     currentDatabase,

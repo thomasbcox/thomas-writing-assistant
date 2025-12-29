@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { api } from "~/hooks/useIPC";
+import { LoadingSpinner } from "~/components/ui/LoadingSpinner";
 
 interface CreateCapsuleFormProps {
   onSuccess?: () => void;
@@ -15,14 +16,61 @@ export function CreateCapsuleForm({ onSuccess }: CreateCapsuleFormProps) {
     cta: "",
     offerMapping: "",
   });
+  
+  // Timer state for long-running operations
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [showTimer, setShowTimer] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const showTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const createCapsuleMutation = api.capsule.create.useMutation({
     onSuccess: () => {
       setFormData({ title: "", promise: "", cta: "", offerMapping: "" });
       setShowForm(false);
+      // Reset timer state
+      setElapsedSeconds(0);
+      setShowTimer(false);
       onSuccess?.();
     },
+    onError: () => {
+      // Reset timer state on error too
+      setElapsedSeconds(0);
+      setShowTimer(false);
+    },
   });
+
+  // Start/stop timer based on loading state
+  useEffect(() => {
+    if (createCapsuleMutation.isLoading) {
+      // Start counting elapsed time
+      const startTime = Date.now();
+      timerRef.current = setInterval(() => {
+        setElapsedSeconds(Math.floor((Date.now() - startTime) / 1000));
+      }, 1000);
+      
+      // Show timer after 5 seconds
+      showTimerRef.current = setTimeout(() => {
+        setShowTimer(true);
+      }, 5000);
+    } else {
+      // Clear timers when not loading
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      if (showTimerRef.current) {
+        clearTimeout(showTimerRef.current);
+        showTimerRef.current = null;
+      }
+      setElapsedSeconds(0);
+      setShowTimer(false);
+    }
+    
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (showTimerRef.current) clearTimeout(showTimerRef.current);
+    };
+  }, [createCapsuleMutation.isLoading]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,13 +151,30 @@ export function CreateCapsuleForm({ onSuccess }: CreateCapsuleFormProps) {
               className="w-full px-5 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          <button
-            type="submit"
-            disabled={createCapsuleMutation.isLoading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            {createCapsuleMutation.isLoading ? "Creating..." : "Create Capsule"}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="submit"
+              disabled={createCapsuleMutation.isLoading}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {createCapsuleMutation.isLoading && <LoadingSpinner size="sm" />}
+              {createCapsuleMutation.isLoading ? "Creating..." : "Create Capsule"}
+            </button>
+            
+            {/* Timer shown after 5 seconds of waiting */}
+            {showTimer && createCapsuleMutation.isLoading && (
+              <span className="text-sm text-gray-500 animate-pulse">
+                {elapsedSeconds}s elapsed...
+              </span>
+            )}
+          </div>
+          
+          {/* Error message */}
+          {createCapsuleMutation.error && (
+            <div className="mt-2 text-sm text-red-600">
+              {createCapsuleMutation.error.message || "Failed to create capsule"}
+            </div>
+          )}
         </form>
       )}
     </div>

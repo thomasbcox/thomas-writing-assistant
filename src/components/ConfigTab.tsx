@@ -94,8 +94,8 @@ function StyleGuideEditor({ onToast }: { onToast: (message: string, type: ToastT
   const [content, setContent] = useState("");
 
   useEffect(() => {
-    if (data) {
-      setContent(data.content);
+    if (data && typeof data === "object" && "content" in data) {
+      setContent((data as { content: string }).content);
     }
   }, [data]);
 
@@ -157,8 +157,8 @@ function CredoEditor({ onToast }: { onToast: (message: string, type: ToastType) 
   const [content, setContent] = useState("");
 
   useEffect(() => {
-    if (data) {
-      setContent(data.content);
+    if (data && typeof data === "object" && "content" in data) {
+      setContent((data as { content: string }).content);
     }
   }, [data]);
 
@@ -220,8 +220,8 @@ function ConstraintsEditor({ onToast }: { onToast: (message: string, type: Toast
   const [content, setContent] = useState("");
 
   useEffect(() => {
-    if (data) {
-      setContent(data.content);
+    if (data && typeof data === "object" && "content" in data) {
+      setContent((data as { content: string }).content);
     }
   }, [data]);
 

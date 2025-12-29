@@ -256,7 +256,7 @@ export function registerConceptHandlers() {
     const parsed = generateCandidatesInputSchema.parse(input);
 
     const { generateConceptCandidates } = await import(
-      "../../src/server/services/conceptProposer"
+      "../../src/server/services/conceptProposer.js"
     );
     const llmClient = getLLMClient();
     const configLoader = getConfigLoader();

@@ -15,6 +15,13 @@ interface HealthStatusCardProps {
 export function HealthStatusCard({ onNavigate }: HealthStatusCardProps) {
   const { data: health, isLoading, error, refetch } = useHealthStatus();
 
+  // #region agent log
+  // Debug: Log health data shape to verify structure
+  if (health) {
+    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HealthStatusCard.tsx:18',message:'health data received',data:{healthKeys:Object.keys(health),checksKeys:health.checks?Object.keys(health.checks):null,status:health.status,checksDatabase:health.checks?.database,checksConfig:health.checks?.config},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1-H2'})}).catch(()=>{});
+  }
+  // #endregion
+
   const getStatusIcon = (status: "healthy" | "degraded" | "unhealthy") => {
     switch (status) {
       case "healthy":
@@ -133,9 +140,18 @@ export function HealthStatusCard({ onNavigate }: HealthStatusCardProps) {
     );
   }
 
+  if (!health) {
+    return (
+      <div className="bg-white border-2 border-gray-300 rounded-xl p-4">
+        <div className="text-center text-gray-600">Loading health status...</div>
+      </div>
+    );
+  }
+
   const overallStatus = health.status;
   const checks = health.checks;
   const issues = health.issues || [];
+  const responseTime = health.responseTime;
 
   return (
     <div className={`bg-white border-2 rounded-xl p-4 ${getStatusBgColor(overallStatus)}`}>
@@ -147,30 +163,16 @@ export function HealthStatusCard({ onNavigate }: HealthStatusCardProps) {
       </div>
 
       <div className="space-y-3">
-        {/* Server Status */}
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <span>{getStatusIcon(checks.server.status)}</span>
-              <span className="text-sm font-bold text-gray-900">Server</span>
-            </div>
-            <div className="text-xs text-gray-600 ml-6">
-              {checks.server.message || "Unknown status"}
-              {typeof checks.server.responseTime === 'number' && checks.server.responseTime > 0 && ` • ${formatResponseTime(checks.server.responseTime)}`}
-            </div>
-          </div>
-        </div>
-
         {/* Database Status */}
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <span>{getStatusIcon(checks.database.status)}</span>
+              <span>{getStatusIcon(checks.database)}</span>
               <span className="text-sm font-bold text-gray-900">Database</span>
             </div>
             <div className="text-xs text-gray-600 ml-6">
-              {checks.database.message || "Unknown status"}
-              {typeof checks.database.responseTime === 'number' && checks.database.responseTime > 0 && ` • ${formatResponseTime(checks.database.responseTime)}`}
+              {checks.database === "healthy" ? "Connected" : checks.database === "degraded" ? "Degraded" : "Unavailable"}
+              {typeof responseTime === 'number' && responseTime > 0 && ` • ${formatResponseTime(responseTime)}`}
             </div>
           </div>
         </div>
@@ -179,40 +181,19 @@ export function HealthStatusCard({ onNavigate }: HealthStatusCardProps) {
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <span>{getStatusIcon(checks.config.status)}</span>
+              <span>{getStatusIcon(checks.config)}</span>
               <span className="text-sm font-bold text-gray-900">Configuration</span>
             </div>
-            {checks.config.issues.length > 0 ? (
-              <div className="ml-6 space-y-1">
-                {checks.config.issues.map((issue, idx) => (
-                  <div key={idx} className="text-xs text-gray-600">
-                    {issue}
-                  </div>
-                ))}
-                {onNavigate && (
-                  <button
-                    onClick={() => onNavigate("config")}
-                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 mt-1 underline"
-                  >
-                    Fix →
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="text-xs text-gray-600 ml-6">All config files loaded</div>
-            )}
-          </div>
-        </div>
-
-        {/* API Status */}
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <span>{getStatusIcon(checks.api.status)}</span>
-              <span className="text-sm font-bold text-gray-900">API Endpoints</span>
-            </div>
             <div className="text-xs text-gray-600 ml-6">
-              {checks.api.message || "Unknown status"}
+              {checks.config === "healthy" ? "All config files loaded" : checks.config === "degraded" ? "Some config files missing" : "Configuration unavailable"}
+              {onNavigate && checks.config !== "healthy" && (
+                <button
+                  onClick={() => onNavigate("config")}
+                  className="ml-2 text-xs font-semibold text-blue-600 hover:text-blue-700 underline"
+                >
+                  Fix →
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -236,7 +217,7 @@ export function HealthStatusCard({ onNavigate }: HealthStatusCardProps) {
 
         {/* Footer */}
         <div className="pt-2 border-t border-gray-300 flex items-center justify-between text-xs text-gray-500">
-          <span>Last checked: {formatUptime(health.timestamp)} ago</span>
+          <span>Last checked: {health.uptime ? formatUptime(health.uptime) : "just now"} ago</span>
           <button
             onClick={() => refetch()}
             className="text-blue-600 hover:text-blue-700 font-semibold underline"

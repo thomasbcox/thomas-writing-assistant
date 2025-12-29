@@ -28,9 +28,9 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const { data: capsules, isLoading: capsulesLoading } = api.capsule.list.useQuery({ summary: true });
 
   const recentConcepts = (concepts && Array.isArray(concepts)) ? concepts.slice(0, 5) : [];
-  const conceptCount = concepts?.length || 0;
-  const linkCount = links?.length || 0;
-  const capsuleCount = capsules?.length || 0;
+  const conceptCount = (concepts && Array.isArray(concepts)) ? concepts.length : 0;
+  const linkCount = (links && Array.isArray(links)) ? links.length : 0;
+  const capsuleCount = (capsules && Array.isArray(capsules)) ? capsules.length : 0;
   const anchorCount = (capsules && Array.isArray(capsules)) 
     ? capsules.reduce((acc: number, cap: any) => acc + (cap.anchors?.length || 0), 0) 
     : 0;
@@ -71,7 +71,9 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   };
 
   // Environment badge shows NODE_ENV (runtime environment)
-  const environment = health?.environment || "development";
+  const environment = (health && typeof health === "object" && "environment" in health) 
+    ? (health as { environment?: string }).environment || "development"
+    : "development";
   const isProd = environment === "production";
 
   return (

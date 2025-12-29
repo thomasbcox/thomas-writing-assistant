@@ -4,31 +4,10 @@
  */
 
 import { useIPCMutation } from "~/hooks/useIPC";
-import type { ConceptFormData } from "~/server/services/conceptEnricher";
+import type { ConceptFormData, AISuggestion, QuickAction, ChatMessage } from "~/server/services/conceptEnricher";
 
-export interface AISuggestion {
-  id: string;
-  field: keyof ConceptFormData;
-  currentValue: string;
-  suggestedValue: string;
-  reason: string;
-  confidence: "high" | "medium" | "low";
-}
-
-export interface QuickAction {
-  id: string;
-  label: string;
-  action: string;
-  description?: string;
-}
-
-export interface ChatMessage {
-  role: "user" | "assistant";
-  content: string;
-  timestamp: Date;
-  suggestions?: AISuggestion[];
-  actions?: QuickAction[];
-}
+// Re-export types from the server service for consistency
+export type { AISuggestion, QuickAction, ChatMessage } from "~/server/services/conceptEnricher";
 
 export interface AnalyzeConceptResponse {
   suggestions: AISuggestion[];

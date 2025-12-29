@@ -17,7 +17,10 @@ export function LinkProposer({ conceptId, conceptTitle }: LinkProposerProps) {
   const { elapsedSeconds, formattedTime, showCounter } = useTimer(isLoading);
   const { toasts, addToast, removeToast } = useToast();
 
-  const { data: linkNamePairs, error: linkNamePairsError } = api.linkName.getAll.useQuery();
+  const { data: linkNamePairsData, error: linkNamePairsError } = api.linkName.getAll.useQuery();
+  const linkNamePairs = (linkNamePairsData && Array.isArray(linkNamePairsData))
+    ? linkNamePairsData as Array<{ id: string; forwardName: string; reverseName: string; isSymmetric: boolean }>
+    : undefined;
   
   if (linkNamePairsError) {
     console.error("Error loading link name pairs:", linkNamePairsError);
@@ -43,21 +46,20 @@ export function LinkProposer({ conceptId, conceptTitle }: LinkProposerProps) {
 
   const { data: proposals, refetch, error: proposalsError } = api.concept.proposeLinks.useQuery(
     { conceptId, maxProposals: 5 },
-    { enabled: false },
   );
 
   const handlePropose = async () => {
     setIsLoading(true);
     try {
-      const result = await refetch();
-      if (result.error) {
-        const errorMessage = result.error.message || "Failed to propose links. Please try again.";
+      await refetch();
+      if (proposalsError) {
+        const errorMessage = proposalsError.message || "Failed to propose links. Please try again.";
         addToast(errorMessage, "error");
-        console.error("Error proposing links:", result.error);
-      } else if (result.data && Array.isArray(result.data) && result.data.length === 0) {
+        console.error("Error proposing links:", proposalsError);
+      } else if (proposals && Array.isArray(proposals) && proposals.length === 0) {
         addToast("No link proposals found for this concept.", "info");
-      } else if (result.data && Array.isArray(result.data) && result.data.length > 0) {
-        addToast(`Found ${result.data.length} link proposal${result.data.length !== 1 ? "s" : ""}`, "success");
+      } else if (proposals && Array.isArray(proposals) && proposals.length > 0) {
+        addToast(`Found ${proposals.length} link proposal${proposals.length !== 1 ? "s" : ""}`, "success");
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to propose links. Please try again.";

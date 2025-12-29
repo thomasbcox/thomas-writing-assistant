@@ -41,18 +41,11 @@ export function LinksTab() {
   // Get all links (for display when no concept is selected)
   const { data: allLinks, error: allLinksError, isLoading: allLinksLoading } = api.link.getAll.useQuery({ summary: false });
   
-  // Log errors for debugging
-  if (allLinksError) {
-    console.error("Error loading all links:", allLinksError);
-  }
-  
-  // Debug logging
-  if (allLinks && Array.isArray(allLinks)) {
-    console.log("All links data:", { count: allLinks.length, links: allLinks });
-  }
-  
   // Get all link name pairs (used in both manual form and display)
-  const { data: linkNamePairs } = api.linkName.getAll.useQuery();
+  const { data: linkNamePairsData } = api.linkName.getAll.useQuery();
+  const linkNamePairs = (linkNamePairsData && Array.isArray(linkNamePairsData)) 
+    ? linkNamePairsData as Array<{ id: string; forwardName: string; reverseName: string; isSymmetric: boolean }>
+    : undefined;
 
   // Get links for selected concept (when a concept is selected)
   const { data: links, error: linksError } = api.link.getByConcept.useQuery(

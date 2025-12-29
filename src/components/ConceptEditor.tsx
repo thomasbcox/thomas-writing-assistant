@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { api } from "~/hooks/useIPC";
+import type { Concept } from "~/types/database";
 
 interface ConceptEditorProps {
   conceptId: string;
@@ -32,14 +33,14 @@ export function ConceptEditor({ conceptId, onClose, onSave }: ConceptEditorProps
   });
 
   useEffect(() => {
-    if (concept) {
+    if (concept && typeof concept === "object" && "title" in concept) {
       setFormData({
-        title: concept.title,
-        description: concept.description ?? "",
-        content: concept.content,
-        creator: concept.creator,
-        source: concept.source,
-        year: concept.year,
+        title: (concept as Concept).title,
+        description: (concept as Concept).description ?? "",
+        content: (concept as Concept).content,
+        creator: (concept as Concept).creator,
+        source: (concept as Concept).source,
+        year: (concept as Concept).year,
       });
     }
   }, [concept]);
