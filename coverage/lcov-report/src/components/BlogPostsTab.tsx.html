@@ -25,28 +25,28 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/64</span>
+                <span class='fraction'>0/65</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/45</span>
+                <span class='fraction'>0/46</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/28</span>
+                <span class='fraction'>0/26</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/59</span>
+                <span class='fraction'>0/60</span>
             </div>
         
             
@@ -426,12 +426,7 @@
 <a name='L361'></a><a href='#L361'>361</a>
 <a name='L362'></a><a href='#L362'>362</a>
 <a name='L363'></a><a href='#L363'>363</a>
-<a name='L364'></a><a href='#L364'>364</a>
-<a name='L365'></a><a href='#L365'>365</a>
-<a name='L366'></a><a href='#L366'>366</a>
-<a name='L367'></a><a href='#L367'>367</a>
-<a name='L368'></a><a href='#L368'>368</a>
-<a name='L369'></a><a href='#L369'>369</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L364'></a><a href='#L364'>364</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -498,9 +493,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -512,10 +505,7 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -854,7 +844,7 @@ export function <span class="fstat-no" title="function not covered" >BlogPostsTa
     });
   };
 &nbsp;
-  const handleGenerate = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >() =</span>&gt; {</span>
+  const handleGenerate = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >async </span>() =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >    if (!topic.trim()) {</span>
 <span class="cstat-no" title="statement not covered" >      addToast("Please enter a topic", "error");</span>
 <span class="cstat-no" title="statement not covered" >      return;</span>
@@ -865,8 +855,8 @@ export function <span class="fstat-no" title="function not covered" >BlogPostsTa
 <span class="cstat-no" title="statement not covered" >      return;</span>
     }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    generateMutation.mutate(</span>
-      {
+<span class="cstat-no" title="statement not covered" >    try {</span>
+      const data = <span class="cstat-no" title="statement not covered" >await generateMutation.mutateAsync({</span>
         topic: topic.trim(),
         title: title.trim() || undefined,
         conceptIds: Array.from(selectedConceptIds),
@@ -874,17 +864,12 @@ export function <span class="fstat-no" title="function not covered" >BlogPostsTa
         tone,
         includeCTA,
         ctaText: ctaText.trim() || undefined,
-      },
-      {
-        onSuccess: <span class="fstat-no" title="function not covered" >(d</span>ata) =&gt; {
-<span class="cstat-no" title="statement not covered" >          setGeneratedPost(data);</span>
-<span class="cstat-no" title="statement not covered" >          addToast("Blog post generated successfully!", "success");</span>
-        },
-        onError: <span class="fstat-no" title="function not covered" >(e</span>rror) =&gt; {
-<span class="cstat-no" title="statement not covered" >          addToast(error.message || "Failed to generate blog post", "error");</span>
-        },
-      },
-    );
+      });
+<span class="cstat-no" title="statement not covered" >      setGeneratedPost(data);</span>
+<span class="cstat-no" title="statement not covered" >      addToast("Blog post generated successfully!", "success");</span>
+    } catch (error: any) {
+<span class="cstat-no" title="statement not covered" >      addToast(error.message || "Failed to generate blog post", "error");</span>
+    }
   };
 &nbsp;
   const handleCopyToClipboard = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >async </span>(text: string) =&gt; {</span>
@@ -958,8 +943,8 @@ export function <span class="fstat-no" title="function not covered" >BlogPostsTa
                 &lt;LoadingSpinner /&gt;
               ) : (
                 &lt;div className="max-h-64 overflow-y-auto border border-gray-300 rounded-lg p-4 space-y-2"&gt;
-                  {concepts &amp;&amp; concepts.length &gt; 0 ? (
-                    concepts.map(<span class="fstat-no" title="function not covered" >(c</span>oncept) =&gt; (
+                  {concepts &amp;&amp; Array.isArray(concepts) &amp;&amp; concepts.length &gt; 0 ? (
+                    concepts.map(<span class="fstat-no" title="function not covered" >(c</span>oncept: any) =&gt; (
 <span class="cstat-no" title="statement not covered" >                      &lt;label</span>
                         key={concept.id}
                         className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded cursor-pointer"
@@ -1174,7 +1159,7 @@ export function <span class="fstat-no" title="function not covered" >BlogPostsTa
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-28T15:58:47.308Z
+                at 2025-12-29T06:24:59.358Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

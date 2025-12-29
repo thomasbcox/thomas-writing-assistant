@@ -25,7 +25,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/106</span>
+                <span class='fraction'>0/105</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/89</span>
+                <span class='fraction'>0/88</span>
             </div>
         
             
@@ -432,7 +432,8 @@
 <a name='L367'></a><a href='#L367'>367</a>
 <a name='L368'></a><a href='#L368'>368</a>
 <a name='L369'></a><a href='#L369'>369</a>
-<a name='L370'></a><a href='#L370'>370</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L370'></a><a href='#L370'>370</a>
+<a name='L371'></a><a href='#L371'>371</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -460,7 +461,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -712,6 +713,7 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -804,7 +806,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">"use client";
 &nbsp;
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+// import { useRouter } from "next/navigation"; // Not available in Electron - using callback prop instead
 import { useConcept, useCreateConcept, useUpdateConcept } from "~/lib/api/concepts";
 import {
   useAnalyzeConcept,
@@ -829,7 +831,7 @@ interface ConceptEnrichmentStudioProps {
 }
 &nbsp;
 export function <span class="fstat-no" title="function not covered" >ConceptEnrichmentStudio(</span>{ conceptId, initialData }: ConceptEnrichmentStudioProps) {
-  const router = <span class="cstat-no" title="statement not covered" >useRouter();</span>
+  // const router = useRouter(); // Not available in Electron
   const isNewConcept = <span class="cstat-no" title="statement not covered" >!conceptId;</span>
 &nbsp;
   // Load existing concept if conceptId provided
@@ -1082,7 +1084,8 @@ export function <span class="fstat-no" title="function not covered" >ConceptEnri
 <span class="cstat-no" title="statement not covered" >    if (isNewConcept) {</span>
 <span class="cstat-no" title="statement not covered" >      createMutation.mutate(formData, {</span>
         onSuccess: <span class="fstat-no" title="function not covered" >() =</span>&gt; {
-<span class="cstat-no" title="statement not covered" >          router.push("/?tab=concepts");</span>
+          // router.push("/?tab=concepts"); // TODO: Implement navigation in Electron app
+<span class="cstat-no" title="statement not covered" >          window.location.reload(); </span>// Temporary: reload to go back
         },
       });
     } else <span class="cstat-no" title="statement not covered" >if (conceptId) {</span>
@@ -1099,7 +1102,7 @@ export function <span class="fstat-no" title="function not covered" >ConceptEnri
         },
       );
     }
-  }, [isNewConcept, conceptId, formData, createMutation, updateMutation, router]);
+  }, [isNewConcept, conceptId, formData, createMutation, updateMutation]);
 &nbsp;
 <span class="cstat-no" title="statement not covered" >  if (conceptLoading) {</span>
 <span class="cstat-no" title="statement not covered" >    return (</span>
@@ -1123,7 +1126,7 @@ export function <span class="fstat-no" title="function not covered" >ConceptEnri
             &lt;/span&gt;
           )}
           &lt;button
-            onClick={<span class="fstat-no" title="function not covered" >() =</span>&gt; <span class="cstat-no" title="statement not covered" >router.back()}</span>
+            onClick={<span class="fstat-no" title="function not covered" >() =</span>&gt; <span class="cstat-no" title="statement not covered" >window.history.back()}</span> // Use browser history instead of Next.js router
             className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
           &gt;
             Cancel
@@ -1177,7 +1180,7 @@ export function <span class="fstat-no" title="function not covered" >ConceptEnri
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-28T15:58:47.308Z
+                at 2025-12-29T06:24:59.358Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

@@ -44,12 +44,159 @@ export function initDb(): BetterSQLite3Database<typeof schema> {
   // Create SQLite connection
   sqlite = new Database(dbPath);
   
+  // Check if database needs schema initialization
+  try {
+    const tables = sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{ name: string }>;
+    const tableNames = tables.map(t => t.name).filter(name => !name.startsWith("_"));
+    
+    if (tableNames.length === 0) {
+      console.log(`📦 Database ${dbPath} is empty. Initializing schema...`);
+      initializeSchema(sqlite);
+      console.log(`✅ Schema initialized successfully`);
+    } else {
+      console.log(`📊 Database ${dbPath} has ${tableNames.length} table(s): ${tableNames.join(", ")}`);
+    }
+  } catch (error) {
+    console.warn(`⚠️  Could not check database tables: ${error}`);
+    // Try to initialize schema anyway
+    try {
+      initializeSchema(sqlite);
+      console.log(`✅ Schema initialized successfully`);
+    } catch (initError) {
+      console.error(`❌ Failed to initialize schema: ${initError}`);
+    }
+  }
+  
   // Create Drizzle instance
   db = drizzle(sqlite, { schema });
 
   console.log(`📊 Database initialized: ${dbPath}`);
   
   return db;
+}
+
+/**
+ * Initialize database schema by creating all required tables
+ */
+function initializeSchema(sqlite: DatabaseType): void {
+  const schemaSQL = `
+    CREATE TABLE IF NOT EXISTS "Concept" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "identifier" TEXT NOT NULL UNIQUE,
+      "title" TEXT NOT NULL,
+      "description" TEXT NOT NULL DEFAULT '',
+      "content" TEXT NOT NULL,
+      "creator" TEXT NOT NULL,
+      "source" TEXT NOT NULL,
+      "year" TEXT NOT NULL,
+      "status" TEXT NOT NULL DEFAULT 'active',
+      "createdAt" INTEGER NOT NULL,
+      "updatedAt" INTEGER NOT NULL,
+      "trashedAt" INTEGER
+    );
+    
+    CREATE INDEX IF NOT EXISTS "Concept_status_idx" ON "Concept"("status");
+    CREATE INDEX IF NOT EXISTS "Concept_identifier_idx" ON "Concept"("identifier");
+    
+    CREATE TABLE IF NOT EXISTS "LinkName" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "forwardName" TEXT NOT NULL UNIQUE,
+      "reverseName" TEXT NOT NULL,
+      "isSymmetric" INTEGER NOT NULL DEFAULT 0,
+      "isDefault" INTEGER NOT NULL DEFAULT 0,
+      "isDeleted" INTEGER NOT NULL DEFAULT 0,
+      "createdAt" INTEGER NOT NULL
+    );
+    
+    CREATE INDEX IF NOT EXISTS "LinkName_forwardName_idx" ON "LinkName"("forwardName");
+    CREATE INDEX IF NOT EXISTS "LinkName_reverseName_idx" ON "LinkName"("reverseName");
+    
+    CREATE TABLE IF NOT EXISTS "Link" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "sourceId" TEXT NOT NULL,
+      "targetId" TEXT NOT NULL,
+      "linkNameId" TEXT NOT NULL,
+      "notes" TEXT,
+      "createdAt" INTEGER NOT NULL,
+      FOREIGN KEY ("sourceId") REFERENCES "Concept"("id") ON DELETE CASCADE,
+      FOREIGN KEY ("targetId") REFERENCES "Concept"("id") ON DELETE CASCADE,
+      FOREIGN KEY ("linkNameId") REFERENCES "LinkName"("id") ON DELETE RESTRICT,
+      UNIQUE("sourceId", "targetId")
+    );
+    
+    CREATE INDEX IF NOT EXISTS "Link_sourceId_idx" ON "Link"("sourceId");
+    CREATE INDEX IF NOT EXISTS "Link_targetId_idx" ON "Link"("targetId");
+    CREATE INDEX IF NOT EXISTS "Link_linkNameId_idx" ON "Link"("linkNameId");
+    
+    CREATE TABLE IF NOT EXISTS "Capsule" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "title" TEXT NOT NULL,
+      "promise" TEXT NOT NULL,
+      "cta" TEXT NOT NULL,
+      "offerMapping" TEXT,
+      "createdAt" INTEGER NOT NULL,
+      "updatedAt" INTEGER NOT NULL
+    );
+    
+    CREATE INDEX IF NOT EXISTS "Capsule_title_idx" ON "Capsule"("title");
+    
+    CREATE TABLE IF NOT EXISTS "Anchor" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "capsuleId" TEXT NOT NULL,
+      "title" TEXT NOT NULL,
+      "content" TEXT NOT NULL,
+      "painPoints" TEXT,
+      "solutionSteps" TEXT,
+      "proof" TEXT,
+      "createdAt" INTEGER NOT NULL,
+      "updatedAt" INTEGER NOT NULL,
+      FOREIGN KEY ("capsuleId") REFERENCES "Capsule"("id") ON DELETE CASCADE
+    );
+    
+    CREATE INDEX IF NOT EXISTS "Anchor_capsuleId_idx" ON "Anchor"("capsuleId");
+    
+    CREATE TABLE IF NOT EXISTS "RepurposedContent" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "anchorId" TEXT NOT NULL,
+      "type" TEXT NOT NULL,
+      "content" TEXT NOT NULL,
+      "guidance" TEXT,
+      "createdAt" INTEGER NOT NULL,
+      FOREIGN KEY ("anchorId") REFERENCES "Anchor"("id") ON DELETE CASCADE
+    );
+    
+    CREATE INDEX IF NOT EXISTS "RepurposedContent_anchorId_idx" ON "RepurposedContent"("anchorId");
+    CREATE INDEX IF NOT EXISTS "RepurposedContent_type_idx" ON "RepurposedContent"("type");
+    
+    CREATE TABLE IF NOT EXISTS "MRUConcept" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "conceptId" TEXT NOT NULL UNIQUE,
+      "lastUsed" INTEGER NOT NULL
+    );
+    
+    CREATE INDEX IF NOT EXISTS "MRUConcept_lastUsed_idx" ON "MRUConcept"("lastUsed");
+  `;
+
+  // Split by semicolon and execute each statement
+  const statements = schemaSQL
+    .split(";")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
+  for (const statement of statements) {
+    try {
+      sqlite.exec(statement);
+    } catch (error) {
+      throw new Error(`Failed to execute schema statement: ${statement.substring(0, 50)}... Error: ${error}`);
+    }
+  }
+  
+  // Verify tables were created
+  const tables = sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{ name: string }>;
+  const tableNames = tables.map(t => t.name).filter(name => !name.startsWith("_"));
+  if (tableNames.length === 0) {
+    throw new Error("Schema initialization failed: No tables were created");
+  }
 }
 
 /**

@@ -25,14 +25,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/6</span>
+                <span class='fraction'>0/2</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/4</span>
+                <span class='fraction'>0/0</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/6</span>
+                <span class='fraction'>0/2</span>
             </div>
         
             
@@ -90,7 +90,17 @@
 <a name='L25'></a><a href='#L25'>25</a>
 <a name='L26'></a><a href='#L26'>26</a>
 <a name='L27'></a><a href='#L27'>27</a>
-<a name='L28'></a><a href='#L28'>28</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -106,44 +116,37 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">/**
- * React Query hooks for blog post generation API
+ * Blog Posts API hooks
+ * TODO: Implement IPC handlers for blog post generation
  */
 &nbsp;
-import { useMutation } from "@tanstack/react-query";
-import type { BlogPost, BlogPostInput } from "~/server/services/blogPostGenerator";
+import { useIPCMutation } from "~/hooks/useIPC";
+import type { BlogPost } from "~/server/services/blogPostGenerator";
 &nbsp;
-// Re-export types for convenience
-export type { BlogPost, BlogPostInput } from "~/server/services/blogPostGenerator";
-&nbsp;
-// Generate blog post
-export function <span class="fstat-no" title="function not covered" >useGenerateBlogPost(</span>) {
-<span class="cstat-no" title="statement not covered" >  return useMutation&lt;BlogPost, Error, BlogPostInput&gt;({</span>
-    mutationFn: <span class="fstat-no" title="function not covered" >async </span>(input) =&gt; {
-      const response = <span class="cstat-no" title="statement not covered" >await fetch("/api/blog-posts/generate", {</span>
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-      });
-<span class="cstat-no" title="statement not covered" >      if (!response.ok) {</span>
-        const error = <span class="cstat-no" title="statement not covered" >await response.json();</span>
-<span class="cstat-no" title="statement not covered" >        throw new Error(error.error || "Failed to generate blog post");</span>
-      }
-<span class="cstat-no" title="statement not covered" >      return response.json();</span>
-    },
-  });
+export interface GenerateBlogPostInput {
+  topic: string;
+  title?: string;
+  conceptIds: string[];
+  targetLength?: "short" | "medium" | "long";
+  tone?: "informative" | "conversational" | "authoritative" | "personal";
+  includeCTA?: boolean;
+  ctaText?: string;
 }
+&nbsp;
+export function <span class="fstat-no" title="function not covered" >useGenerateBlogPost(</span>) {
+  // TODO: Create IPC handler for blog post generation
+  // For now, return a stub that throws an error
+<span class="cstat-no" title="statement not covered" >  return useIPCMutation&lt;BlogPost, GenerateBlogPostInput&gt;(</span>
+<span class="fstat-no" title="function not covered" >    async </span>(input) =&gt; {
+<span class="cstat-no" title="statement not covered" >      throw new Error("Blog post generation not yet implemented via IPC. Please use the service directly.");</span>
+    },
+  );
+}
+&nbsp;
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -151,7 +154,7 @@ export function <span class="fstat-no" title="function not covered" >useGenerate
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-23T03:30:14.355Z
+                at 2025-12-29T06:24:59.358Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

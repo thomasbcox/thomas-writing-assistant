@@ -25,7 +25,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/72</span>
+                <span class='fraction'>0/69</span>
             </div>
         
             
@@ -39,14 +39,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/19</span>
+                <span class='fraction'>0/16</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/72</span>
+                <span class='fraction'>0/69</span>
             </div>
         
             
@@ -369,19 +369,7 @@
 <a name='L304'></a><a href='#L304'>304</a>
 <a name='L305'></a><a href='#L305'>305</a>
 <a name='L306'></a><a href='#L306'>306</a>
-<a name='L307'></a><a href='#L307'>307</a>
-<a name='L308'></a><a href='#L308'>308</a>
-<a name='L309'></a><a href='#L309'>309</a>
-<a name='L310'></a><a href='#L310'>310</a>
-<a name='L311'></a><a href='#L311'>311</a>
-<a name='L312'></a><a href='#L312'>312</a>
-<a name='L313'></a><a href='#L313'>313</a>
-<a name='L314'></a><a href='#L314'>314</a>
-<a name='L315'></a><a href='#L315'>315</a>
-<a name='L316'></a><a href='#L316'>316</a>
-<a name='L317'></a><a href='#L317'>317</a>
-<a name='L318'></a><a href='#L318'>318</a>
-<a name='L319'></a><a href='#L319'>319</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L307'></a><a href='#L307'>307</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -472,19 +460,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -789,25 +765,13 @@ export function <span class="fstat-no" title="function not covered" >PDFUploadSe
 <span class="cstat-no" title="statement not covered" >      setPdfProcessingStatus({ stage: "creating_capsule" });</span>
 &nbsp;
 <span class="cstat-no" title="statement not covered" >      try {</span>
-        const newCapsule = <span class="cstat-no" title="statement not covered" >await new Promise&lt;string&gt;(<span class="fstat-no" title="function not covered" >(r</span>esolve, reject) =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >          createCapsuleMutation.mutate(</span>
-            {
-              title: newCapsuleData.title,
-              promise: newCapsuleData.promise,
-              cta: newCapsuleData.cta,
-              offerMapping: undefined,
-            },
-            {
-              onSuccess: <span class="fstat-no" title="function not covered" >(c</span>apsule) =&gt; {
-<span class="cstat-no" title="statement not covered" >                resolve(capsule.id);</span>
-              },
-              onError: <span class="fstat-no" title="function not covered" >(e</span>rror) =&gt; {
-<span class="cstat-no" title="statement not covered" >                reject(error);</span>
-              },
-            },
-          );
+        const capsule = <span class="cstat-no" title="statement not covered" >await createCapsuleMutation.mutateAsync({</span>
+          title: newCapsuleData.title,
+          promise: newCapsuleData.promise,
+          cta: newCapsuleData.cta,
+          offerMapping: undefined,
         });
-<span class="cstat-no" title="statement not covered" >        capsuleId = newCapsule;</span>
+<span class="cstat-no" title="statement not covered" >        capsuleId = capsule.id;</span>
       } catch (error) {
 <span class="cstat-no" title="statement not covered" >        setPdfProcessingStatus({ stage: "error" });</span>
 <span class="cstat-no" title="statement not covered" >        onError?.(`Error creating capsule: ${error instanceof Error ? error.message : "Unknown error"}`);</span>
@@ -1024,7 +988,7 @@ export function <span class="fstat-no" title="function not covered" >PDFUploadSe
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-28T15:58:47.308Z
+                at 2025-12-29T06:24:59.358Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>
