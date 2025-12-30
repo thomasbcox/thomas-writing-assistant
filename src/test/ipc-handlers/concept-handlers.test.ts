@@ -30,7 +30,7 @@ jest.mock("~/server/services/config.js", () => ({
 
 // Import test utilities (these don't depend on db.js)
 import { createTestDb, migrateTestDb, cleanupTestData } from "../test-utils.js";
-import { concept } from "~/server/schema.js";
+import { concept } from "~/server/schema";
 import { eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { MockLLMClient } from "../mocks/llm-client.js";

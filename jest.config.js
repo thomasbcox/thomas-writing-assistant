@@ -44,7 +44,7 @@ const config = {
       displayName: 'node',
       testEnvironment: 'node',
       roots: ['<rootDir>/src', '<rootDir>/electron'],
-      testMatch: ['<rootDir>/src/test/**/*.test.ts', '!<rootDir>/src/test/components/**'],
+      testMatch: ['<rootDir>/src/test/**/*.test.ts', '!<rootDir>/src/test/components/**', '!<rootDir>/src/test/hooks/**'],
       modulePathIgnorePatterns: ['<rootDir>/dist-electron'],
       transform: {
         '^.+\\.ts$': ['ts-jest', {
@@ -66,6 +66,8 @@ const config = {
       moduleNameMapper: {
         // Handle relative imports with .js extensions (for TypeScript ESM)
         '^(\\.{1,2}/.*)\\.js$': '$1',
+        // Handle ~/ alias with .js extension
+        '^~/(.*)\\.js$': '<rootDir>/src/$1',
         '^~/(.*)$': '<rootDir>/src/$1',
         '^@prisma/client$': '<rootDir>/node_modules/.prisma/client/client.ts',
         '^electron$': '<rootDir>/src/test/__mocks__/electron.ts',
@@ -79,7 +81,7 @@ const config = {
     {
       displayName: 'jsdom',
       testEnvironment: 'jsdom',
-      testMatch: ['<rootDir>/src/test/components/**/*.test.tsx'],
+      testMatch: ['<rootDir>/src/test/components/**/*.test.tsx', '<rootDir>/src/test/hooks/**/*.test.tsx'],
       transform: {
         '^.+\\.tsx?$': ['ts-jest', {
           useESM: true,
@@ -91,6 +93,10 @@ const config = {
         }],
       },
       moduleNameMapper: {
+        // Handle relative imports with .js extensions (for TypeScript ESM)
+        '^(\\.{1,2}/.*)\\.js$': '$1',
+        // Handle ~/ alias with .js extension
+        '^~/(.*)\\.js$': '<rootDir>/src/$1',
         '^~/(.*)$': '<rootDir>/src/$1',
       },
       moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
