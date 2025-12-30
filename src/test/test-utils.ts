@@ -4,19 +4,18 @@
  */
 
 import { drizzle } from "drizzle-orm/better-sqlite3";
-import Database from "better-sqlite3";
+import BetterSqlite3 from "better-sqlite3";
+import type { Database as BetterSqlite3Database } from "better-sqlite3";
 import * as schema from "~/server/schema";
-import type { ReturnType } from "~/server/db";
-
-type Database = ReturnType<typeof import("~/server/db").db>;
+import type { DatabaseInstance } from "~/server/db";
 
 /**
  * Create a test database instance
  * Uses an in-memory database for fast, isolated tests
  */
-export function createTestDb(): Database {
+export function createTestDb(): DatabaseInstance {
   // Use in-memory database for tests (fastest and most isolated)
-  const sqlite = new Database(":memory:");
+  const sqlite = new BetterSqlite3(":memory:");
   const db = drizzle(sqlite, { schema });
   return db;
 }
@@ -25,7 +24,7 @@ export function createTestDb(): Database {
  * Create a test database with a file (for tests that need persistence)
  */
 export function createTestDbFile(testDbPath: string = "./test.db") {
-  const sqlite = new Database(testDbPath);
+  const sqlite = new BetterSqlite3(testDbPath);
   const db = drizzle(sqlite, { schema });
   return { db, dbPath: testDbPath };
 }
@@ -33,7 +32,7 @@ export function createTestDbFile(testDbPath: string = "./test.db") {
 /**
  * Clean up test data from database
  */
-export async function cleanupTestData(db: Database) {
+export async function cleanupTestData(db: DatabaseInstance) {
   // Delete in reverse order of dependencies
   await db.delete(schema.link);
   await db.delete(schema.repurposedContent);
@@ -44,7 +43,7 @@ export async function cleanupTestData(db: Database) {
   await db.delete(schema.mruConcept);
   
   // Recreate default link name pairs after cleanup
-  const sqlite = (db as any).session?.client as Database | undefined;
+  const sqlite = (db as any).session?.client as BetterSqlite3Database | undefined;
   if (sqlite) {
     const defaultPairs = [
       { forward: "references", reverse: "referenced by", symmetric: false },
@@ -77,7 +76,7 @@ export async function cleanupTestData(db: Database) {
  * Run migrations or create tables manually
  * Note: This function is synchronous but marked async for API consistency
  */
-export async function initTestDb(db: Database) {
+export async function initTestDb(db: DatabaseInstance) {
   // For in-memory databases, we need to create the schema
   // We'll use raw SQL to create tables based on Drizzle schema
 
@@ -187,7 +186,7 @@ export async function initTestDb(db: Database) {
 
   // Get the underlying SQLite database from Drizzle
   // Drizzle stores it at db.session.client for better-sqlite3
-  const sqlite = (db as any).session?.client as Database | undefined;
+  const sqlite = (db as any).session?.client as BetterSqlite3Database | undefined;
   
   if (!sqlite) {
     throw new Error("Could not access SQLite database from Drizzle instance. Expected db.session.client to exist.");
@@ -212,7 +211,7 @@ export async function initTestDb(db: Database) {
  * Helper to run migrations on test database
  * This creates tables directly using raw SQL
  */
-export async function migrateTestDb(db: Database) {
+export async function migrateTestDb(db: DatabaseInstance) {
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'test-utils.ts:215',message:'migrateTestDb called',data:{hasDb:!!db,dbType:typeof db},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
   // #endregion
@@ -229,8 +228,8 @@ export async function migrateTestDb(db: Database) {
 /**
  * Close a test database connection
  */
-export function closeTestDb(db: Database) {
-  const sqlite = (db as any).session?.client as Database | undefined;
+export function closeTestDb(db: DatabaseInstance) {
+  const sqlite = (db as any).session?.client as BetterSqlite3Database | undefined;
   if (sqlite && typeof sqlite.close === "function") {
     sqlite.close();
   }

@@ -9,8 +9,8 @@ interface ConceptViewerProps {
     creator: string;
     source: string;
     year: string;
-    createdAt: Date;
-    updatedAt: Date;
+    createdAt: Date | string;
+    updatedAt: Date | string;
   };
   onClose: () => void;
 }

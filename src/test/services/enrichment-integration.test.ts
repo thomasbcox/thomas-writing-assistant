@@ -10,22 +10,21 @@ import {
   cleanupTestData,
   migrateTestDb,
 } from "../test-utils";
-import { MockLLMClient } from "../mocks/llm-client";
-import { MockConfigLoader } from "../mocks/config-loader";
+import { MockLLMClient, type LLMClient } from "../mocks/llm-client";
+import { MockConfigLoader, type ConfigLoader } from "../mocks/config-loader";
 import {
   analyzeConcept,
   enrichMetadata,
   expandDefinition,
   chatEnrichConcept,
 } from "~/server/services/conceptEnricher";
-import type { ReturnType } from "~/server/db";
+import type { DatabaseInstance } from "~/server/db";
+import type { Database as BetterSqlite3Database } from "better-sqlite3";
 import { concept } from "~/server/schema";
 import { createId } from "@paralleldrive/cuid2";
 
-type Database = ReturnType<typeof import("~/server/db").db>;
-
 describe("Enrichment Integration Tests", () => {
-  let testDb: Database;
+  let testDb: DatabaseInstance;
   let mockLLMClient: MockLLMClient;
   let mockConfigLoader: MockConfigLoader;
 
@@ -43,7 +42,7 @@ describe("Enrichment Integration Tests", () => {
   afterAll(async () => {
     await cleanupTestData(testDb);
     // Close SQLite connection
-    const sqlite = (testDb as any).session?.client as Database | undefined;
+    const sqlite = (testDb as any).session?.client as BetterSqlite3Database | undefined;
     if (sqlite && typeof sqlite.close === "function") {
       sqlite.close();
     }
@@ -324,7 +323,7 @@ describe("Enrichment Integration Tests", () => {
 
       expect(result.response).toBeDefined();
       expect(result.suggestions).toBeDefined();
-      expect(result.suggestions.length).toBeGreaterThan(0);
+      expect(result.suggestions?.length).toBeGreaterThan(0);
       expect(result.actions).toBeDefined();
     });
   });

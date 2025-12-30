@@ -62,11 +62,11 @@ export function useHealthStatus() {
           status = issues.some(i => i.includes("Database")) ? "unhealthy" : "degraded";
         }
         
-        const result = {
+        const result: HealthStatus = {
           status,
           checks: {
-            database: dbHealthy ? "healthy" : "unhealthy",
-            config: configHealthy ? "healthy" : "degraded",
+            database: dbHealthy ? "healthy" as const : "unhealthy" as const,
+            config: configHealthy ? "healthy" as const : "degraded" as const,
           },
           issues: issues.length > 0 ? issues : undefined,
           responseTime,
@@ -79,15 +79,16 @@ export function useHealthStatus() {
         
         return result;
       } catch (error) {
-        return {
-          status: "unhealthy",
+        const errorResult: HealthStatus = {
+          status: "unhealthy" as const,
           checks: {
-            database: "unhealthy",
-            config: "unhealthy",
+            database: "unhealthy" as const,
+            config: "unhealthy" as const,
           },
           issues: [error instanceof Error ? error.message : "Unknown error"],
           responseTime: Date.now() - startTime,
         };
+        return errorResult;
       }
     },
     { inputs: [], refetchOnMount: true },

@@ -5,24 +5,62 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { ipc } from "~/lib/ipc-client";
-import type { Concept, ConceptListItem } from "~/types/database";
+import type {
+  SerializedConcept,
+  SerializedLinkName,
+  SerializedLinkWithRelations,
+  SerializedCapsuleWithAnchors,
+  ConceptProposeLinksResult,
+  ConceptGenerateCandidatesResult,
+  AISettings,
+  AISettingsUpdateResult,
+  AIAvailableModelsResult,
+  ConfigRawResult,
+  ConfigStatusResult,
+  LinksByConceptResult,
+  LinkNameUsageResult,
+} from "~/types/electron-api";
 
-// Type definitions for IPC return values
-export type ConceptListResult = ConceptListItem[];
-export type ConceptResult = Concept;
-export type LinkListResult = unknown[];
-export type LinkNameListResult = unknown[];
-export type CapsuleListResult = unknown[];
-export type CapsuleResult = unknown;
-export type ConfigResult = { content: string };
-export type HealthStatusResult = { status: string; environment?: string };
-export type AISettingsResult = unknown;
-export type ConceptCandidatesResult = Array<{
-  title: string;
-  content: string;
-  summary: string;
-  description?: string;
-}>;
+// Re-export types that components need
+export type { 
+  SerializedConcept,
+  SerializedLinkName,
+  SerializedLinkWithRelations,
+  SerializedCapsuleWithAnchors,
+  ConceptProposeLinksResult,
+  ConceptGenerateCandidatesResult,
+  AISettings,
+  AISettingsUpdateResult,
+  AIAvailableModelsResult,
+  ConfigRawResult,
+  ConfigStatusResult,
+  LinksByConceptResult,
+  LinkNameUsageResult,
+};
+
+// Type aliases for backwards compatibility and component usage
+export type ConceptListResult = SerializedConcept[];
+export type ConceptResult = SerializedConcept | null;
+export type LinkListResult = SerializedLinkWithRelations[];
+export type LinkNameListResult = SerializedLinkName[];
+export type CapsuleListResult = SerializedCapsuleWithAnchors[];
+export type CapsuleResult = SerializedCapsuleWithAnchors | null;
+export type ConfigResult = ConfigRawResult;
+export type AISettingsResult = AISettings;
+export type AIGetAvailableModelsResult = AIAvailableModelsResult;
+export type ConceptCandidatesResult = ConceptGenerateCandidatesResult;
+
+// Types that are constructed client-side (not from IPC)
+export interface HealthStatusResult {
+  status: "healthy" | "degraded" | "unhealthy";
+  checks: {
+    database: "healthy" | "degraded" | "unhealthy";
+    config: "healthy" | "degraded" | "unhealthy";
+  };
+  issues?: string[];
+  uptime?: string;
+  responseTime?: number;
+}
 
 // Global query cache for useUtils
 const queryCache = new Map<string, () => Promise<void>>();
@@ -291,8 +329,8 @@ export const api = {
     },
     proposeLinks: {
       useQuery: (input: { conceptId: string; maxProposals?: number }) =>
-        useIPCQuery(
-          () => ipc.concept.proposeLinks(input) as Promise<unknown>,
+        useIPCQuery<ConceptProposeLinksResult>(
+          () => ipc.concept.proposeLinks(input) as Promise<ConceptProposeLinksResult>,
           { inputs: [input.conceptId, input.maxProposals] },
         ),
     },
@@ -446,10 +484,14 @@ export const api = {
         ),
     },
     getByConcept: {
-      useQuery: (input: { conceptId: string }) =>
-        useIPCQuery<LinkListResult>(
-          () => ipc.link.getByConcept(input) as Promise<LinkListResult>,
-          { queryKey: `link:getByConcept:${input.conceptId}`, inputs: [input.conceptId] },
+      useQuery: (input: { conceptId: string }, options?: { enabled?: boolean }) =>
+        useIPCQuery<LinksByConceptResult>(
+          () => ipc.link.getByConcept(input) as Promise<LinksByConceptResult>,
+          { 
+            queryKey: `link:getByConcept:${input.conceptId}`, 
+            inputs: [input.conceptId],
+            enabled: options?.enabled,
+          },
         ),
     },
     create: {
@@ -523,8 +565,8 @@ export const api = {
     },
     getUsage: {
       useQuery: (input: { id: string }) =>
-        useIPCQuery(
-          () => ipc.linkName.getUsage(input) as Promise<unknown>,
+        useIPCQuery<LinkNameUsageResult>(
+          () => ipc.linkName.getUsage(input) as Promise<LinkNameUsageResult>,
           { inputs: [input.id] },
         ),
     },
@@ -664,8 +706,8 @@ export const api = {
     },
     getAvailableModels: {
       useQuery: () =>
-        useIPCQuery<unknown[]>(
-          () => ipc.ai.getAvailableModels() as Promise<unknown[]>,
+        useIPCQuery<AIGetAvailableModelsResult>(
+          () => ipc.ai.getAvailableModels() as Promise<AIGetAvailableModelsResult>,
           { queryKey: "ai:getAvailableModels", inputs: [] },
         ),
     },

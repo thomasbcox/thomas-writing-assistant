@@ -276,9 +276,9 @@ function LinkNameItem({ pair, onUpdate, onDelete }: LinkNameItemProps) {
             <span className="ml-2 text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded">default</span>
           )}
         </div>
-        {usage && typeof usage === "object" && "count" in usage && typeof (usage as { count: number }).count === "number" && (
+        {usage && (
           <span className="text-sm text-gray-500">
-            Used in {(usage as { count: number }).count} link{(usage as { count: number }).count !== 1 ? "s" : ""}
+            Used in {usage.count} link{usage.count !== 1 ? "s" : ""}
           </span>
         )}
       </div>

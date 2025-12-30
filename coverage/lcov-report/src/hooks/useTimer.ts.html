@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/21</span>
+                <span class='fraction'>21/21</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">83.33% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/6</span>
+                <span class='fraction'>5/6</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/5</span>
+                <span class='fraction'>5/5</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/21</span>
+                <span class='fraction'>21/21</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -120,40 +120,40 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">18x</span>
+<span class="cline-any cline-yes">18x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">18x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">7x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">106x</span>
+<span class="cline-any cline-yes">106x</span>
+<span class="cline-any cline-yes">106x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">7x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">18x</span>
+<span class="cline-any cline-yes">18x</span>
+<span class="cline-any cline-yes">17x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">18x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -167,41 +167,41 @@ import { useState, useEffect, useRef } from "react";
  * Hook to track elapsed time for long-running processes
  * Returns elapsed time in seconds and formatted time string
  */
-export function <span class="fstat-no" title="function not covered" >useTimer(</span>isActive: boolean) {
-  const [elapsedSeconds, setElapsedSeconds] = <span class="cstat-no" title="statement not covered" >useState(0);</span>
-  const startTimeRef = <span class="cstat-no" title="statement not covered" >useRef&lt;number | null&gt;(null);</span>
+export function useTimer(isActive: boolean) {
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const startTimeRef = useRef&lt;number | null&gt;(null);
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  useEffect(<span class="fstat-no" title="function not covered" >() =</span>&gt; {</span>
-<span class="cstat-no" title="statement not covered" >    if (isActive) {</span>
-<span class="cstat-no" title="statement not covered" >      startTimeRef.current = Date.now();</span>
-<span class="cstat-no" title="statement not covered" >      setElapsedSeconds(0);</span>
+  useEffect(() =&gt; {
+    if (isActive) {
+      startTimeRef.current = Date.now();
+      setElapsedSeconds(0);
 &nbsp;
-      const interval = <span class="cstat-no" title="statement not covered" >setInterval(<span class="fstat-no" title="function not covered" >() =</span>&gt; {</span>
-<span class="cstat-no" title="statement not covered" >        if (startTimeRef.current) {</span>
-          const elapsed = <span class="cstat-no" title="statement not covered" >Math.floor((Date.now() - startTimeRef.current) / 1000);</span>
-<span class="cstat-no" title="statement not covered" >          setElapsedSeconds(elapsed);</span>
+      const interval = setInterval(() =&gt; {
+        <span class="missing-if-branch" title="else path not taken" >E</span>if (startTimeRef.current) {
+          const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+          setElapsedSeconds(elapsed);
         }
       }, 1000);
 &nbsp;
-<span class="cstat-no" title="statement not covered" >      return <span class="fstat-no" title="function not covered" >() =</span>&gt; {</span>
-<span class="cstat-no" title="statement not covered" >        clearInterval(interval);</span>
+      return () =&gt; {
+        clearInterval(interval);
       };
     } else {
-<span class="cstat-no" title="statement not covered" >      startTimeRef.current = null;</span>
-<span class="cstat-no" title="statement not covered" >      setElapsedSeconds(0);</span>
+      startTimeRef.current = null;
+      setElapsedSeconds(0);
     }
   }, [isActive]);
 &nbsp;
-  const formatTime = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(s</span>econds: number): string =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >    if (seconds &lt; 60) {</span>
-<span class="cstat-no" title="statement not covered" >      return `${seconds}s`;</span>
+  const formatTime = (seconds: number): string =&gt; {
+    if (seconds &lt; 60) {
+      return `${seconds}s`;
     }
-    const mins = <span class="cstat-no" title="statement not covered" >Math.floor(seconds / 60);</span>
-    const secs = <span class="cstat-no" title="statement not covered" >seconds % 60;</span>
-<span class="cstat-no" title="statement not covered" >    return `${mins}m ${secs}s`;</span>
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}m ${secs}s`;
   };
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  return {</span>
+  return {
     elapsedSeconds,
     formattedTime: formatTime(elapsedSeconds),
     showCounter: elapsedSeconds &gt;= 5, // Show counter after 5 seconds
@@ -214,7 +214,7 @@ export function <span class="fstat-no" title="function not covered" >useTimer(</
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-29T06:24:59.358Z
+                at 2025-12-30T04:59:42.868Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

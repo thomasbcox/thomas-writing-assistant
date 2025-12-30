@@ -1,10 +1,27 @@
 import type { LLMClient } from "~/server/services/llm/client";
 
+// Re-export LLMClient type for convenience in tests
+export type { LLMClient };
+
+// Define a type that matches the public interface of LLMClient
+export interface LLMClientInterface {
+  completeJSON(prompt: string, systemPrompt?: string): Promise<Record<string, unknown>>;
+  complete(prompt: string, systemPrompt?: string, maxTokens?: number, temperature?: number): Promise<string>;
+  getProvider(): "openai" | "gemini";
+  getModel(): string;
+  getTemperature(): number;
+  setProvider(provider: "openai" | "gemini"): void;
+  setModel(model: string): void;
+  setTemperature(temperature: number): void;
+}
+
 /**
  * Mock LLM Client for testing
  * Allows setting mock responses for completeJSON and complete methods
+ * 
+ * Use `as ActualLLMClient` when passing to functions that expect LLMClient
  */
-export class MockLLMClient implements Partial<LLMClient> {
+export class MockLLMClient implements LLMClientInterface {
   private mockCompleteJSON?: (
     prompt: string,
     systemPrompt?: string,
@@ -82,5 +99,21 @@ export class MockLLMClient implements Partial<LLMClient> {
   getTemperature(): number {
     return this.mockTemperature;
   }
+
+  /**
+   * Cast this mock to LLMClient type for use in functions that expect LLMClient
+   * This is safe because we implement all the public methods that are used
+   */
+  asLLMClient(): LLMClient {
+    return this as unknown as LLMClient;
+  }
+}
+
+/**
+ * Helper function to create a MockLLMClient that's typed as LLMClient
+ * Use this when you need to pass a mock to a function expecting LLMClient
+ */
+export function createMockLLMClient(): MockLLMClient & { asLLMClient(): LLMClient } {
+  return new MockLLMClient();
 }
 

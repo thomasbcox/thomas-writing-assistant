@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "@jest/globals";
 import { repurposeAnchorContent } from "~/server/services/repurposer";
-import { MockLLMClient } from "../mocks/llm-client";
-import { MockConfigLoader } from "../mocks/config-loader";
+import { MockLLMClient, type LLMClient } from "../mocks/llm-client";
+import { MockConfigLoader, type ConfigLoader } from "../mocks/config-loader";
 
 describe("repurposer", () => {
   let mockLLMClient: MockLLMClient;
@@ -28,8 +28,8 @@ describe("repurposer", () => {
       "Test anchor content",
       ["Pain point 1", "Pain point 2"],
       ["Step 1", "Step 2"],
-      mockLLMClient,
-      mockConfigLoader,
+      mockLLMClient as unknown as LLMClient,
+      mockConfigLoader as unknown as ConfigLoader,
     );
 
     expect(result).toHaveLength(7); // 3 social posts + 1 email + 1 lead magnet + 2 pins
@@ -53,8 +53,8 @@ describe("repurposer", () => {
       "Test content",
       null,
       null,
-      mockLLMClient,
-      mockConfigLoader,
+      mockLLMClient as unknown as LLMClient,
+      mockConfigLoader as unknown as ConfigLoader,
     );
 
     expect(result).toHaveLength(1);
@@ -81,8 +81,8 @@ describe("repurposer", () => {
       "Test content",
       ["Pain 1", "Pain 2"],
       ["Step 1", "Step 2"],
-      mockLLMClient,
-      mockConfigLoader,
+      mockLLMClient as unknown as LLMClient,
+      mockConfigLoader as unknown as ConfigLoader,
     );
 
     expect(capturedPrompt).toContain("Pain 1");
@@ -103,8 +103,8 @@ describe("repurposer", () => {
         "Test content",
         null,
         null,
-        mockLLMClient,
-        mockConfigLoader,
+        mockLLMClient as unknown as LLMClient,
+        mockConfigLoader as unknown as ConfigLoader,
       )
     ).rejects.toThrow("Failed to repurpose content");
   });
@@ -118,8 +118,8 @@ describe("repurposer", () => {
       "Test content",
       null,
       null,
-      mockLLMClient,
-      mockConfigLoader,
+      mockLLMClient as unknown as LLMClient,
+      mockConfigLoader as unknown as ConfigLoader,
     );
 
     expect(result).toHaveLength(0);
@@ -140,8 +140,8 @@ describe("repurposer", () => {
       "Test content",
       null,
       null,
-      mockLLMClient,
-      mockConfigLoader,
+      mockLLMClient as unknown as LLMClient,
+      mockConfigLoader as unknown as ConfigLoader,
     );
 
     expect(result.length).toBe(2);
@@ -163,8 +163,8 @@ describe("repurposer", () => {
       "Test content",
       null,
       null,
-      mockLLMClient,
-      mockConfigLoader,
+      mockLLMClient as unknown as LLMClient,
+      mockConfigLoader as unknown as ConfigLoader,
     );
 
     // Should handle invalid structure gracefully
@@ -188,8 +188,8 @@ describe("repurposer", () => {
       longContent,
       null,
       null,
-      mockLLMClient,
-      mockConfigLoader,
+      mockLLMClient as unknown as LLMClient,
+      mockConfigLoader as unknown as ConfigLoader,
     );
 
     expect(result.length).toBeGreaterThan(0);
@@ -209,8 +209,8 @@ describe("repurposer", () => {
       "Test content",
       [], // Empty array
       [], // Empty array
-      mockLLMClient,
-      mockConfigLoader,
+      mockLLMClient as unknown as LLMClient,
+      mockConfigLoader as unknown as ConfigLoader,
     );
 
     expect(result.length).toBeGreaterThan(0);

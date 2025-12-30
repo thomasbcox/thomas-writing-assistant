@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "@jest/globals";
 import { extractAnchorMetadata } from "~/server/services/anchorExtractor";
-import { MockLLMClient } from "../mocks/llm-client";
-import { MockConfigLoader } from "../mocks/config-loader";
+import { MockLLMClient, type LLMClient } from "../mocks/llm-client";
+import { MockConfigLoader, type ConfigLoader } from "../mocks/config-loader";
 
 describe("anchorExtractor", () => {
   let mockLLMClient: MockLLMClient;
@@ -33,8 +33,8 @@ describe("anchorExtractor", () => {
 
     const result = await extractAnchorMetadata(
       "This is a blog post about building better habits...",
-      mockLLMClient,
-      mockConfigLoader,
+      mockLLMClient as unknown as LLMClient,
+      mockConfigLoader as unknown as ConfigLoader,
     );
 
     expect(result.title).toBe("How to Build Better Habits");
@@ -57,8 +57,8 @@ describe("anchorExtractor", () => {
 
     const result = await extractAnchorMetadata(
       "Test content",
-      mockLLMClient,
-      mockConfigLoader,
+      mockLLMClient as unknown as LLMClient,
+      mockConfigLoader as unknown as ConfigLoader,
     );
 
     expect(result.title).toBe("Test Title");
@@ -79,8 +79,8 @@ describe("anchorExtractor", () => {
 
     const result = await extractAnchorMetadata(
       "Test content",
-      mockLLMClient,
-      mockConfigLoader,
+      mockLLMClient as unknown as LLMClient,
+      mockConfigLoader as unknown as ConfigLoader,
     );
 
     expect(result.title).toBe("Untitled Anchor Post");
@@ -98,8 +98,8 @@ describe("anchorExtractor", () => {
 
     const result = await extractAnchorMetadata(
       "Test content",
-      mockLLMClient,
-      mockConfigLoader,
+      mockLLMClient as unknown as LLMClient,
+      mockConfigLoader as unknown as ConfigLoader,
     );
 
     expect(result.painPoints).toHaveLength(2);
@@ -123,7 +123,7 @@ describe("anchorExtractor", () => {
     mockConfigLoader.setMockSystemPrompt("Test system prompt");
 
     const longContent = "A".repeat(5000); // 5000 characters
-    await extractAnchorMetadata(longContent, mockLLMClient, mockConfigLoader);
+    await extractAnchorMetadata(longContent, mockLLMClient as unknown as LLMClient, mockConfigLoader as unknown as ConfigLoader);
 
     // Should contain truncation notice
     expect(capturedPrompt).toContain("[Content truncated for analysis]");
@@ -146,7 +146,7 @@ describe("anchorExtractor", () => {
     mockConfigLoader.setMockSystemPrompt("Test system prompt");
 
     await expect(
-      extractAnchorMetadata("Test content", mockLLMClient, mockConfigLoader)
+      extractAnchorMetadata("Test content", mockLLMClient as unknown as LLMClient, mockConfigLoader as unknown as ConfigLoader)
     ).rejects.toThrow("Failed to extract anchor metadata");
   });
 
@@ -157,7 +157,7 @@ describe("anchorExtractor", () => {
     mockConfigLoader.setMockSystemPrompt("Test system prompt");
 
     await expect(
-      extractAnchorMetadata("Test content", mockLLMClient, mockConfigLoader)
+      extractAnchorMetadata("Test content", mockLLMClient as unknown as LLMClient, mockConfigLoader as unknown as ConfigLoader)
     ).rejects.toThrow();
   });
 
@@ -173,8 +173,8 @@ describe("anchorExtractor", () => {
 
     const result = await extractAnchorMetadata(
       "Test content",
-      mockLLMClient,
-      mockConfigLoader,
+      mockLLMClient as unknown as LLMClient,
+      mockConfigLoader as unknown as ConfigLoader,
     );
 
     // Should default to empty arrays when not arrays

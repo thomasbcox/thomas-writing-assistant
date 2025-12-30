@@ -8,7 +8,7 @@
 
 import type { LLMClient } from "./services/llm/client";
 import type { ConfigLoader } from "./services/config";
-import type { ReturnType } from "./db";
+import type { DatabaseInstance } from "./db";
 
 // Import singletons for default creation
 import { getLLMClient } from "./services/llm/client";
@@ -18,7 +18,7 @@ import { db } from "./db";
 export interface AppDependencies {
   llmClient: LLMClient;
   configLoader: ConfigLoader;
-  db: ReturnType<typeof import("./db").db>;
+  db: DatabaseInstance;
 }
 
 let dependencies: AppDependencies | null = null;

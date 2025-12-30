@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/16</span>
+                <span class='fraction'>16/16</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">85.71% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/14</span>
+                <span class='fraction'>12/14</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/5</span>
+                <span class='fraction'>5/5</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/15</span>
+                <span class='fraction'>15/15</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -175,39 +175,39 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">31x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">31x</span>
+<span class="cline-any cline-yes">18x</span>
+<span class="cline-any cline-yes">16x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">31x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">29x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">29x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">29x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -249,42 +249,42 @@ interface InputDialogProps {
   onCancel: () =&gt; void;
 }
 &nbsp;
-export function <span class="fstat-no" title="function not covered" >InputDialog(</span>{
+export function InputDialog({
   isOpen,
   title,
   message,
-  placeholder = <span class="branch-0 cbranch-no" title="branch not covered" >"",</span>
-  defaultValue = <span class="branch-0 cbranch-no" title="branch not covered" >"",</span>
-  confirmText = <span class="branch-0 cbranch-no" title="branch not covered" >"Confirm",</span>
-  cancelText = <span class="branch-0 cbranch-no" title="branch not covered" >"Cancel",</span>
+  placeholder = "",
+  defaultValue = "",
+  confirmText = "Confirm",
+  cancelText = "Cancel",
   onConfirm,
   onCancel,
 }: InputDialogProps) {
-  const [value, setValue] = <span class="cstat-no" title="statement not covered" >useState(defaultValue);</span>
+  const [value, setValue] = useState(defaultValue);
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  useEffect(<span class="fstat-no" title="function not covered" >() =</span>&gt; {</span>
-<span class="cstat-no" title="statement not covered" >    if (isOpen) {</span>
-<span class="cstat-no" title="statement not covered" >      setValue(defaultValue);</span>
+  useEffect(() =&gt; {
+    if (isOpen) {
+      setValue(defaultValue);
     }
   }, [isOpen, defaultValue]);
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  if (!isOpen) <span class="cstat-no" title="statement not covered" >return null;</span></span>
+  if (!isOpen) return null;
 &nbsp;
-  const handleConfirm = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >() =</span>&gt; {</span>
-<span class="cstat-no" title="statement not covered" >    if (value.trim()) {</span>
-<span class="cstat-no" title="statement not covered" >      onConfirm(value.trim());</span>
+  const handleConfirm = () =&gt; {
+    <span class="missing-if-branch" title="else path not taken" >E</span>if (value.trim()) {
+      onConfirm(value.trim());
     }
   };
 &nbsp;
-  const handleKeyPress = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(e</span>: React.KeyboardEvent) =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >    if (e.key === "Enter") {</span>
-<span class="cstat-no" title="statement not covered" >      handleConfirm();</span>
-    } else <span class="cstat-no" title="statement not covered" >if (e.key === "Escape") {</span>
-<span class="cstat-no" title="statement not covered" >      onCancel();</span>
+  const handleKeyPress = (e: React.KeyboardEvent) =&gt; {
+    if (e.key === "Enter") {
+      handleConfirm();
+    } else <span class="missing-if-branch" title="else path not taken" >E</span>if (e.key === "Escape") {
+      onCancel();
     }
   };
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  return (</span>
+  return (
     &lt;div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"&gt;
       &lt;div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4"&gt;
         &lt;h3 className="text-lg font-semibold text-gray-900 mb-2"&gt;{title}&lt;/h3&gt;
@@ -292,7 +292,7 @@ export function <span class="fstat-no" title="function not covered" >InputDialog
         &lt;input
           type="text"
           value={value}
-          onChange={<span class="fstat-no" title="function not covered" >(e</span>) =&gt; <span class="cstat-no" title="statement not covered" >setValue(e.target.value)}</span>
+          onChange={(e) =&gt; setValue(e.target.value)}
           onKeyDown={handleKeyPress}
           placeholder={placeholder}
           className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base mb-4"
@@ -325,7 +325,7 @@ export function <span class="fstat-no" title="function not covered" >InputDialog
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-29T06:24:59.358Z
+                at 2025-12-30T04:59:42.868Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

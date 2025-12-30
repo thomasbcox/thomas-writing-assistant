@@ -9,18 +9,17 @@ import { jest } from "@jest/globals";
 import type { AppDependencies } from "~/server/dependencies";
 import type { LLMClient } from "~/server/services/llm/client";
 import type { ConfigLoader } from "~/server/services/config";
-import type { ReturnType } from "~/server/db";
 
 /**
  * Create mock LLM client for testing
  */
 export function createMockLLMClient(overrides?: Partial<LLMClient>): LLMClient {
   return {
-    complete: jest.fn().mockResolvedValue("mock response"),
-    completeJSON: jest.fn().mockResolvedValue({}),
-    getProvider: jest.fn().mockReturnValue("openai"),
-    getModel: jest.fn().mockReturnValue("gpt-4o-mini"),
-    getTemperature: jest.fn().mockReturnValue(0.7),
+    complete: jest.fn<() => Promise<string>>().mockResolvedValue("mock response"),
+    completeJSON: jest.fn<() => Promise<Record<string, unknown>>>().mockResolvedValue({}),
+    getProvider: jest.fn<() => "openai" | "gemini">().mockReturnValue("openai"),
+    getModel: jest.fn<() => string>().mockReturnValue("gpt-4o-mini"),
+    getTemperature: jest.fn<() => number>().mockReturnValue(0.7),
     setProvider: jest.fn(),
     setModel: jest.fn(),
     setTemperature: jest.fn(),

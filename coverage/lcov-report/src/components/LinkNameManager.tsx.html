@@ -25,14 +25,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/87</span>
+                <span class='fraction'>0/88</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/94</span>
+                <span class='fraction'>0/103</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/87</span>
+                <span class='fraction'>0/88</span>
             </div>
         
             
@@ -502,7 +502,13 @@
 <a name='L437'></a><a href='#L437'>437</a>
 <a name='L438'></a><a href='#L438'>438</a>
 <a name='L439'></a><a href='#L439'>439</a>
-<a name='L440'></a><a href='#L440'>440</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L440'></a><a href='#L440'>440</a>
+<a name='L441'></a><a href='#L441'>441</a>
+<a name='L442'></a><a href='#L442'>442</a>
+<a name='L443'></a><a href='#L443'>443</a>
+<a name='L444'></a><a href='#L444'>444</a>
+<a name='L445'></a><a href='#L445'>445</a>
+<a name='L446'></a><a href='#L446'>446</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -519,25 +525,13 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -550,6 +544,22 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -579,6 +589,8 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -945,6 +957,7 @@
 &nbsp;
 import { useState } from "react";
 import { api } from "~/hooks/useIPC";
+import { ipc } from "~/lib/ipc-client";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
 import { InputDialog } from "./ui/InputDialog";
 &nbsp;
@@ -966,7 +979,10 @@ export function <span class="fstat-no" title="function not covered" >LinkNameMan
   const [deletingPair, setDeletingPair] = <span class="cstat-no" title="statement not covered" >useState&lt;LinkNamePair | null&gt;(null);</span>
   const [replacingPair, setReplacingPair] = <span class="cstat-no" title="statement not covered" >useState&lt;{ pair: LinkNamePair; usageCount: number } | null&gt;(null);</span>
 &nbsp;
-  const { data: linkNames, refetch } = <span class="cstat-no" title="statement not covered" >api.linkName.getAll.useQuery();</span>
+  const { data: linkNamesData, refetch } = <span class="cstat-no" title="statement not covered" >api.linkName.getAll.useQuery();</span>
+  const linkNames = <span class="cstat-no" title="statement not covered" >(linkNamesData &amp;&amp; Array.isArray(linkNamesData)) </span>
+    ? linkNamesData as LinkNamePair[] 
+    : undefined;
 &nbsp;
   const createMutation = <span class="cstat-no" title="statement not covered" >api.linkName.create.useMutation({</span>
     onSuccess: <span class="fstat-no" title="function not covered" >() =</span>&gt; {
@@ -1016,8 +1032,10 @@ export function <span class="fstat-no" title="function not covered" >LinkNameMan
     }
     
 <span class="cstat-no" title="statement not covered" >    try {</span>
-      const { data: usage } = <span class="cstat-no" title="statement not covered" >await api.linkName.getUsage.useQuery({ id: pair.id });</span>
-      const usageCount = <span class="cstat-no" title="statement not covered" >usage?.count ?? 0;</span>
+      const usage = <span class="cstat-no" title="statement not covered" >await ipc.linkName.getUsage({ id: pair.id });</span>
+      const usageCount = <span class="cstat-no" title="statement not covered" >(usage &amp;&amp; typeof usage === "object" &amp;&amp; "count" in usage) </span>
+        ? (usage as { count: number }).count 
+        : 0;
 &nbsp;
 <span class="cstat-no" title="statement not covered" >      if (usageCount &gt; 0) {</span>
 <span class="cstat-no" title="statement not covered" >        setReplacingPair({ pair, usageCount });</span>
@@ -1057,7 +1075,7 @@ export function <span class="fstat-no" title="function not covered" >LinkNameMan
 <span class="cstat-no" title="statement not covered" >    setReplacingPair(null);</span>
   };
 &nbsp;
-  const filteredPairs = <span class="cstat-no" title="statement not covered" >(linkNames || []).filter(<span class="fstat-no" title="function not covered" >(p</span>air) =&gt; {</span>
+  const filteredPairs = <span class="cstat-no" title="statement not covered" >(linkNames || []).filter(<span class="fstat-no" title="function not covered" >(p</span>air: LinkNamePair) =&gt; {</span>
     const searchLower = <span class="cstat-no" title="statement not covered" >searchFilter.toLowerCase();</span>
 <span class="cstat-no" title="statement not covered" >    return (</span>
       pair.forwardName?.toLowerCase().includes(searchLower) ||
@@ -1213,9 +1231,9 @@ function <span class="fstat-no" title="function not covered" >LinkNameItem(</spa
             &lt;span className="ml-2 text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded"&gt;default&lt;/span&gt;
           )}
         &lt;/div&gt;
-        {usage &amp;&amp; typeof usage.count === "number" &amp;&amp; (
+        {usage &amp;&amp; typeof usage === "object" &amp;&amp; "count" in usage &amp;&amp; typeof (usage as { count: number }).count === "number" &amp;&amp; (
           &lt;span className="text-sm text-gray-500"&gt;
-            Used in {usage.count} link{usage.count !== 1 ? "s" : ""}
+            Used in {(usage as { count: number }).count} link{(usage as { count: number }).count !== 1 ? "s" : ""}
           &lt;/span&gt;
         )}
       &lt;/div&gt;
@@ -1387,7 +1405,7 @@ function <span class="fstat-no" title="function not covered" >LinkNameReplaceDia
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-29T06:24:59.358Z
+                at 2025-12-30T04:59:42.868Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

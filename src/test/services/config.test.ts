@@ -63,8 +63,8 @@ describe("ConfigLoader", () => {
     mockExistsSync.mockReturnValue(true);
 
     // Mock fs.readFileSync to return YAML content
-    mockReadFileSync.mockImplementation((filePath: string | Buffer) => {
-      const pathStr = filePath.toString();
+    mockReadFileSync.mockImplementation((filePath) => {
+      const pathStr = String(filePath);
       if (pathStr.includes("style-guide") || pathStr.includes("style_guide")) {
         return "voice:\n  tone: professional\nwriting_style:\n  format: structured";
       }
@@ -229,8 +229,8 @@ describe("ConfigLoader", () => {
       mockReadFileSync.mockReset();
       
       // Set up mocks before creating loader - style guide doesn't exist, others do
-      mockExistsSync.mockImplementation((path: string | Buffer) => {
-        const pathStr = path.toString();
+      mockExistsSync.mockImplementation((path) => {
+        const pathStr = String(path);
         return !pathStr.includes("style-guide") && !pathStr.includes("style_guide");
       });
       mockReadFileSync.mockReturnValue(""); // Won't be called for style guide, but set for others
@@ -254,8 +254,8 @@ describe("ConfigLoader", () => {
       mockReadFileSync.mockReset();
       
       // Set up mocks before creating loader - credo doesn't exist, others do
-      mockExistsSync.mockImplementation((path: string | Buffer) => {
-        const pathStr = path.toString();
+      mockExistsSync.mockImplementation((path) => {
+        const pathStr = String(path);
         return !pathStr.includes("credo");
       });
       mockReadFileSync.mockReturnValue("");
@@ -279,8 +279,8 @@ describe("ConfigLoader", () => {
       mockReadFileSync.mockReset();
       
       // Set up mocks before creating loader - constraints doesn't exist, others do
-      mockExistsSync.mockImplementation((path: string | Buffer) => {
-        const pathStr = path.toString();
+      mockExistsSync.mockImplementation((path) => {
+        const pathStr = String(path);
         return !pathStr.includes("constraints");
       });
       mockReadFileSync.mockReturnValue("");

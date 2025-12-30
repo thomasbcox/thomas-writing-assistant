@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "@jest/globals";
 import { generateConceptCandidates } from "~/server/services/conceptProposer";
-import { MockLLMClient } from "../mocks/llm-client";
-import { MockConfigLoader } from "../mocks/config-loader";
+import { MockLLMClient, type LLMClient } from "../mocks/llm-client";
+import { MockConfigLoader, type ConfigLoader } from "../mocks/config-loader";
 
 describe("conceptProposer", () => {
   let mockLLMClient: MockLLMClient;
@@ -33,8 +33,8 @@ describe("conceptProposer", () => {
       5,
       undefined,
       undefined,
-      mockLLMClient,
-      mockConfigLoader,
+      mockLLMClient as unknown as LLMClient,
+      mockConfigLoader as unknown as ConfigLoader,
     );
 
     expect(result).toHaveLength(1);
@@ -53,8 +53,8 @@ describe("conceptProposer", () => {
       5,
       undefined,
       undefined,
-      mockLLMClient,
-      mockConfigLoader,
+      mockLLMClient as unknown as LLMClient,
+      mockConfigLoader as unknown as ConfigLoader,
     );
 
     expect(result).toHaveLength(0);
@@ -90,8 +90,8 @@ describe("conceptProposer", () => {
       5,
       undefined,
       undefined,
-      mockLLMClient,
-      mockConfigLoader,
+      mockLLMClient as unknown as LLMClient,
+      mockConfigLoader as unknown as ConfigLoader,
     );
 
     // The filter checks for typeof title === "string" && typeof content === "string"
@@ -115,8 +115,8 @@ describe("conceptProposer", () => {
       5,
       undefined,
       undefined,
-      mockLLMClient,
-      mockConfigLoader,
+      mockLLMClient as unknown as LLMClient,
+      mockConfigLoader as unknown as ConfigLoader,
     );
 
     expect(result).toHaveLength(0);
@@ -143,8 +143,8 @@ describe("conceptProposer", () => {
       5,
       undefined,
       undefined,
-      mockLLMClient,
-      mockConfigLoader,
+      mockLLMClient as unknown as LLMClient,
+      mockConfigLoader as unknown as ConfigLoader,
     );
 
     expect(result).toHaveLength(1);
@@ -176,8 +176,8 @@ describe("conceptProposer", () => {
       5,
       undefined,
       undefined,
-      mockLLMClient,
-      mockConfigLoader,
+      mockLLMClient as unknown as LLMClient,
+      mockConfigLoader as unknown as ConfigLoader,
     );
 
     expect(capturedPrompt).toContain("Focus on technical concepts");

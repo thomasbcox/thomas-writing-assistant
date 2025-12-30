@@ -76,8 +76,8 @@ describe("conceptEnricher", () => {
 
       const result = await analyzeConcept(
         mockConceptData,
-        mockLLMClient,
-        mockConfigLoader,
+        mockLLMClient as unknown as LLMClient,
+        mockConfigLoader as unknown as ConfigLoader,
       );
 
       expect(result.suggestions).toBeDefined();
@@ -99,8 +99,8 @@ describe("conceptEnricher", () => {
 
       const result = await analyzeConcept(
         mockConceptData,
-        mockLLMClient,
-        mockConfigLoader,
+        mockLLMClient as unknown as LLMClient,
+        mockConfigLoader as unknown as ConfigLoader,
       );
 
       expect(result.suggestions).toEqual([]);
@@ -125,8 +125,8 @@ describe("conceptEnricher", () => {
       const result = await enrichMetadata(
         "Test Concept",
         "Test description",
-        mockLLMClient,
-        mockConfigLoader,
+        mockLLMClient as unknown as LLMClient,
+        mockConfigLoader as unknown as ConfigLoader,
       );
 
       expect(result.creator).toBe("Test Author");
@@ -147,8 +147,8 @@ describe("conceptEnricher", () => {
       const result = await enrichMetadata(
         "Test Concept",
         "Test description",
-        mockLLMClient,
-        mockConfigLoader,
+        mockLLMClient as unknown as LLMClient,
+        mockConfigLoader as unknown as ConfigLoader,
       );
 
       expect(result.creator).toBe("Test Author");
@@ -168,8 +168,8 @@ describe("conceptEnricher", () => {
       const result = await expandDefinition(
         "Short definition",
         "Test Concept",
-        mockLLMClient,
-        mockConfigLoader,
+        mockLLMClient as unknown as LLMClient,
+        mockConfigLoader as unknown as ConfigLoader,
       );
 
       expect(result).toBe(mockResponse.trim());
@@ -184,8 +184,8 @@ describe("conceptEnricher", () => {
       const result = await expandDefinition(
         "Short definition",
         "Test Concept",
-        mockLLMClient,
-        mockConfigLoader,
+        mockLLMClient as unknown as LLMClient,
+        mockConfigLoader as unknown as ConfigLoader,
       );
 
       expect(result).toBe("");
@@ -224,8 +224,8 @@ describe("conceptEnricher", () => {
         "Improve the concept",
         mockConceptData,
         [{ id: "1", role: "user", content: "How can I improve this?", timestamp: new Date() }],
-        mockLLMClient,
-        mockConfigLoader,
+        mockLLMClient as unknown as LLMClient,
+        mockConfigLoader as unknown as ConfigLoader,
       );
 
       expect(result.response).toBeDefined();
@@ -248,8 +248,8 @@ describe("conceptEnricher", () => {
         "Help me understand this concept",
         mockConceptData,
         [],
-        mockLLMClient,
-        mockConfigLoader,
+        mockLLMClient as unknown as LLMClient,
+        mockConfigLoader as unknown as ConfigLoader,
       );
 
       expect(result.response).toBeDefined();
@@ -265,7 +265,7 @@ describe("conceptEnricher", () => {
       );
 
       await expect(
-        analyzeConcept(mockConceptData, mockLLMClient, mockConfigLoader),
+        analyzeConcept(mockConceptData, mockLLMClient as unknown as LLMClient, mockConfigLoader as unknown as ConfigLoader),
       ).rejects.toThrow();
     });
 
@@ -277,7 +277,7 @@ describe("conceptEnricher", () => {
       );
 
       await expect(
-        enrichMetadata("Test", "Desc", mockLLMClient, mockConfigLoader),
+        enrichMetadata("Test", "Desc", mockLLMClient as unknown as LLMClient, mockConfigLoader as unknown as ConfigLoader),
       ).rejects.toThrow();
     });
 
@@ -289,7 +289,7 @@ describe("conceptEnricher", () => {
       );
 
       await expect(
-        expandDefinition("Def", "Title", mockLLMClient, mockConfigLoader),
+        expandDefinition("Def", "Title", mockLLMClient as unknown as LLMClient, mockConfigLoader as unknown as ConfigLoader),
       ).rejects.toThrow();
     });
   });

@@ -13,27 +13,29 @@
 
 import { describe, it, expect, beforeEach } from "@jest/globals";
 import { repurposeAnchorContent } from "~/server/services/repurposer";
-import { MockLLMClient } from "../mocks/llm-client";
-import { MockConfigLoader } from "../mocks/config-loader";
-import Database from "better-sqlite3";
+import { MockLLMClient, type LLMClient } from "../mocks/llm-client";
+import { MockConfigLoader, type ConfigLoader } from "../mocks/config-loader";
+import BetterSqlite3 from "better-sqlite3";
+import type { Database as BetterSqlite3Database } from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "~/server/schema";
 import { anchor, repurposedContent } from "~/server/schema";
 import { eq } from "drizzle-orm";
 import { safeJsonParseArray } from "~/lib/json-utils";
+import type { DatabaseInstance } from "~/server/db";
 
 describe("repurposer PROD failure reproduction", () => {
   let mockLLMClient: MockLLMClient;
   let mockConfigLoader: MockConfigLoader;
-  let testDb: Database.Database;
-  let db: ReturnType<typeof drizzle>;
+  let testDb: BetterSqlite3Database;
+  let db: DatabaseInstance;
 
   beforeEach(() => {
     mockLLMClient = new MockLLMClient();
     mockConfigLoader = new MockConfigLoader();
     
     // Create in-memory database to simulate PROD
-    testDb = new Database(":memory:");
+    testDb = new BetterSqlite3(":memory:");
     db = drizzle(testDb, { schema });
     
     // Initialize schema
@@ -118,8 +120,8 @@ describe("repurposer PROD failure reproduction", () => {
       foundAnchor!.content,
       Array.isArray(painPoints) ? painPoints : null,
       Array.isArray(solutionSteps) ? solutionSteps : null,
-      mockLLMClient,
-      mockConfigLoader,
+      mockLLMClient as unknown as LLMClient,
+      mockConfigLoader as unknown as ConfigLoader,
     );
 
     expect(repurposed.length).toBeGreaterThan(0);
@@ -178,8 +180,8 @@ describe("repurposer PROD failure reproduction", () => {
       foundAnchor!.content,
       Array.isArray(painPoints) && painPoints.length > 0 ? painPoints : null,
       Array.isArray(solutionSteps) && solutionSteps.length > 0 ? solutionSteps : null,
-      mockLLMClient,
-      mockConfigLoader,
+      mockLLMClient as unknown as LLMClient,
+      mockConfigLoader as unknown as ConfigLoader,
     );
 
     expect(repurposed.length).toBeGreaterThan(0);
@@ -226,8 +228,8 @@ describe("repurposer PROD failure reproduction", () => {
       foundAnchor!.content,
       null,
       null,
-      mockLLMClient,
-      mockConfigLoader,
+      mockLLMClient as unknown as LLMClient,
+      mockConfigLoader as unknown as ConfigLoader,
     );
 
     // Test that we can save to the database

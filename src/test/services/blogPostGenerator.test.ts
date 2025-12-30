@@ -5,13 +5,14 @@
 import { describe, it, expect, jest, beforeEach } from "@jest/globals";
 import { generateBlogPost } from "~/server/services/blogPostGenerator";
 import type { ConceptReference } from "~/server/services/blogPostGenerator";
+import type { ConfigLoader } from "~/server/services/config";
 
 // Mock dependencies
 const mockLLMClient = {
   getProvider: jest.fn(() => "openai"),
   getModel: jest.fn(() => "gpt-4o-mini"),
   getTemperature: jest.fn(() => 0.7),
-  completeJSON: jest.fn(),
+  completeJSON: jest.fn<(prompt: string, systemPrompt?: string) => Promise<Record<string, unknown>>>(),
 };
 
 const mockConfigLoader = {
@@ -27,7 +28,7 @@ jest.mock("~/server/services/llm/client", () => ({
 }));
 
 jest.mock("~/server/services/config", () => ({
-  getConfigLoader: jest.fn(() => mockConfigLoader),
+  getConfigLoader: jest.fn(() => mockConfigLoader as unknown as ConfigLoader),
 }));
 
 jest.mock("~/lib/logger", () => ({

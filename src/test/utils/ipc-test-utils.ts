@@ -3,11 +3,10 @@
  * Provides helpers for testing IPC handlers in isolation
  */
 
+import { jest, expect } from "@jest/globals";
 import { ipcMain } from "electron";
 import { createTestDb, migrateTestDb } from "../test-utils";
-import type { ReturnType } from "~/server/db";
-
-type Database = ReturnType<typeof import("~/server/db").db>;
+import type { DatabaseInstance } from "~/server/db";
 
 /**
  * Setup IPC handler testing environment

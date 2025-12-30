@@ -145,8 +145,7 @@ describe("Data Validation", () => {
         id: "1",
         sourceId: "same-1",
         targetId: "same-1",
-        forwardName: "references",
-        reverseName: "referenced by",
+        linkNameId: "ln-1",
         notes: null,
         createdAt: new Date(),
       };

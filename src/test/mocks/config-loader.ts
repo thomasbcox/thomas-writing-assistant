@@ -1,11 +1,23 @@
 import type { ConfigLoader } from "~/server/services/config";
 import type { StyleGuide, Credo, Constraints } from "~/server/services/config";
 
+// Re-export ConfigLoader type for convenience in tests
+export type { ConfigLoader };
+
+// Define an interface for the public methods we need to mock
+interface ConfigLoaderInterface {
+  getSystemPrompt(context?: string): string;
+  getStyleGuide(): StyleGuide;
+  getCredo(): Credo;
+  getConstraints(): Constraints;
+  reloadConfigs?(): void;
+}
+
 /**
  * Mock Config Loader for testing
  * Allows setting mock config values
  */
-export class MockConfigLoader implements Partial<ConfigLoader> {
+export class MockConfigLoader implements ConfigLoaderInterface {
   private mockSystemPrompt?: string;
   private mockStyleGuide: StyleGuide = {};
   private mockCredo: Credo = {};
@@ -44,6 +56,10 @@ export class MockConfigLoader implements Partial<ConfigLoader> {
 
   getConstraints(): Constraints {
     return this.mockConstraints;
+  }
+
+  reloadConfigs(): void {
+    // No-op for mock
   }
 }
 

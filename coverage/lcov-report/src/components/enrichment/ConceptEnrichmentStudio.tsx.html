@@ -25,14 +25,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/105</span>
+                <span class='fraction'>0/106</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/82</span>
+                <span class='fraction'>0/92</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/88</span>
+                <span class='fraction'>0/89</span>
             </div>
         
             
@@ -433,7 +433,17 @@
 <a name='L368'></a><a href='#L368'>368</a>
 <a name='L369'></a><a href='#L369'>369</a>
 <a name='L370'></a><a href='#L370'>370</a>
-<a name='L371'></a><a href='#L371'>371</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L371'></a><a href='#L371'>371</a>
+<a name='L372'></a><a href='#L372'>372</a>
+<a name='L373'></a><a href='#L373'>373</a>
+<a name='L374'></a><a href='#L374'>374</a>
+<a name='L375'></a><a href='#L375'>375</a>
+<a name='L376'></a><a href='#L376'>376</a>
+<a name='L377'></a><a href='#L377'>377</a>
+<a name='L378'></a><a href='#L378'>378</a>
+<a name='L379'></a><a href='#L379'>379</a>
+<a name='L380'></a><a href='#L380'>380</a>
+<a name='L381'></a><a href='#L381'>381</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -506,6 +516,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -549,6 +560,11 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -586,7 +602,6 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -720,6 +735,11 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -822,8 +842,8 @@ import { EnrichmentEditorPanel } from "./EnrichmentEditorPanel";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
 import type { ConceptFormData } from "~/server/services/conceptEnricher";
 &nbsp;
-// Use API types for component state
-type ChatMessage = APIChatMessage;
+// Use API types for component state, but ensure id is always present
+type ChatMessage = Omit&lt;APIChatMessage, 'id'&gt; &amp; { id: string };
 &nbsp;
 interface ConceptEnrichmentStudioProps {
   conceptId?: string; // If undefined, this is a new concept from candidate
@@ -874,14 +894,15 @@ export function <span class="fstat-no" title="function not covered" >ConceptEnri
         source: initialData.source ?? "",
         year: initialData.year ?? "",
       });
-    } else <span class="cstat-no" title="statement not covered" >if (existingConcept) {</span>
+    } else <span class="cstat-no" title="statement not covered" >if (existingConcept &amp;&amp; typeof existingConcept === "object") {</span>
+      const concept = <span class="cstat-no" title="statement not covered" >existingConcept as { title: string; description?: string | null; content: string; creator: string; source: string; year: string };</span>
 <span class="cstat-no" title="statement not covered" >      setFormData({</span>
-        title: existingConcept.title,
-        description: existingConcept.description ?? "",
-        content: existingConcept.content,
-        creator: existingConcept.creator || "",
-        source: existingConcept.source || "",
-        year: existingConcept.year || "",
+        title: concept.title,
+        description: concept.description ?? "",
+        content: concept.content,
+        creator: concept.creator || "",
+        source: concept.source || "",
+        year: concept.year || "",
       });
     }
   }, [existingConcept, initialData, isNewConcept]);
@@ -896,7 +917,7 @@ export function <span class="fstat-no" title="function not covered" >ConceptEnri
 <span class="cstat-no" title="statement not covered" >          setMessages([</span>
             {
               id: `msg-${Date.now()}`,
-              role: "assistant",
+              role: "assistant" as const,
               content: result.initialMessage,
               timestamp: new Date(),
               suggestions: result.suggestions,
@@ -921,7 +942,12 @@ export function <span class="fstat-no" title="function not covered" >ConceptEnri
 <span class="cstat-no" title="statement not covered" >        updateMutation.mutate(</span>
           {
             id: conceptId,
-            data: formData,
+            title: formData.title,
+            description: formData.description,
+            content: formData.content,
+            creator: formData.creator,
+            source: formData.source,
+            year: formData.year,
           },
           {
             onSuccess: <span class="fstat-no" title="function not covered" >() =</span>&gt; {
@@ -954,8 +980,7 @@ export function <span class="fstat-no" title="function not covered" >ConceptEnri
 <span class="cstat-no" title="statement not covered" >        switch (action.action) {</span>
           case "fetchMetadata":
             const metadata = <span class="cstat-no" title="statement not covered" >await enrichMetadataMutation.mutateAsync({</span>
-              title: formData.title,
-              description: formData.description,
+              conceptId: conceptId || "",
             });
 <span class="cstat-no" title="statement not covered" >            if (metadata.creator) <span class="cstat-no" title="statement not covered" >handleFormChange({ creator: metadata.creator });</span></span>
 <span class="cstat-no" title="statement not covered" >            if (metadata.year) <span class="cstat-no" title="statement not covered" >handleFormChange({ year: metadata.year });</span></span>
@@ -974,10 +999,10 @@ export function <span class="fstat-no" title="function not covered" >ConceptEnri
 &nbsp;
           case "expandDefinition":
             const expanded = <span class="cstat-no" title="statement not covered" >await expandDefinitionMutation.mutateAsync({</span>
+              conceptId: conceptId || "",
               currentDefinition: formData.description,
-              conceptTitle: formData.title,
             });
-<span class="cstat-no" title="statement not covered" >            handleFormChange({ description: expanded.expanded });</span>
+<span class="cstat-no" title="statement not covered" >            handleFormChange({ description: expanded.expandedDefinition });</span>
 &nbsp;
 <span class="cstat-no" title="statement not covered" >            setMessages(<span class="fstat-no" title="function not covered" >(p</span>rev) =&gt; <span class="cstat-no" title="statement not covered" >[</span></span>
               ...prev,
@@ -993,16 +1018,16 @@ export function <span class="fstat-no" title="function not covered" >ConceptEnri
           default:
             // For other actions, use chat
             const chatResult = <span class="cstat-no" title="statement not covered" >await chatMutation.mutateAsync({</span>
+              conceptId: conceptId || "",
               message: `Please ${action.label.toLowerCase()}`,
-              conceptData: formData,
-              chatHistory: messages,
+              history: messages,
             });
 <span class="cstat-no" title="statement not covered" >            setMessages(<span class="fstat-no" title="function not covered" >(p</span>rev) =&gt; <span class="cstat-no" title="statement not covered" >[</span></span>
               ...prev,
               {
                 id: `msg-${Date.now()}`,
-                role: "assistant",
-                content: chatResult.response,
+                role: "assistant" as const,
+                content: chatResult.content,
                 timestamp: new Date(),
                 suggestions: chatResult.suggestions,
               },
@@ -1033,7 +1058,7 @@ export function <span class="fstat-no" title="function not covered" >ConceptEnri
       // Add user message
       const userMessage: ChatMessage = <span class="cstat-no" title="statement not covered" >{</span>
         id: `msg-${Date.now()}`,
-        role: "user",
+        role: "user" as const,
         content: message,
         timestamp: new Date(),
       };
@@ -1042,15 +1067,15 @@ export function <span class="fstat-no" title="function not covered" >ConceptEnri
 &nbsp;
 <span class="cstat-no" title="statement not covered" >      try {</span>
         const result = <span class="cstat-no" title="statement not covered" >await chatMutation.mutateAsync({</span>
+          conceptId: conceptId || "",
           message,
-          conceptData: formData,
-          chatHistory: [...messages, userMessage],
+          history: [...messages, userMessage],
         });
 &nbsp;
         const assistantMessage: ChatMessage = <span class="cstat-no" title="statement not covered" >{</span>
           id: `msg-${Date.now() + 1}`,
-          role: "assistant",
-          content: result.response,
+          role: "assistant" as const,
+          content: result.content,
           timestamp: new Date(),
           suggestions: result.suggestions,
           actions: result.actions,
@@ -1068,7 +1093,7 @@ export function <span class="fstat-no" title="function not covered" >ConceptEnri
           ...prev,
           {
             id: `msg-${Date.now() + 1}`,
-            role: "assistant",
+            role: "assistant" as const,
             content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : "Unknown error"}`,
             timestamp: new Date(),
           },
@@ -1092,7 +1117,12 @@ export function <span class="fstat-no" title="function not covered" >ConceptEnri
 <span class="cstat-no" title="statement not covered" >      updateMutation.mutate(</span>
         {
           id: conceptId,
-          data: formData,
+          title: formData.title,
+          description: formData.description,
+          content: formData.content,
+          creator: formData.creator,
+          source: formData.source,
+          year: formData.year,
         },
         {
           onSuccess: <span class="fstat-no" title="function not covered" >() =</span>&gt; {
@@ -1180,7 +1210,7 @@ export function <span class="fstat-no" title="function not covered" >ConceptEnri
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-29T06:24:59.358Z
+                at 2025-12-30T04:59:42.868Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

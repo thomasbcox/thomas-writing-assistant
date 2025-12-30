@@ -17,6 +17,9 @@ import { getDatabasePreference, getDatabasePath } from "./services/db-preference
 const createTypedDb = (sqlite: DatabaseType) => drizzle(sqlite, { schema });
 type DatabaseInstance = ReturnType<typeof createTypedDb>;
 
+// Export the database instance type for use in other modules
+export type { DatabaseInstance };
+
 const globalForDb = globalThis as unknown as {
   db: DatabaseInstance | undefined;
   sqlite: DatabaseType | undefined;

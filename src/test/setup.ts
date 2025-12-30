@@ -3,9 +3,7 @@ import { jest } from '@jest/globals';
 
 // Polyfill TextEncoder/TextDecoder for jsdom
 import { TextEncoder, TextDecoder } from 'util';
-// @ts-expect-error - Adding polyfills to global
 global.TextEncoder = TextEncoder;
-// @ts-expect-error - Adding polyfills to global  
 global.TextDecoder = TextDecoder as typeof global.TextDecoder;
 
 // Polyfill BroadcastChannel for jsdom

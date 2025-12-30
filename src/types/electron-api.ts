@@ -230,11 +230,12 @@ export interface ConceptPurgeTrashResult {
 }
 
 export interface LinkProposal {
-  targetId: string;
-  targetTitle: string;
-  suggestedLinkName: string;
-  reason: string;
+  source: string;
+  target: string;
+  target_title: string;
+  forward_name: string;
   confidence: number;
+  reasoning: string;
 }
 
 export type ConceptProposeLinksResult = LinkProposal[];

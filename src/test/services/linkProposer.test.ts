@@ -5,19 +5,18 @@
 
 import { describe, it, expect, beforeEach, afterEach } from "@jest/globals";
 import { proposeLinksForConcept } from "~/server/services/linkProposer";
-import { MockLLMClient } from "../mocks/llm-client";
-import { MockConfigLoader } from "../mocks/config-loader";
+import { MockLLMClient, type LLMClient } from "../mocks/llm-client";
+import { MockConfigLoader, type ConfigLoader } from "../mocks/config-loader";
 import { createTestDb, cleanupTestData, migrateTestDb } from "../test-utils";
-import type { ReturnType } from "~/server/db";
+import type { DatabaseInstance } from "~/server/db";
+import type { Database as BetterSqlite3Database } from "better-sqlite3";
 import { concept, link, linkName } from "~/server/schema";
 import { createId } from "@paralleldrive/cuid2";
-
-type Database = ReturnType<typeof import("~/server/db").db>;
 
 describe("linkProposer", () => {
   let mockLLMClient: MockLLMClient;
   let mockConfigLoader: MockConfigLoader;
-  let testDb: Database;
+  let testDb: DatabaseInstance;
 
   beforeEach(async () => {
     mockLLMClient = new MockLLMClient();
@@ -30,7 +29,7 @@ describe("linkProposer", () => {
   afterEach(async () => {
     await cleanupTestData(testDb);
     // Close SQLite connection
-    const sqlite = (testDb as any).session?.client as Database | undefined;
+    const sqlite = (testDb as any).session?.client as BetterSqlite3Database | undefined;
     if (sqlite && typeof sqlite.close === "function") {
       sqlite.close();
     }

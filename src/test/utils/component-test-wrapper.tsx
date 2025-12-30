@@ -104,22 +104,22 @@ const createMockLinkWithRelations = (overrides?: Partial<SerializedLinkWithRelat
  */
 const mockElectronAPI = {
   concept: {
-    list: jest.fn<() => Promise<SerializedConcept[]>>().mockResolvedValue([]),
-    getById: jest.fn<() => Promise<SerializedConcept | null>>().mockResolvedValue(null),
-    create: jest.fn<() => Promise<SerializedConcept>>().mockResolvedValue(createMockConcept()),
-    update: jest.fn<() => Promise<SerializedConcept>>().mockResolvedValue(createMockConcept({ title: "Updated Concept" })),
-    delete: jest.fn<() => Promise<SerializedConcept>>().mockResolvedValue(createMockConcept({ status: "trash", trashedAt: mockDate() })),
-    restore: jest.fn<() => Promise<SerializedConcept>>().mockResolvedValue(createMockConcept({ title: "Restored Concept" })),
-    purgeTrash: jest.fn<() => Promise<ConceptPurgeTrashResult>>().mockResolvedValue({ deletedCount: 0 }),
-    proposeLinks: jest.fn<() => Promise<ConceptProposeLinksResult>>().mockResolvedValue([]),
-    generateCandidates: jest.fn<() => Promise<ConceptGenerateCandidatesResult>>().mockResolvedValue([]),
+    list: jest.fn<(input: any) => Promise<SerializedConcept[]>>().mockResolvedValue([]),
+    getById: jest.fn<(input: any) => Promise<SerializedConcept | null>>().mockResolvedValue(null),
+    create: jest.fn<(input: any) => Promise<SerializedConcept>>().mockResolvedValue(createMockConcept()),
+    update: jest.fn<(input: any) => Promise<SerializedConcept>>().mockResolvedValue(createMockConcept({ title: "Updated Concept" })),
+    delete: jest.fn<(input: any) => Promise<SerializedConcept>>().mockResolvedValue(createMockConcept({ status: "trash", trashedAt: mockDate() })),
+    restore: jest.fn<(input: any) => Promise<SerializedConcept>>().mockResolvedValue(createMockConcept({ title: "Restored Concept" })),
+    purgeTrash: jest.fn<(input: any) => Promise<ConceptPurgeTrashResult>>().mockResolvedValue({ deletedCount: 0 }),
+    proposeLinks: jest.fn<(input: any) => Promise<ConceptProposeLinksResult>>().mockResolvedValue([]),
+    generateCandidates: jest.fn<(input: any) => Promise<ConceptGenerateCandidatesResult>>().mockResolvedValue([]),
   },
 
   capsule: {
-    list: jest.fn<() => Promise<CapsuleListResult>>().mockResolvedValue([]),
-    getById: jest.fn<() => Promise<CapsuleResult>>().mockResolvedValue(null),
-    create: jest.fn<() => Promise<SerializedCapsule>>().mockResolvedValue(createMockCapsule()),
-    createAnchorFromPDF: jest.fn<() => Promise<CapsuleCreateAnchorFromPDFResult>>().mockResolvedValue({
+    list: jest.fn<(input?: any) => Promise<CapsuleListResult>>().mockResolvedValue([]),
+    getById: jest.fn<(input: any) => Promise<CapsuleResult>>().mockResolvedValue(null),
+    create: jest.fn<(input: any) => Promise<SerializedCapsule>>().mockResolvedValue(createMockCapsule()),
+    createAnchorFromPDF: jest.fn<(input: any) => Promise<CapsuleCreateAnchorFromPDFResult>>().mockResolvedValue({
       anchor: {
         id: "mock-anchor-id",
         capsuleId: "mock-capsule-id",
@@ -136,18 +136,18 @@ const mockElectronAPI = {
   },
 
   link: {
-    getAll: jest.fn<() => Promise<LinkListResult>>().mockResolvedValue([]),
-    getByConcept: jest.fn<() => Promise<LinksByConceptResult>>().mockResolvedValue({ outgoing: [], incoming: [] }),
-    create: jest.fn<() => Promise<SerializedLinkWithRelations>>().mockResolvedValue(createMockLinkWithRelations()),
-    delete: jest.fn<() => Promise<SerializedLinkWithRelations | null>>().mockResolvedValue(null),
+    getAll: jest.fn<(input?: any) => Promise<LinkListResult>>().mockResolvedValue([]),
+    getByConcept: jest.fn<(input: any) => Promise<LinksByConceptResult>>().mockResolvedValue({ outgoing: [], incoming: [] }),
+    create: jest.fn<(input: any) => Promise<SerializedLinkWithRelations>>().mockResolvedValue(createMockLinkWithRelations()),
+    delete: jest.fn<(input: any) => Promise<SerializedLinkWithRelations | null>>().mockResolvedValue(null),
   },
 
   linkName: {
     getAll: jest.fn<() => Promise<LinkNameListResult>>().mockResolvedValue([]),
-    create: jest.fn<() => Promise<SerializedLinkName>>().mockResolvedValue(createMockLinkName()),
-    update: jest.fn<() => Promise<SerializedLinkName>>().mockResolvedValue(createMockLinkName({ forwardName: "updated forward" })),
-    delete: jest.fn<() => Promise<SerializedLinkName>>().mockResolvedValue(createMockLinkName({ isDeleted: true })),
-    getUsage: jest.fn<() => Promise<LinkNameUsageResult>>().mockResolvedValue({ count: 0 }),
+    create: jest.fn<(input: any) => Promise<SerializedLinkName>>().mockResolvedValue(createMockLinkName()),
+    update: jest.fn<(input: any) => Promise<SerializedLinkName>>().mockResolvedValue(createMockLinkName({ forwardName: "updated forward" })),
+    delete: jest.fn<(input: any) => Promise<SerializedLinkName>>().mockResolvedValue(createMockLinkName({ isDeleted: true })),
+    getUsage: jest.fn<(input: any) => Promise<LinkNameUsageResult>>().mockResolvedValue({ count: 0 }),
   },
 
   config: {
@@ -157,14 +157,14 @@ const mockElectronAPI = {
     getStyleGuideRaw: jest.fn<() => Promise<ConfigRawResult>>().mockResolvedValue({ content: "voice: professional\ntone: friendly" }),
     getCredoRaw: jest.fn<() => Promise<ConfigRawResult>>().mockResolvedValue({ content: "values:\n  - quality\n  - clarity" }),
     getConstraintsRaw: jest.fn<() => Promise<ConfigRawResult>>().mockResolvedValue({ content: "rules:\n  - no jargon" }),
-    updateStyleGuide: jest.fn<() => Promise<ConfigUpdateResult>>().mockResolvedValue({ success: true }),
-    updateCredo: jest.fn<() => Promise<ConfigUpdateResult>>().mockResolvedValue({ success: true }),
-    updateConstraints: jest.fn<() => Promise<ConfigUpdateResult>>().mockResolvedValue({ success: true }),
+    updateStyleGuide: jest.fn<(input: any) => Promise<ConfigUpdateResult>>().mockResolvedValue({ success: true }),
+    updateCredo: jest.fn<(input: any) => Promise<ConfigUpdateResult>>().mockResolvedValue({ success: true }),
+    updateConstraints: jest.fn<(input: any) => Promise<ConfigUpdateResult>>().mockResolvedValue({ success: true }),
     getStatus: jest.fn<() => Promise<ConfigStatusResult>>().mockResolvedValue({ styleGuide: true, credo: true, constraints: true }),
   },
 
   pdf: {
-    extractText: jest.fn<() => Promise<PdfExtractResult>>().mockResolvedValue({ text: "Extracted text content", numPages: 1 }),
+    extractText: jest.fn<(input: any) => Promise<PdfExtractResult>>().mockResolvedValue({ text: "Extracted text content", numPages: 1 }),
   },
 
   ai: {
@@ -177,7 +177,7 @@ const mockElectronAPI = {
         gemini: false,
       },
     }),
-    updateSettings: jest.fn<() => Promise<AISettingsUpdateResult>>().mockResolvedValue({
+    updateSettings: jest.fn<(input: any) => Promise<AISettingsUpdateResult>>().mockResolvedValue({
       provider: "openai" as const,
       model: "gpt-4o-mini",
       temperature: 0.7,
