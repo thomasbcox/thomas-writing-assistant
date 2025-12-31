@@ -1,6 +1,6 @@
 import { ipcMain } from "electron";
 import { z } from "zod";
-import { logServiceError } from "../../src/lib/logger.js";
+import { logger, logServiceError } from "../../src/lib/logger.js";
 
 export function registerPdfHandlers() {
   // Extract text from PDF
@@ -9,6 +9,8 @@ export function registerPdfHandlers() {
       fileData: z.string(), // Base64 encoded PDF file
       fileName: z.string().optional(),
     }).parse(input);
+
+    logger.info({ operation: "pdf:extractText", fileName: parsed.fileName, hasFileData: !!parsed.fileData }, "Extracting text from PDF");
 
     try {
       const pdfParseModule = await import("pdf-parse");
@@ -33,6 +35,8 @@ export function registerPdfHandlers() {
 
       const textResult = await parser.getText();
       const infoResult = await parser.getInfo();
+
+      logger.info({ operation: "pdf:extractText", fileName: parsed.fileName, numPages: textResult.total, textLength: textResult.text?.length ?? 0 }, "PDF text extracted successfully");
 
       return {
         text: textResult.text,

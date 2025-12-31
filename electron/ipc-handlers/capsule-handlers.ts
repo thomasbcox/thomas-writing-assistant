@@ -7,7 +7,7 @@ import { extractAnchorMetadata } from "../../src/server/services/anchorExtractor
 import { repurposeAnchorContent } from "../../src/server/services/repurposer.js";
 import { getLLMClient } from "../../src/server/services/llm/client.js";
 import { getConfigLoader } from "../../src/server/services/config.js";
-import { logServiceError } from "../../src/lib/logger.js";
+import { logger, logServiceError } from "../../src/lib/logger.js";
 import { safeJsonParseArray } from "../../src/lib/json-utils.js";
 
 export function registerCapsuleHandlers() {
@@ -20,6 +20,8 @@ export function registerCapsuleHandlers() {
     const db = getDb();
     const summaryOnly = parsed?.summary ?? false;
 
+    logger.info({ operation: "capsule:list", summary: summaryOnly }, "Fetching capsules");
+
     if (summaryOnly) {
       const capsules = await db.query.capsule.findMany({
         with: {
@@ -27,6 +29,7 @@ export function registerCapsuleHandlers() {
         },
         orderBy: [desc(capsule.createdAt)],
       });
+      logger.info({ operation: "capsule:list", count: capsules.length, summary: true }, "Capsules fetched successfully");
       return capsules;
     }
 
@@ -41,6 +44,7 @@ export function registerCapsuleHandlers() {
       orderBy: [desc(capsule.createdAt)],
     });
 
+    logger.info({ operation: "capsule:list", count: capsules.length }, "Capsules fetched successfully");
     return capsules;
   });
 
@@ -48,6 +52,8 @@ export function registerCapsuleHandlers() {
   ipcMain.handle("capsule:getById", async (_event, input: unknown) => {
     const parsed = z.object({ id: z.string() }).parse(input);
     const db = getDb();
+
+    logger.info({ operation: "capsule:getById", capsuleId: parsed.id }, "Fetching capsule by ID");
 
     const foundCapsule = await db.query.capsule.findFirst({
       where: eq(capsule.id, parsed.id),
@@ -61,9 +67,11 @@ export function registerCapsuleHandlers() {
     });
 
     if (!foundCapsule) {
+      logger.warn({ operation: "capsule:getById", capsuleId: parsed.id }, "Capsule not found");
       throw new Error("Capsule not found");
     }
 
+    logger.info({ operation: "capsule:getById", capsuleId: parsed.id, anchorsCount: foundCapsule.anchors?.length ?? 0 }, "Capsule fetched successfully");
     return foundCapsule;
   });
 
@@ -78,6 +86,8 @@ export function registerCapsuleHandlers() {
     
     const db = getDb();
 
+    logger.info({ operation: "capsule:create", title: parsed.title, offerMapping: parsed.offerMapping }, "Creating capsule");
+
     const [newCapsule] = await db
       .insert(capsule)
       .values({
@@ -88,6 +98,7 @@ export function registerCapsuleHandlers() {
       })
       .returning();
 
+    logger.info({ operation: "capsule:create", capsuleId: newCapsule.id, title: parsed.title }, "Capsule created successfully");
     return newCapsule;
   });
 
@@ -102,8 +113,11 @@ export function registerCapsuleHandlers() {
     
     const db = getDb();
 
+    logger.info({ operation: "capsule:createAnchorFromPDF", capsuleId: parsed.capsuleId, fileName: parsed.fileName, autoRepurpose: parsed.autoRepurpose }, "Creating anchor from PDF");
+
     try {
       // Extract PDF text
+      logger.info({ operation: "capsule:createAnchorFromPDF", step: "extractText" }, "Extracting text from PDF");
       const pdfParseModule = await import("pdf-parse");
       type PDFParseModule = {
         default?: {
@@ -169,6 +183,7 @@ export function registerCapsuleHandlers() {
       // Generate repurposed content if requested
       const savedRepurposed = [];
       if (parsed.autoRepurpose) {
+        logger.info({ operation: "capsule:createAnchorFromPDF", step: "repurpose", anchorId: newAnchor.id }, "Generating repurposed content");
         const painPoints = newAnchor.painPoints ? JSON.parse(newAnchor.painPoints) : null;
         const solutionSteps = newAnchor.solutionSteps ? JSON.parse(newAnchor.solutionSteps) : null;
         const repurposed = await repurposeAnchorContent(
@@ -180,8 +195,10 @@ export function registerCapsuleHandlers() {
           configLoader,
         );
         savedRepurposed.push(...repurposed);
+        logger.info({ operation: "capsule:createAnchorFromPDF", step: "repurpose", count: savedRepurposed.length }, "Repurposed content generated");
       }
 
+      logger.info({ operation: "capsule:createAnchorFromPDF", anchorId: newAnchor.id, capsuleId: parsed.capsuleId, repurposedCount: savedRepurposed.length }, "Anchor created from PDF successfully");
       return {
         anchor: newAnchor,
         repurposedContent: savedRepurposed,

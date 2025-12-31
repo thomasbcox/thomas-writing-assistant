@@ -62,6 +62,19 @@ export const link = sqliteTable("Link", {
   linkNameIdIdx: { columns: [table.linkNameId] },
 }));
 
+// Offer table - represents a product/service offering
+// Each offer can have multiple capsules (recommended 4-6)
+export const offer = sqliteTable("Offer", {
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  // @ts-expect-error - Drizzle type inference issue with sqliteTable overloads
+  name: text("name").notNull(),
+  description: text("description"),
+  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).$onUpdate(() => new Date()).notNull(),
+}, (table) => ({
+  nameIdx: { columns: [table.name] },
+}));
+
 // Capsule table
 export const capsule = sqliteTable("Capsule", {
   // @ts-expect-error - Drizzle type inference issue with sqliteTable overloads
@@ -69,11 +82,14 @@ export const capsule = sqliteTable("Capsule", {
   title: text("title").notNull(),
   promise: text("promise").notNull(),
   cta: text("cta").notNull(),
+  offerId: text("offerId").references(() => offer.id, { onDelete: "set null" }),
+  // Legacy field - kept for migration compatibility, will be removed later
   offerMapping: text("offerMapping"),
   createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
   updatedAt: integer("updatedAt", { mode: "timestamp" }).$onUpdate(() => new Date()).notNull(),
 }, (table) => ({
   titleIdx: { columns: [table.title] },
+  offerIdIdx: { columns: [table.offerId] },
 }));
 
 // Anchor table
@@ -116,6 +132,35 @@ export const mruConcept = sqliteTable("MRUConcept", {
   lastUsedIdx: { columns: [table.lastUsed] },
 }));
 
+// ChatSession table - stores enrichment chat sessions for concepts
+export const chatSession = sqliteTable("ChatSession", {
+  // @ts-expect-error - Drizzle type inference issue with sqliteTable overloads
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  conceptId: text("conceptId").notNull().references(() => concept.id, { onDelete: "cascade" }),
+  title: text("title"), // Optional title for the session (e.g., "Enrichment - Jan 2025")
+  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).$onUpdate(() => new Date()).notNull(),
+}, (table) => ({
+  conceptIdIdx: { columns: [table.conceptId] },
+  updatedAtIdx: { columns: [table.updatedAt] },
+}));
+
+// ChatMessage table - stores individual messages in a chat session
+export const chatMessage = sqliteTable("ChatMessage", {
+  // @ts-expect-error - Drizzle type inference issue with sqliteTable overloads
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  sessionId: text("sessionId").notNull().references(() => chatSession.id, { onDelete: "cascade" }),
+  role: text("role").notNull(), // "user" or "assistant"
+  content: text("content").notNull(),
+  // Optional: store suggestions/actions as JSON for reconstruction
+  suggestions: text("suggestions"), // JSON array of AISuggestion
+  actions: text("actions"), // JSON array of QuickAction
+  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+}, (table) => ({
+  sessionIdIdx: { columns: [table.sessionId] },
+  createdAtIdx: { columns: [table.createdAt] },
+}));
+
 // Relations - defined after all tables
 // IMPORTANT: Define linkNameRelations BEFORE linkRelations so Drizzle can resolve the bidirectional relationship
 export const linkNameRelations = relations(linkName, ({ many }) => ({
@@ -145,7 +190,15 @@ export const linkRelations = relations(link, ({ one }) => ({
   }),
 }));
 
-export const capsuleRelations = relations(capsule, ({ many }) => ({
+export const offerRelations = relations(offer, ({ many }) => ({
+  capsules: many(capsule),
+}));
+
+export const capsuleRelations = relations(capsule, ({ one, many }) => ({
+  offer: one(offer, {
+    fields: [capsule.offerId],
+    references: [offer.id],
+  }),
   anchors: many(anchor),
 }));
 
@@ -164,6 +217,21 @@ export const repurposedContentRelations = relations(repurposedContent, ({ one })
   }),
 }));
 
+export const chatSessionRelations = relations(chatSession, ({ one, many }) => ({
+  concept: one(concept, {
+    fields: [chatSession.conceptId],
+    references: [concept.id],
+  }),
+  messages: many(chatMessage),
+}));
+
+export const chatMessageRelations = relations(chatMessage, ({ one }) => ({
+  session: one(chatSession, {
+    fields: [chatMessage.sessionId],
+    references: [chatSession.id],
+  }),
+}));
+
 // Type exports for use in code
 export type Concept = typeof concept.$inferSelect;
 export type NewConcept = typeof concept.$inferInsert;
@@ -171,6 +239,8 @@ export type Link = typeof link.$inferSelect;
 export type NewLink = typeof link.$inferInsert;
 export type LinkName = typeof linkName.$inferSelect;
 export type NewLinkName = typeof linkName.$inferInsert;
+export type Offer = typeof offer.$inferSelect;
+export type NewOffer = typeof offer.$inferInsert;
 export type Capsule = typeof capsule.$inferSelect;
 export type NewCapsule = typeof capsule.$inferInsert;
 export type Anchor = typeof anchor.$inferSelect;
@@ -179,3 +249,7 @@ export type RepurposedContent = typeof repurposedContent.$inferSelect;
 export type NewRepurposedContent = typeof repurposedContent.$inferInsert;
 export type MRUConcept = typeof mruConcept.$inferSelect;
 export type NewMRUConcept = typeof mruConcept.$inferInsert;
+export type ChatSession = typeof chatSession.$inferSelect;
+export type NewChatSession = typeof chatSession.$inferInsert;
+export type ChatMessage = typeof chatMessage.$inferSelect;
+export type NewChatMessage = typeof chatMessage.$inferInsert;

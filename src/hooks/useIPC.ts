@@ -97,10 +97,10 @@ export function useIPCQuery<T>(
   const inputsKey = options?.inputs ? JSON.stringify(options.inputs) : null;
   const prevInputsKeyRef = useRef<string | null>(inputsKey);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (): Promise<{ data: T | null; error: Error | null }> => {
     if (!enabled) {
       setIsLoading(false);
-      return;
+      return { data: null, error: null };
     }
 
     setIsLoading(true);
@@ -109,24 +109,38 @@ export function useIPCQuery<T>(
     try {
       const result = await queryFnRef.current();
       setData(result);
+      return { data: result, error: null };
     } catch (err) {
-      setError(err instanceof Error ? err : new Error(String(err)));
+      const error = err instanceof Error ? err : new Error(String(err));
+      // Log client-side errors for debugging
+      console.error("[useIPCQuery] Error in query:", {
+        queryKey: options?.queryKey,
+        error: error.message,
+        stack: error.stack,
+      });
+      setError(error);
+      return { data: null, error };
     } finally {
       setIsLoading(false);
     }
-  }, [enabled]); // Removed queryFn from deps to prevent loops
+  }, [enabled, options?.queryKey]); // Removed queryFn from deps to prevent loops
 
-  const refetch = useCallback(() => {
+  const refetch = useCallback(async () => {
     if (enabled) {
-      return fetchData();
+      // Call fetchData and return its result directly
+      const result = await fetchData();
+      return result;
     }
-    return Promise.resolve();
-  }, [fetchData, enabled]);
+    return { data, error };
+  }, [fetchData, enabled, data, error]);
 
   // Register refetch function for useUtils
   useEffect(() => {
     if (queryKeyRef.current) {
-      queryCache.set(queryKeyRef.current, refetch);
+      // Wrap refetch to match queryCache signature (() => Promise<void>)
+      queryCache.set(queryKeyRef.current, async () => {
+        await refetch();
+      });
       return () => {
         queryCache.delete(queryKeyRef.current!);
       };
@@ -186,6 +200,12 @@ export function useIPCMutation<TData, TVariables>(
         return result;
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
+        // Log client-side mutation errors for debugging
+        console.error("[useIPCMutation] Error in mutation:", {
+          error: error.message,
+          stack: error.stack,
+          variables: typeof variables === "object" ? Object.keys(variables as object) : typeof variables,
+        });
         setError(error);
         callOptions?.onError?.(error) ?? options?.onError?.(error);
         throw error;
@@ -328,10 +348,14 @@ export const api = {
         }),
     },
     proposeLinks: {
-      useQuery: (input: { conceptId: string; maxProposals?: number }) =>
+      useQuery: (input: { conceptId: string; maxProposals?: number }, options?: { enabled?: boolean; queryKey?: string }) =>
         useIPCQuery<ConceptProposeLinksResult>(
           () => ipc.concept.proposeLinks(input) as Promise<ConceptProposeLinksResult>,
-          { inputs: [input.conceptId, input.maxProposals] },
+          { 
+            inputs: [input.conceptId, input.maxProposals],
+            enabled: options?.enabled,
+            queryKey: options?.queryKey || `concept:proposeLinks:${input.conceptId}`,
+          },
         ),
     },
     generateCandidates: {
@@ -676,6 +700,136 @@ export const api = {
         },
       ) =>
         useIPCMutation(ipc.pdf.extractText, {
+          onSuccess: options?.onSuccess,
+          onError: options?.onError,
+        }),
+    },
+  },
+  offer: {
+    list: {
+      useQuery: () =>
+        useIPCQuery(
+          () => ipc.offer.list(),
+          { queryKey: "offer:list", inputs: [] },
+        ),
+    },
+    getById: {
+      useQuery: (input: { id: string }, options?: { enabled?: boolean }) =>
+        useIPCQuery(
+          () => ipc.offer.getById(input),
+          { enabled: options?.enabled ?? true, queryKey: `offer:getById:${input.id}`, inputs: [input.id] },
+        ),
+    },
+    create: {
+      useMutation: (
+        options?: {
+          onSuccess?: (data: any) => void;
+          onError?: (error: Error) => void;
+        },
+      ) =>
+        useIPCMutation(ipc.offer.create, {
+          onSuccess: options?.onSuccess,
+          onError: options?.onError,
+        }),
+    },
+    update: {
+      useMutation: (
+        options?: {
+          onSuccess?: (data: any) => void;
+          onError?: (error: Error) => void;
+        },
+      ) =>
+        useIPCMutation(ipc.offer.update, {
+          onSuccess: options?.onSuccess,
+          onError: options?.onError,
+        }),
+    },
+    delete: {
+      useMutation: (
+        options?: {
+          onSuccess?: (data: any) => void;
+          onError?: (error: Error) => void;
+        },
+      ) =>
+        useIPCMutation(ipc.offer.delete, {
+          onSuccess: options?.onSuccess,
+          onError: options?.onError,
+        }),
+    },
+    assignCapsule: {
+      useMutation: (
+        options?: {
+          onSuccess?: (data: any) => void;
+          onError?: (error: Error) => void;
+        },
+      ) =>
+        useIPCMutation(ipc.offer.assignCapsule, {
+          onSuccess: options?.onSuccess,
+          onError: options?.onError,
+        }),
+    },
+    getUnassignedCapsules: {
+      useQuery: () =>
+        useIPCQuery(
+          () => ipc.offer.getUnassignedCapsules(),
+          { queryKey: "offer:getUnassignedCapsules", inputs: [] },
+        ),
+    },
+  },
+  chat: {
+    getOrCreateSession: {
+      useQuery: (input: { conceptId: string }, options?: { enabled?: boolean }) =>
+        useIPCQuery(
+          () => ipc.chat.getOrCreateSession(input),
+          { enabled: options?.enabled ?? true, queryKey: `chat:getOrCreateSession:${input.conceptId}`, inputs: [input.conceptId] },
+        ),
+    },
+    getSessionsByConceptId: {
+      useQuery: (input: { conceptId: string }, options?: { enabled?: boolean }) =>
+        useIPCQuery(
+          () => ipc.chat.getSessionsByConceptId(input),
+          { enabled: options?.enabled ?? true, queryKey: `chat:getSessionsByConceptId:${input.conceptId}`, inputs: [input.conceptId] },
+        ),
+    },
+    getSessionById: {
+      useQuery: (input: { id: string }, options?: { enabled?: boolean }) =>
+        useIPCQuery(
+          () => ipc.chat.getSessionById(input),
+          { enabled: options?.enabled ?? true, queryKey: `chat:getSessionById:${input.id}`, inputs: [input.id] },
+        ),
+    },
+    createSession: {
+      useMutation: (
+        options?: {
+          onSuccess?: (data: any) => void;
+          onError?: (error: Error) => void;
+        },
+      ) =>
+        useIPCMutation(ipc.chat.createSession, {
+          onSuccess: options?.onSuccess,
+          onError: options?.onError,
+        }),
+    },
+    deleteSession: {
+      useMutation: (
+        options?: {
+          onSuccess?: (data: any) => void;
+          onError?: (error: Error) => void;
+        },
+      ) =>
+        useIPCMutation(ipc.chat.deleteSession, {
+          onSuccess: options?.onSuccess,
+          onError: options?.onError,
+        }),
+    },
+    addMessage: {
+      useMutation: (
+        options?: {
+          onSuccess?: (data: any) => void;
+          onError?: (error: Error) => void;
+        },
+      ) =>
+        useIPCMutation(ipc.chat.addMessage, {
           onSuccess: options?.onSuccess,
           onError: options?.onError,
         }),

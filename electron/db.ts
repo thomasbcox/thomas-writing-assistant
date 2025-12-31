@@ -128,17 +128,29 @@ function initializeSchema(sqlite: DatabaseType): void {
     CREATE INDEX IF NOT EXISTS "Link_targetId_idx" ON "Link"("targetId");
     CREATE INDEX IF NOT EXISTS "Link_linkNameId_idx" ON "Link"("linkNameId");
     
+    CREATE TABLE IF NOT EXISTS "Offer" (
+      "id" TEXT PRIMARY KEY NOT NULL,
+      "name" TEXT NOT NULL,
+      "description" TEXT,
+      "createdAt" INTEGER NOT NULL DEFAULT (unixepoch()),
+      "updatedAt" INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    
+    CREATE INDEX IF NOT EXISTS "Offer_name_idx" ON "Offer" ("name");
+    
     CREATE TABLE IF NOT EXISTS "Capsule" (
       "id" TEXT NOT NULL PRIMARY KEY,
       "title" TEXT NOT NULL,
       "promise" TEXT NOT NULL,
       "cta" TEXT NOT NULL,
+      "offerId" TEXT REFERENCES "Offer"("id") ON DELETE SET NULL,
       "offerMapping" TEXT,
       "createdAt" INTEGER NOT NULL,
       "updatedAt" INTEGER NOT NULL
     );
     
     CREATE INDEX IF NOT EXISTS "Capsule_title_idx" ON "Capsule"("title");
+    CREATE INDEX IF NOT EXISTS "Capsule_offerId_idx" ON "Capsule"("offerId");
     
     CREATE TABLE IF NOT EXISTS "Anchor" (
       "id" TEXT NOT NULL PRIMARY KEY,
@@ -175,6 +187,30 @@ function initializeSchema(sqlite: DatabaseType): void {
     );
     
     CREATE INDEX IF NOT EXISTS "MRUConcept_lastUsed_idx" ON "MRUConcept"("lastUsed");
+    
+    CREATE TABLE IF NOT EXISTS "ChatSession" (
+      "id" TEXT PRIMARY KEY NOT NULL,
+      "conceptId" TEXT NOT NULL REFERENCES "Concept"("id") ON DELETE CASCADE,
+      "title" TEXT,
+      "createdAt" INTEGER NOT NULL DEFAULT (unixepoch()),
+      "updatedAt" INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    
+    CREATE INDEX IF NOT EXISTS "ChatSession_conceptId_idx" ON "ChatSession" ("conceptId");
+    CREATE INDEX IF NOT EXISTS "ChatSession_updatedAt_idx" ON "ChatSession" ("updatedAt");
+    
+    CREATE TABLE IF NOT EXISTS "ChatMessage" (
+      "id" TEXT PRIMARY KEY NOT NULL,
+      "sessionId" TEXT NOT NULL REFERENCES "ChatSession"("id") ON DELETE CASCADE,
+      "role" TEXT NOT NULL,
+      "content" TEXT NOT NULL,
+      "suggestions" TEXT,
+      "actions" TEXT,
+      "createdAt" INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    
+    CREATE INDEX IF NOT EXISTS "ChatMessage_sessionId_idx" ON "ChatMessage" ("sessionId");
+    CREATE INDEX IF NOT EXISTS "ChatMessage_createdAt_idx" ON "ChatMessage" ("createdAt");
   `;
 
   // Split by semicolon and execute each statement

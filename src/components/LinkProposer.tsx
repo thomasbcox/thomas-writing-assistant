@@ -21,6 +21,12 @@ export function LinkProposer({ conceptId, conceptTitle }: LinkProposerProps) {
   const linkNamePairs = (linkNamePairsData && Array.isArray(linkNamePairsData))
     ? linkNamePairsData as Array<{ id: string; forwardName: string; reverseName: string; isSymmetric: boolean }>
     : undefined;
+
+  // Get existing links to filter out already-linked proposals
+  const { data: existingLinks, refetch: refetchExistingLinks } = api.link.getByConcept.useQuery(
+    { conceptId },
+    { enabled: !!conceptId },
+  );
   
   if (linkNamePairsError) {
     console.error("Error loading link name pairs:", linkNamePairsError);
@@ -35,6 +41,10 @@ export function LinkProposer({ conceptId, conceptTitle }: LinkProposerProps) {
       // Invalidate queries to refresh the UI
       void utils.link.getByConcept.invalidate({ conceptId });
       void utils.link.getAll.invalidate();
+      // Immediately refetch existingLinks to update the filter
+      void refetchExistingLinks();
+      // Refetch proposals to remove the confirmed proposal from the list
+      void refetch();
       addToast("Link created successfully!", "success");
     },
     onError: (error) => {
@@ -46,20 +56,30 @@ export function LinkProposer({ conceptId, conceptTitle }: LinkProposerProps) {
 
   const { data: proposals, refetch, error: proposalsError } = api.concept.proposeLinks.useQuery(
     { conceptId, maxProposals: 5 },
+    { 
+      enabled: false, // Don't run automatically - only when button is clicked
+      queryKey: `concept:proposeLinks:${conceptId}`, // Register in cache for invalidation
+    },
   );
 
   const handlePropose = async () => {
     setIsLoading(true);
     try {
-      await refetch();
-      if (proposalsError) {
-        const errorMessage = proposalsError.message || "Failed to propose links. Please try again.";
+      const result = await refetch();
+      // Use the result from refetch directly instead of relying on state
+      const resultProposals = result?.data;
+      const resultError = result?.error || proposalsError;
+      
+      if (resultError) {
+        const errorMessage = resultError.message || "Failed to propose links. Please try again.";
         addToast(errorMessage, "error");
-        console.error("Error proposing links:", proposalsError);
-      } else if (proposals && Array.isArray(proposals) && proposals.length === 0) {
+        console.error("Error proposing links:", resultError);
+      } else if (resultProposals && Array.isArray(resultProposals) && resultProposals.length === 0) {
         addToast("No link proposals found for this concept.", "info");
-      } else if (proposals && Array.isArray(proposals) && proposals.length > 0) {
-        addToast(`Found ${proposals.length} link proposal${proposals.length !== 1 ? "s" : ""}`, "success");
+      } else if (resultProposals && Array.isArray(resultProposals) && resultProposals.length > 0) {
+        addToast(`Found ${resultProposals.length} link proposal${resultProposals.length !== 1 ? "s" : ""}`, "success");
+      } else {
+        addToast("No proposals returned. The query may still be processing.", "info");
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to propose links. Please try again.";
@@ -80,6 +100,7 @@ export function LinkProposer({ conceptId, conceptTitle }: LinkProposerProps) {
 
   return (
     <div className="space-y-4">
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
       <button
         onClick={handlePropose}
         disabled={isLoading}
@@ -92,20 +113,54 @@ export function LinkProposer({ conceptId, conceptTitle }: LinkProposerProps) {
         </span>
       </button>
 
-      {proposals && Array.isArray(proposals) && proposals.length > 0 && linkNamePairs && Array.isArray(linkNamePairs) && linkNamePairs.length > 0 && (
-        <div className="space-y-4 mt-4">
-          <h3 className="font-semibold">Proposed Links:</h3>
-          {proposals.map((proposal, index) => (
-            <LinkProposalCard
-              key={index}
-              proposal={proposal}
-              linkNamePairs={linkNamePairs}
-              onConfirm={handleConfirm}
-              isCreatingLink={createLinkMutation.isLoading}
-            />
-          ))}
-        </div>
-      )}
+      {proposals && Array.isArray(proposals) && proposals.length > 0 && linkNamePairs && Array.isArray(linkNamePairs) && linkNamePairs.length > 0 && (() => {
+        // Filter out proposals that are already linked
+        // existingLinks is LinksByConceptResult with { outgoing: [], incoming: [] }
+        const existingTargetIds = new Set<string>();
+        if (existingLinks && typeof existingLinks === 'object') {
+          const links = existingLinks as { outgoing?: any[]; incoming?: any[] };
+          if (Array.isArray(links.outgoing)) {
+            links.outgoing.forEach((l: any) => {
+              const targetId = l.targetId || l.target?.id;
+              if (targetId) existingTargetIds.add(targetId);
+            });
+          }
+          if (Array.isArray(links.incoming)) {
+            links.incoming.forEach((l: any) => {
+              const sourceId = l.sourceId || l.source?.id;
+              if (sourceId) existingTargetIds.add(sourceId);
+            });
+          }
+        }
+        const filteredProposals = proposals.filter((p: any) => {
+          // Proposal structure: { source: string, target: string (concept ID), ... }
+          const targetId = p.target;
+          return targetId && !existingTargetIds.has(targetId);
+        });
+        
+        if (filteredProposals.length === 0) {
+          return (
+            <div className="mt-4 text-gray-600">
+              All proposals have been linked. Click "Propose Links" again to get new proposals.
+            </div>
+          );
+        }
+        
+        return (
+          <div className="space-y-4 mt-4">
+            <h3 className="font-semibold">Proposed Links:</h3>
+            {filteredProposals.map((proposal, index) => (
+              <LinkProposalCard
+                key={index}
+                proposal={proposal}
+                linkNamePairs={linkNamePairs}
+                onConfirm={handleConfirm}
+                isCreatingLink={createLinkMutation.isLoading}
+              />
+            ))}
+          </div>
+        );
+      })()}
       {proposals && Array.isArray(proposals) && proposals.length > 0 && (!linkNamePairs || !Array.isArray(linkNamePairs) || linkNamePairs.length === 0) && (
         <div className="mt-4 text-yellow-600">
           Warning: No link name pairs available. Please create link name pairs first.

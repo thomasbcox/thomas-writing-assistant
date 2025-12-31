@@ -52,12 +52,21 @@ export interface SerializedLinkName {
   createdAt: string; // ISO date string
 }
 
+export interface SerializedOffer {
+  id: string;
+  name: string;
+  description: string | null;
+  createdAt: string; // ISO date string
+  updatedAt: string; // ISO date string
+}
+
 export interface SerializedCapsule {
   id: string;
   title: string;
   promise: string;
   cta: string;
-  offerMapping: string | null;
+  offerId: string | null;
+  offerMapping: string | null; // Legacy field
   createdAt: string; // ISO date string
   updatedAt: string; // ISO date string
 }
@@ -217,6 +226,31 @@ export interface AIUpdateSettingsInput {
   temperature?: number;
 }
 
+// Offer Input Types
+export interface OfferGetByIdInput {
+  id: string;
+}
+
+export interface OfferCreateInput {
+  name: string;
+  description?: string;
+}
+
+export interface OfferUpdateInput {
+  id: string;
+  name?: string;
+  description?: string;
+}
+
+export interface OfferDeleteInput {
+  id: string;
+}
+
+export interface OfferAssignCapsuleInput {
+  capsuleId: string;
+  offerId: string | null;
+}
+
 // =============================================================================
 // Output Types (Serialized - what components actually receive)
 // =============================================================================
@@ -355,6 +389,75 @@ export interface AIAvailableModelsResult {
   models: ModelOption[];
 }
 
+// Offer Output Types
+export type SerializedOfferWithCapsules = SerializedOffer & {
+  capsules: SerializedCapsule[];
+  capsuleCount: number;
+};
+
+export type OfferListResult = SerializedOfferWithCapsules[];
+
+export type OfferResult = SerializedOfferWithCapsules | null;
+
+export interface OfferDeleteResult {
+  deleted: boolean;
+  unassignedCapsules: number;
+}
+
+// Chat Session Types
+export interface SerializedChatSession {
+  id: string;
+  conceptId: string;
+  title: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SerializedChatMessage {
+  id: string;
+  sessionId: string;
+  role: "user" | "assistant";
+  content: string;
+  suggestions: string | null; // JSON
+  actions: string | null; // JSON
+  createdAt: string;
+}
+
+export type SerializedChatSessionWithMessages = SerializedChatSession & {
+  messages: SerializedChatMessage[];
+};
+
+// Chat Input Types
+export interface ChatCreateSessionInput {
+  conceptId: string;
+  title?: string;
+}
+
+export interface ChatGetSessionsInput {
+  conceptId: string;
+}
+
+export interface ChatGetSessionByIdInput {
+  id: string;
+}
+
+export interface ChatDeleteSessionInput {
+  id: string;
+}
+
+export interface ChatAddMessageInput {
+  sessionId: string;
+  role: "user" | "assistant";
+  content: string;
+  suggestions?: string;
+  actions?: string;
+}
+
+// Chat Output Types
+export interface ChatDeleteResult {
+  deleted: boolean;
+}
+
 // =============================================================================
 // Main ElectronAPI Interface
 // =============================================================================
@@ -377,6 +480,25 @@ export interface ElectronAPI {
     getById: (input: CapsuleGetByIdInput) => Promise<CapsuleResult>;
     create: (input: CapsuleCreateInput) => Promise<SerializedCapsule>;
     createAnchorFromPDF: (input: CapsuleCreateAnchorFromPDFInput) => Promise<CapsuleCreateAnchorFromPDFResult>;
+  };
+
+  offer: {
+    list: () => Promise<OfferListResult>;
+    getById: (input: OfferGetByIdInput) => Promise<OfferResult>;
+    create: (input: OfferCreateInput) => Promise<SerializedOffer>;
+    update: (input: OfferUpdateInput) => Promise<SerializedOffer>;
+    delete: (input: OfferDeleteInput) => Promise<OfferDeleteResult>;
+    assignCapsule: (input: OfferAssignCapsuleInput) => Promise<SerializedCapsule>;
+    getUnassignedCapsules: () => Promise<SerializedCapsule[]>;
+  };
+
+  chat: {
+    createSession: (input: ChatCreateSessionInput) => Promise<SerializedChatSession>;
+    getSessionsByConceptId: (input: ChatGetSessionsInput) => Promise<SerializedChatSessionWithMessages[]>;
+    getSessionById: (input: ChatGetSessionByIdInput) => Promise<SerializedChatSessionWithMessages>;
+    deleteSession: (input: ChatDeleteSessionInput) => Promise<ChatDeleteResult>;
+    addMessage: (input: ChatAddMessageInput) => Promise<SerializedChatMessage>;
+    getOrCreateSession: (input: ChatCreateSessionInput) => Promise<SerializedChatSessionWithMessages>;
   };
 
   link: {

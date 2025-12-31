@@ -337,5 +337,106 @@ export const ipc = {
       return win.electronAPI.ai.getAvailableModels();
     },
   },
+  offer: {
+    list: () => {
+      const win = getWindowRuntime();
+      if (!win || !win.electronAPI) {
+        throw new Error("IPC client not available - not running in Electron");
+      }
+      return win.electronAPI.offer.list();
+    },
+    getById: (input: { id: string }) => {
+      const win = getWindowRuntime();
+      if (!win || !win.electronAPI) {
+        throw new Error("IPC client not available - not running in Electron");
+      }
+      return win.electronAPI.offer.getById(input);
+    },
+    create: (input: { name: string; description?: string }) => {
+      const win = getWindowRuntime();
+      if (!win || !win.electronAPI) {
+        throw new Error("IPC client not available - not running in Electron");
+      }
+      return win.electronAPI.offer.create(input);
+    },
+    update: (input: { id: string; name?: string; description?: string }) => {
+      const win = getWindowRuntime();
+      if (!win || !win.electronAPI) {
+        throw new Error("IPC client not available - not running in Electron");
+      }
+      return win.electronAPI.offer.update(input);
+    },
+    delete: (input: { id: string }) => {
+      const win = getWindowRuntime();
+      if (!win || !win.electronAPI) {
+        throw new Error("IPC client not available - not running in Electron");
+      }
+      return win.electronAPI.offer.delete(input);
+    },
+    assignCapsule: (input: { capsuleId: string; offerId: string | null }) => {
+      const win = getWindowRuntime();
+      if (!win || !win.electronAPI) {
+        throw new Error("IPC client not available - not running in Electron");
+      }
+      return win.electronAPI.offer.assignCapsule(input);
+    },
+    getUnassignedCapsules: () => {
+      const win = getWindowRuntime();
+      if (!win || !win.electronAPI) {
+        throw new Error("IPC client not available - not running in Electron");
+      }
+      return win.electronAPI.offer.getUnassignedCapsules();
+    },
+  },
+  chat: {
+    createSession: (input: { conceptId: string; title?: string }) => {
+      const win = getWindowRuntime();
+      if (!win || !win.electronAPI) {
+        throw new Error("IPC client not available - not running in Electron");
+      }
+      return win.electronAPI.chat.createSession(input);
+    },
+    getSessionsByConceptId: (input: { conceptId: string }) => {
+      const win = getWindowRuntime();
+      if (!win || !win.electronAPI) {
+        throw new Error("IPC client not available - not running in Electron");
+      }
+      return win.electronAPI.chat.getSessionsByConceptId(input);
+    },
+    getSessionById: (input: { id: string }) => {
+      const win = getWindowRuntime();
+      if (!win || !win.electronAPI) {
+        throw new Error("IPC client not available - not running in Electron");
+      }
+      return win.electronAPI.chat.getSessionById(input);
+    },
+    deleteSession: (input: { id: string }) => {
+      const win = getWindowRuntime();
+      if (!win || !win.electronAPI) {
+        throw new Error("IPC client not available - not running in Electron");
+      }
+      return win.electronAPI.chat.deleteSession(input);
+    },
+    addMessage: (input: {
+      sessionId: string;
+      role: "user" | "assistant";
+      content: string;
+      suggestions?: string;
+      actions?: string;
+    }) => {
+      const win = getWindowRuntime();
+      if (!win || !win.electronAPI) {
+        throw new Error("IPC client not available - not running in Electron");
+      }
+      return win.electronAPI.chat.addMessage(input);
+    },
+    getOrCreateSession: (input: { conceptId: string; title?: string }) => {
+      const win = getWindowRuntime();
+      if (!win || !win.electronAPI) {
+        throw new Error("IPC client not available - not running in Electron");
+      }
+      return win.electronAPI.chat.getOrCreateSession(input);
+    },
+  },
 };
 

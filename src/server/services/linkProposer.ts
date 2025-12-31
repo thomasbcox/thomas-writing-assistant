@@ -30,8 +30,7 @@ export async function proposeLinksForConcept(
   llmClient?: LLMClient,
   configLoader?: ConfigLoader,
 ): Promise<LinkProposal[]> {
-  const startTime = Date.now();
-  const { db } = await import("~/server/db");
+  const { db } = await import("../db.js");
   const dbInstance = database ?? db;
   const client = llmClient ?? getLLMClient();
   const config = configLoader ?? getConfigLoader();
@@ -147,14 +146,11 @@ export async function proposeLinksForConcept(
     config,
     dbInstance,
   );
-
-  const totalDuration = Date.now() - startTime;
   logger.info(
     {
       service: "linkProposer",
       operation: "proposeLinksForConcept",
       conceptId,
-      totalDuration,
       proposalsGenerated: proposals.length,
       proposalsDetails: proposals.map((p) => ({
         target: p.target,

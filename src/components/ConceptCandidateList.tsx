@@ -16,12 +16,14 @@ interface ConceptCandidateListProps {
   candidates: ConceptCandidate[];
   defaultCreator?: string;
   defaultYear?: string;
+  onCandidateAccepted?: (index: number) => void;
 }
 
 export function ConceptCandidateList({
   candidates,
   defaultCreator,
   defaultYear,
+  onCandidateAccepted,
 }: ConceptCandidateListProps) {
   const [viewingIndex, setViewingIndex] = useState<number | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -45,11 +47,15 @@ export function ConceptCandidateList({
 
   const createMutation = api.concept.create.useMutation({
     onSuccess: () => {
+      const acceptedIndex = editingIndex;
       setEditingIndex(null);
       addToast("Concept created successfully!", "success");
       // Invalidate concept list queries so the Concepts tab refreshes
       void utils.concept.list.invalidate();
-      // Could remove the used candidate from the list
+      // Remove the accepted candidate from the list
+      if (acceptedIndex !== null && onCandidateAccepted) {
+        onCandidateAccepted(acceptedIndex);
+      }
     },
     onError: (error) => {
       // Error is already displayed to user via toast
@@ -72,8 +78,7 @@ export function ConceptCandidateList({
 
   const handleCreate = (index: number) => {
     createMutation.mutate(formData);
-    setEditingIndex(null);
-    // Optionally remove candidate from list
+    // Don't setEditingIndex(null) here - let onSuccess handle it after removing from list
   };
 
   return (

@@ -10,6 +10,8 @@ This document compares the stated requirements (from README.md and ROADMAP.md) w
 
 ### Requirements (from README.md)
 
+**Note**: This app focuses on **content generation only**. Content scheduling, rotation, and publishing are handled outside the application.
+
 1. **4-6 capsules** (12-20 total over time) mapping to main offers
 2. **Anchor posts** - Evergreen, conversion-ready blog posts
 3. **Repurposed content** from each anchor:
@@ -17,7 +19,7 @@ This document compares the stated requirements (from README.md and ROADMAP.md) w
    - 1 downloadable/lead magnet
    - Email (pain → promise → CTA)
    - Pinterest pins
-4. **Rotation system** - Resurface and republish systematically
+4. ~~**Rotation system**~~ - **Handled outside the app** (scheduling/publishing managed externally)
 
 ---
 
@@ -80,75 +82,107 @@ This document compares the stated requirements (from README.md and ROADMAP.md) w
 
 ---
 
+## 💬 Concept Enrichment System
+
+### Requirements (from Concept Management)
+1. **AI-powered enrichment** - Analyze concepts and suggest improvements
+2. **Metadata enrichment** - Fetch creator, year, source information
+3. **Conversational chat** - Interactive chat to improve concepts
+4. **Definition expansion** - Expand concept definitions with AI
+5. **Chat history persistence** - Persist conversations across sessions
+
+---
+
+## ✅ Implemented Features
+
+### 1. Enrichment Services
+- ✅ **Analyze concept** - AI analysis with suggestions and quick actions
+- ✅ **Enrich metadata** - Fetch creator, year, source from AI knowledge
+- ✅ **Chat enrichment** - Conversational interface for concept improvement
+- ✅ **Expand definition** - AI-powered definition expansion
+- ✅ **IPC handlers** - Full IPC implementation for all enrichment operations
+- ✅ **Service layer** - Comprehensive service implementation with LLM integration
+
+**Status**: **100% Complete** ✅
+
+### 2. Chat Session Persistence
+- ✅ **ChatSession table** - Database table for storing chat sessions per concept
+- ✅ **ChatMessage table** - Database table for storing individual messages
+- ✅ **IPC handlers** - Full CRUD for sessions and messages:
+  - `chat:createSession` - Create new chat session
+  - `chat:getSessionsByConceptId` - Get all sessions for a concept
+  - `chat:getSessionById` - Get session with all messages
+  - `chat:deleteSession` - Delete session (cascades to messages)
+  - `chat:addMessage` - Add message to session
+  - `chat:getOrCreateSession` - Convenience method
+- ✅ **UI integration** - `ConceptEnrichmentStudio` loads persisted chat history
+- ✅ **Message persistence** - All messages (user, assistant, errors) saved to database
+- ✅ **Migration** - `0003_add_chat_session_tables.sql` migration file
+
+**Status**: **100% Complete** ✅
+
+**Implementation Date**: December 30, 2025
+
+**Files Created**:
+- `electron/ipc-handlers/enrichment-handlers.ts`
+- `electron/ipc-handlers/chat-handlers.ts`
+- `drizzle/migrations/0003_add_chat_session_tables.sql`
+- `src/test/ipc-handlers/enrichment-handlers.test.ts`
+
+**Files Modified**:
+- `src/server/schema.ts` - Added ChatSession and ChatMessage tables
+- `src/components/enrichment/ConceptEnrichmentStudio.tsx` - Added persistence integration
+- `electron/ipc-handlers/index.ts` - Registered handlers
+- `electron/preload.ts` - Added IPC methods
+- `src/types/electron-api.ts` - Added chat types
+- `src/hooks/useIPC.ts` - Added chat hooks
+
+---
+
 ## 🚧 Future Roadmap Features
 
 The following features are planned for future development but **should not be implemented yet**. They are documented here for reference and planning purposes.
 
-### 1. Offer Mapping Workflow ⏭️ **Next Priority**
+### 1. Offer Mapping Workflow ✅ **COMPLETE**
 **Requirement**: "4-6 capsules mapping to main offers"
 
-**Status**: **Partial** 🟡 - **Next item to develop (not today)**
+**Status**: **100% Complete** ✅
 
-**What Exists**:
-- `offerMapping` field in Capsule model
-- Can set offerMapping when creating capsules
+**Implementation** (December 30, 2025):
+- ✅ **Offer table** - Full domain model with id, name, description
+- ✅ **Capsule relationship** - `offerId` foreign key on Capsule table (nullable, ON DELETE SET NULL)
+- ✅ **IPC handlers** - Full CRUD operations + capsule assignment:
+  - `offer:list` - List all offers with capsule counts
+  - `offer:getById` - Get offer with capsules
+  - `offer:create` - Create new offer
+  - `offer:update` - Update offer details
+  - `offer:delete` - Delete offer (unassigns capsules)
+  - `offer:assignCapsule` - Assign/unassign capsule to/from offer
+  - `offer:getUnassignedCapsules` - Get capsules without offers
+- ✅ **UI implementation** - `OfferManager.tsx` component with:
+  - Create/edit/delete offers
+  - Assign/unassign capsules with modal interface
+  - Visual validation indicators (4-6 capsules recommended)
+  - Display of unassigned capsules
+  - Toast notifications for all operations
+- ✅ **Validation** - Warns when assigning would exceed 6 capsules (recommended maximum)
+- ✅ **Migration** - `0002_add_offer_table.sql` migration file
 
-**What's Missing**:
-- No UI for managing offer mappings
-- No validation that capsules map to offers
-- No workflow to ensure 4-6 capsules per offer
-- No offer management system
-- No reporting on offer-to-capsule mapping
+**Files Created**:
+- `src/components/OfferManager.tsx`
+- `electron/ipc-handlers/offer-handlers.ts`
+- `drizzle/migrations/0002_add_offer_table.sql`
 
-**Implementation Needed** (when ready):
-- Offer entity/model (if not just a string)
-- Offer management UI
-- Validation for capsule-to-offer mapping
-- Dashboard showing offer coverage
-
----
-
-### 2. Rotation System 📅 **Future Roadmap**
-**Requirement**: "Resurface and republish systematically"
-
-**Status**: **0% Complete** - **Future roadmap item, do not implement yet**
-
-**What's Missing**:
-- No scheduling system for republishing content
-- No tracking of when content was last published
-- No automation for resurfacing old content
-- No rotation calendar or schedule view
-- No reminders or notifications for rotation
-
-**Implementation Needed** (when ready):
-- Database fields: `lastPublishedAt`, `nextPublishDate`, `publishCount`
-- Rotation scheduling logic
-- Calendar/reminder UI
-- Automated rotation workflow
+**Files Modified**:
+- `src/server/schema.ts` - Added Offer table and relations
+- `electron/ipc-handlers/index.ts` - Registered offer handlers
+- `electron/preload.ts` - Added offer IPC methods
+- `src/types/electron-api.ts` - Added Offer types
+- `src/hooks/useIPC.ts` - Added offer hooks
 
 ---
 
-### 3. Content Analytics/Tracking 📊 **Future Roadmap**
-**Requirement**: Not explicitly stated but implied for rotation system
-
-**Status**: **0% Complete** - **Future roadmap item, do not implement yet**
-
-**What's Missing**:
-- No tracking of content performance
-- No analytics on which content types perform best
-- No engagement metrics
-- No A/B testing capabilities
-- No reporting dashboard
-
-**Implementation Needed** (when ready):
-- Analytics tracking system
-- Performance metrics database
-- Reporting UI
-- Integration with publishing platforms (if applicable)
-
----
-
-### 4. Bulk Operations 🔄 **Future Roadmap**
+### 2. Bulk Operations 🔄 **Future Roadmap**
 **Requirement**: Not explicitly stated but useful for managing 12-20 capsules
 
 **Status**: **0% Complete** - **Future roadmap item, do not implement yet**
@@ -166,7 +200,7 @@ The following features are planned for future development but **should not be im
 
 ---
 
-### 5. Content Templates 📝 **Future Roadmap**
+### 3. Content Templates 📝 **Future Roadmap**
 **Requirement**: Not explicitly stated but useful for consistency
 
 **Status**: **0% Complete** - **Future roadmap item, do not implement yet**
@@ -195,15 +229,17 @@ The following features are planned for future development but **should not be im
 | PDF Processing | ✅ Complete | 100% |
 | AI Content Generation | ✅ Complete | 100% |
 | UI/UX | ✅ Complete | 100% |
+| Offer Mapping Workflow | ✅ Complete | 100% |
+| Concept Enrichment | ✅ Complete | 100% |
+| Chat Session Persistence | ✅ Complete | 100% |
 
 ### Future Roadmap Features
 | Feature | Status | Priority |
 |--------|--------|----------|
-| Offer Mapping Workflow | 🟡 Partial | ⏭️ Next (not today) |
-| Rotation System | 📅 Future | Future roadmap |
-| Content Analytics | 📅 Future | Future roadmap |
 | Bulk Operations | 📅 Future | Future roadmap |
 | Content Templates | 📅 Future | Future roadmap |
+
+**Note**: Rotation system and content analytics are handled outside the application. This app focuses on content generation only.
 
 ### Overall Completion
 - **Core Features**: **100%** ✅
@@ -214,32 +250,24 @@ The following features are planned for future development but **should not be im
 
 ## 🎯 Development Roadmap
 
-### ⏭️ Next Priority (Not Today)
-**Offer Mapping Workflow** - Field exists but no workflow
-- Create offer management UI
-- Add validation for 4-6 capsules per offer
-- Build offer dashboard
+### ✅ Recently Completed (December 30, 2025)
+- ✅ **Offer Mapping Workflow** - Full domain model, UI, and validation implemented
+- ✅ **Chat Session Persistence** - Database-backed chat history for enrichment workflows
+- ✅ **Component Refactoring** - LinksTab broken down into focused components
+- ✅ **Comprehensive Logging** - All IPC handlers now have structured logging
+- ✅ **Testing Expansion** - 42 new tests for enrichment routes and component integration
 
 ### 📅 Future Roadmap (Do Not Implement Yet)
 The following features are planned for future development:
 
-1. **Rotation System** - Resurface and republish systematically
-   - Add `lastPublishedAt`, `nextPublishDate` fields to Anchor/RepurposedContent
-   - Create rotation scheduling logic
-   - Build rotation calendar UI
-   - Add reminders/notifications
+**Note**: Rotation system and content analytics are handled outside the application. This app focuses on content generation only.
 
-2. **Content Analytics** - Track content performance
-   - Analytics tracking system
-   - Performance metrics database
-   - Reporting UI
-
-3. **Bulk Operations** - Manage many capsules efficiently
+1. **Bulk Operations** - Manage many capsules efficiently
    - Bulk selection UI
    - Batch operations API
    - Export functionality
 
-4. **Content Templates** - Consistency and efficiency
+2. **Content Templates** - Consistency and efficiency
    - Template system
    - Template management UI
    - Template application workflow
@@ -255,13 +283,16 @@ The following features are planned for future development:
 - ✅ Regenerate derivatives tests (error handling)
 - ✅ Anchor extractor service tests (8 test cases)
 - ✅ Repurposer service tests (5 test cases)
+- ✅ Enrichment handler tests (13 test cases) - analyze, enrichMetadata, chat, expandDefinition
+- ✅ Component integration tests (29 test cases):
+  - LinkList component tests (10 tests)
+  - ManualLinkForm component tests (9 tests)
+  - CapsulesTab component tests (10 tests)
 
 ### Future Tests (When Features Are Implemented)
-- 📅 Rotation system tests (when rotation system is implemented)
-- 📅 Offer mapping tests (when offer mapping workflow is implemented)
 - 📅 Bulk operations tests (when bulk operations are implemented)
 
-**Test Coverage**: **148 tests passing** ✅
+**Test Coverage**: **190+ tests passing** ✅ (42 new tests added December 30, 2025)
 
 ---
 
@@ -277,10 +308,10 @@ The following features are planned for future development:
 - ✅ **No system dialogs** - all custom UI components
 
 ### Future Enhancements (Planned)
-- 📅 **Rotation system** - Planned for future roadmap
-- ⏭️ **Offer mapping workflow** - Next priority (not today)
 - 📅 **Bulk operations** - Planned for future roadmap
-- 📅 **Analytics** - Planned for future roadmap
+- 📅 **Content templates** - Planned for future roadmap
+
+**Note**: Rotation system and analytics are handled outside the application.
 
 ---
 
@@ -292,14 +323,89 @@ The following features are planned for future development:
 - Generating repurposed content ✅
 - PDF processing ✅
 - Full CRUD operations ✅
+- Offer mapping workflow ✅ (completed December 30, 2025)
+- Concept enrichment with chat persistence ✅ (completed December 30, 2025)
 
 **The system is production-ready for basic use.** All core functionality is implemented and tested.
 
-**Next Development Priority**: Offer Mapping Workflow (not today, but next on the roadmap)
+**Recent Enhancements** (December 30, 2025):
+- ✅ Offer management system with UI and validation
+- ✅ Chat session persistence for enrichment workflows
+- ✅ Component refactoring for better maintainability
+- ✅ Comprehensive logging across all IPC handlers
+- ✅ Expanded test coverage (42 new tests)
 
-**Future Roadmap**: Rotation system, analytics, bulk operations, and templates are planned for future development but should not be implemented yet.
+**Future Roadmap**: Bulk operations and templates are planned for future development but should not be implemented yet.
+
+**Note**: Rotation system and content analytics are handled outside the application. This app focuses exclusively on content generation.
 
 ---
 
-*Last Updated: After implementing anchor/derivative CRUD and tests*
+## 🎯 Next Steps
+
+Given that rotation and analytics are handled outside the app, the focus remains on **content generation capabilities**. Here are the recommended next steps:
+
+### Immediate Priorities
+
+1. **Export Functionality** 📤
+   - Export generated content in various formats (JSON, CSV, Markdown)
+   - Export capsules with anchors and repurposed content
+   - Export concepts and links
+   - Enable easy transfer of generated content to external publishing systems
+
+2. **Content Quality Improvements** ✨
+   - Enhanced AI prompts for better content quality
+   - Content validation and quality checks
+   - Preview/editing capabilities before finalizing content
+   - Version history for generated content
+
+3. **Workflow Enhancements** 🔄
+   - Batch generation (generate multiple repurposed content items at once)
+   - Template system for consistent content structure
+   - Content variations (generate multiple versions of same content)
+   - Quick actions for common workflows
+
+### Medium-Term Enhancements
+
+4. **Bulk Operations** 📦
+   - Bulk selection UI for capsules/anchors
+   - Batch regenerate derivatives
+   - Bulk export functionality
+   - Batch operations API
+
+5. **Content Templates** 📝
+   - Template system for anchor posts
+   - Template system for repurposed content
+   - Saved prompt variations
+   - Content style presets
+
+6. **User Experience** 🎨
+   - Improved navigation and organization
+   - Better search and filtering
+   - Keyboard shortcuts
+   - Drag-and-drop for organizing content
+
+### Long-Term Considerations
+
+7. **Integration Capabilities** 🔌
+   - API endpoints for external systems to access generated content
+   - Webhook support for content generation events
+   - Integration with external content management systems
+
+8. **Performance & Scalability** ⚡
+   - Optimize database queries for large datasets
+   - Caching strategies
+   - Background job processing for long-running operations
+   - Database optimization and indexing
+
+### Out of Scope (Handled Externally)
+
+- ❌ **Rotation System** - Content scheduling and republishing
+- ❌ **Content Analytics** - Performance tracking and metrics
+- ❌ **Publishing Integration** - Direct publishing to platforms
+- ❌ **Scheduling** - Content calendar and reminders
+
+---
+
+*Last Updated: December 30, 2025 (after code quality improvements and feature enhancements)*
 

@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 import { getDb } from "../db.js";
 import { getLLMClient } from "../../src/server/services/llm/client.js";
 import { getConfigLoader } from "../../src/server/services/config.js";
+import { logger, logServiceError } from "../../src/lib/logger.js";
 
 // Input schemas
 const listInputSchema = z.object({
@@ -67,7 +68,8 @@ export function registerConceptHandlers() {
     const parsed = listInputSchema.parse(input);
     const db = getDb();
     const sqlite = (db as any).session?.client;
-    // #endregion
+
+    logger.info({ operation: "concept:list", includeTrash: parsed.includeTrash, search: parsed.search }, "Fetching concepts");
 
     const conditions = [];
 
@@ -92,6 +94,7 @@ export function registerConceptHandlers() {
       .where(whereClause)
       .orderBy(desc(concept.createdAt));
 
+    logger.info({ operation: "concept:list", count: concepts.length }, "Concepts fetched successfully");
     return concepts;
   });
 
@@ -99,6 +102,8 @@ export function registerConceptHandlers() {
   ipcMain.handle("concept:getById", async (_event, input: unknown) => {
     const parsed = getByIdInputSchema.parse(input);
     const db = getDb();
+
+    logger.info({ operation: "concept:getById", conceptId: parsed.id }, "Fetching concept by ID");
 
     const foundConcept = await db.query.concept.findFirst({
       where: eq(concept.id, parsed.id),
@@ -119,9 +124,11 @@ export function registerConceptHandlers() {
     });
 
     if (!foundConcept) {
+      logger.warn({ operation: "concept:getById", conceptId: parsed.id }, "Concept not found");
       throw new Error("Concept not found");
     }
 
+    logger.info({ operation: "concept:getById", conceptId: parsed.id, title: foundConcept.title }, "Concept fetched successfully");
     return foundConcept;
   });
 
@@ -129,6 +136,8 @@ export function registerConceptHandlers() {
   ipcMain.handle("concept:create", async (_event, input: unknown) => {
     const parsed = createInputSchema.parse(input);
     const db = getDb();
+
+    logger.info({ operation: "concept:create", title: parsed.title, creator: parsed.creator }, "Creating concept");
 
     const identifier = `zettel-${uuidv4().slice(0, 8)}`;
 
@@ -146,6 +155,7 @@ export function registerConceptHandlers() {
       })
       .returning();
 
+    logger.info({ operation: "concept:create", conceptId: newConcept.id, title: parsed.title, identifier }, "Concept created successfully");
     return newConcept;
   });
 
@@ -153,6 +163,8 @@ export function registerConceptHandlers() {
   ipcMain.handle("concept:update", async (_event, input: unknown) => {
     const parsed = updateInputSchema.parse(input);
     const db = getDb();
+
+    logger.info({ operation: "concept:update", conceptId: parsed.id, fields: Object.keys(parsed).filter(k => k !== 'id') }, "Updating concept");
 
     const { id, ...updateData } = parsed;
 
@@ -163,9 +175,11 @@ export function registerConceptHandlers() {
       .returning();
 
     if (!updatedConcept) {
+      logger.warn({ operation: "concept:update", conceptId: id }, "Concept not found");
       throw new Error("Concept not found");
     }
 
+    logger.info({ operation: "concept:update", conceptId: id, title: updatedConcept.title }, "Concept updated successfully");
     return updatedConcept;
   });
 
@@ -173,6 +187,8 @@ export function registerConceptHandlers() {
   ipcMain.handle("concept:delete", async (_event, input: unknown) => {
     const parsed = deleteInputSchema.parse(input);
     const db = getDb();
+
+    logger.info({ operation: "concept:delete", conceptId: parsed.id }, "Soft-deleting concept");
 
     const [deletedConcept] = await db
       .update(concept)
@@ -184,9 +200,11 @@ export function registerConceptHandlers() {
       .returning();
 
     if (!deletedConcept) {
+      logger.warn({ operation: "concept:delete", conceptId: parsed.id }, "Concept not found");
       throw new Error("Concept not found");
     }
 
+    logger.info({ operation: "concept:delete", conceptId: parsed.id, title: deletedConcept.title }, "Concept soft-deleted successfully");
     return deletedConcept;
   });
 
@@ -194,6 +212,8 @@ export function registerConceptHandlers() {
   ipcMain.handle("concept:restore", async (_event, input: unknown) => {
     const parsed = restoreInputSchema.parse(input);
     const db = getDb();
+
+    logger.info({ operation: "concept:restore", conceptId: parsed.id }, "Restoring concept from trash");
 
     const [restoredConcept] = await db
       .update(concept)
@@ -205,9 +225,11 @@ export function registerConceptHandlers() {
       .returning();
 
     if (!restoredConcept) {
+      logger.warn({ operation: "concept:restore", conceptId: parsed.id }, "Concept not found");
       throw new Error("Concept not found");
     }
 
+    logger.info({ operation: "concept:restore", conceptId: parsed.id, title: restoredConcept.title }, "Concept restored successfully");
     return restoredConcept;
   });
 
@@ -215,6 +237,8 @@ export function registerConceptHandlers() {
   ipcMain.handle("concept:purgeTrash", async (_event, input: unknown) => {
     const parsed = purgeTrashInputSchema.parse(input);
     const db = getDb();
+
+    logger.info({ operation: "concept:purgeTrash", daysOld: parsed.daysOld }, "Purging old trashed concepts");
 
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - parsed.daysOld);
@@ -228,6 +252,7 @@ export function registerConceptHandlers() {
         )!,
       );
 
+    logger.info({ operation: "concept:purgeTrash", deletedCount: result.changes, daysOld: parsed.daysOld }, "Trash purged successfully");
     return { deletedCount: result.changes };
   });
 
@@ -236,40 +261,60 @@ export function registerConceptHandlers() {
     const parsed = proposeLinksInputSchema.parse(input);
     const db = getDb();
 
-    const { proposeLinksForConcept } = await import(
-      "../../src/server/services/linkProposer"
-    );
-    const llmClient = getLLMClient();
-    const configLoader = getConfigLoader();
+    logger.info({ operation: "concept:proposeLinks", conceptId: parsed.conceptId, maxProposals: parsed.maxProposals }, "Proposing links for concept");
 
-    return proposeLinksForConcept(
-      parsed.conceptId,
-      parsed.maxProposals,
-      db as any,
-      llmClient,
-      configLoader,
-    );
+    try {
+      const { proposeLinksForConcept } = await import(
+        "../../src/server/services/linkProposer.js"
+      );
+      const llmClient = getLLMClient();
+      const configLoader = getConfigLoader();
+
+      const result = await proposeLinksForConcept(
+        parsed.conceptId,
+        parsed.maxProposals,
+        db as any,
+        llmClient,
+        configLoader,
+      );
+
+      logger.info({ operation: "concept:proposeLinks", conceptId: parsed.conceptId, proposalCount: result?.length ?? 0 }, "Link proposals generated successfully");
+      return result;
+    } catch (error) {
+      logServiceError(error, "concept.proposeLinks", { conceptId: parsed.conceptId, maxProposals: parsed.maxProposals });
+      throw error;
+    }
   });
 
   // Generate candidates
   ipcMain.handle("concept:generateCandidates", async (_event, input: unknown) => {
     const parsed = generateCandidatesInputSchema.parse(input);
 
-    const { generateConceptCandidates } = await import(
-      "../../src/server/services/conceptProposer.js"
-    );
-    const llmClient = getLLMClient();
-    const configLoader = getConfigLoader();
+    logger.info({ operation: "concept:generateCandidates", textLength: parsed.text?.length ?? 0, maxCandidates: parsed.maxCandidates }, "Generating concept candidates from text");
 
-    return generateConceptCandidates(
-      parsed.text,
-      parsed.instructions,
-      parsed.maxCandidates,
-      parsed.defaultCreator,
-      parsed.defaultYear,
-      llmClient,
-      configLoader,
-    );
+    try {
+      const { generateConceptCandidates } = await import(
+        "../../src/server/services/conceptProposer.js"
+      );
+      const llmClient = getLLMClient();
+      const configLoader = getConfigLoader();
+
+      const result = await generateConceptCandidates(
+        parsed.text,
+        parsed.instructions,
+        parsed.maxCandidates,
+        parsed.defaultCreator,
+        parsed.defaultYear,
+        llmClient,
+        configLoader,
+      );
+
+      logger.info({ operation: "concept:generateCandidates", candidateCount: result?.length ?? 0 }, "Concept candidates generated successfully");
+      return result;
+    } catch (error) {
+      logServiceError(error, "concept.generateCandidates", { textLength: parsed.text?.length ?? 0, maxCandidates: parsed.maxCandidates });
+      throw error;
+    }
   });
 }
 

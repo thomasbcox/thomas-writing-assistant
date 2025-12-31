@@ -31,6 +31,27 @@ const electronAPI: ElectronAPI = {
     createAnchorFromPDF: (input) => ipcRenderer.invoke("capsule:createAnchorFromPDF", input),
   },
 
+  // Offer handlers
+  offer: {
+    list: () => ipcRenderer.invoke("offer:list"),
+    getById: (input) => ipcRenderer.invoke("offer:getById", input),
+    create: (input) => ipcRenderer.invoke("offer:create", input),
+    update: (input) => ipcRenderer.invoke("offer:update", input),
+    delete: (input) => ipcRenderer.invoke("offer:delete", input),
+    assignCapsule: (input) => ipcRenderer.invoke("offer:assignCapsule", input),
+    getUnassignedCapsules: () => ipcRenderer.invoke("offer:getUnassignedCapsules"),
+  },
+
+  // Chat handlers
+  chat: {
+    createSession: (input) => ipcRenderer.invoke("chat:createSession", input),
+    getSessionsByConceptId: (input) => ipcRenderer.invoke("chat:getSessionsByConceptId", input),
+    getSessionById: (input) => ipcRenderer.invoke("chat:getSessionById", input),
+    deleteSession: (input) => ipcRenderer.invoke("chat:deleteSession", input),
+    addMessage: (input) => ipcRenderer.invoke("chat:addMessage", input),
+    getOrCreateSession: (input) => ipcRenderer.invoke("chat:getOrCreateSession", input),
+  },
+
   // Link handlers
   link: {
     getAll: (input) => ipcRenderer.invoke("link:getAll", input),

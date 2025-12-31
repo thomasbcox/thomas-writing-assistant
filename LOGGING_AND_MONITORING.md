@@ -1,5 +1,7 @@
 # Logging and Monitoring Status
 
+*Last Updated: December 30, 2025*
+
 ## Current Logging Coverage
 
 ### ✅ Well-Logged Areas
@@ -15,23 +17,25 @@
 - Stack traces preserved
 - Service/operation context included
 
-### ⚠️ Recently Improved
+**IPC Handlers (Complete):**
+- ✅ Concept operations (list, getById, create, update, delete, restore, purgeTrash, proposeLinks, generateCandidates)
+- ✅ Link operations (getAll, getByConcept, create, delete)
+- ✅ Capsule operations (list, getById, create, createAnchorFromPDF)
+- ✅ PDF operations (extractText)
+- ✅ Enrichment operations (analyze, enrichMetadata, chat, expandDefinition)
+- ✅ Offer operations (list, getById, create, update, delete, assignCapsule, getUnassignedCapsules)
+- ✅ Chat operations (createSession, getSessionsByConceptId, getSessionById, deleteSession, addMessage, getOrCreateSession)
 
-**API Routes (Now Logging):**
-- ✅ Concept creation - NOW LOGGED
-- ✅ Concept updates - NOW LOGGED  
-- ✅ Concept deletion - NOW LOGGED
-- ✅ Concept listing - NOW LOGGED
+**Client-Side Logging:**
+- ✅ useIPC hook error logging (queries and mutations)
+- ✅ Console error logging in browser/renderer environments
 
-### 🔴 Still Missing
+### ⚠️ Remaining Gaps
 
-**API Routes:**
-- 🔴 Link operations (create/update/delete)
-- 🔴 Capsule operations
-- 🔴 Anchor operations
-- 🔴 PDF processing start/completion
-- 🔴 Request correlation IDs
-- 🔴 Operation timing/metrics
+**Not Yet Implemented:**
+- 🔴 Request correlation IDs for distributed tracing
+- 🔴 Operation timing/metrics for performance monitoring
+- 🔴 Anchor CRUD operations (updateAnchor, deleteAnchor) - Note: These may be handled via capsule handlers
 
 ## AI Agent Logging Checklist
 
@@ -61,11 +65,15 @@ When debugging, the AI agent MUST check:
 
 ## Recommendations
 
-1. **Add logging to remaining API routes** (links, capsules, anchors)
-2. **Add request correlation IDs** for request tracing
-3. **Add operation timing** for performance monitoring
-4. **Set up log aggregation** for easier analysis
-5. **Create log alerts** for critical errors
+1. ~~**Add logging to remaining API routes** (links, capsules, anchors)~~ ✅ DONE (December 30, 2025)
+2. ~~**Add logging to enrichment, offer, and chat handlers**~~ ✅ DONE (December 30, 2025)
+3. ~~**Add client-side error logging** to useIPC hook~~ ✅ DONE (December 30, 2025)
+4. **Add request correlation IDs** for request tracing
+5. **Add operation timing** for performance monitoring
+6. **Set up log aggregation** for easier analysis
+7. **Create log alerts** for critical errors
+
+
 
 
 

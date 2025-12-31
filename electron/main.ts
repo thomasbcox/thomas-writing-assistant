@@ -28,6 +28,20 @@ function createWindow() {
     },
   });
 
+  // Suppress harmless DevTools protocol warnings (Autofill, etc.)
+  mainWindow.webContents.on("console-message", (event, level, message, line, sourceId) => {
+    // Filter out harmless DevTools protocol errors
+    if (
+      message.includes("Autofill.enable") ||
+      message.includes("Autofill.setAddresses") ||
+      message.includes("wasn't found")
+    ) {
+      // Suppress these harmless warnings
+      return;
+    }
+    // Allow other console messages through
+  });
+
   // Load the app
   // Check if we're in development mode (either via NODE_ENV or if Vite dev server is available)
   const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;

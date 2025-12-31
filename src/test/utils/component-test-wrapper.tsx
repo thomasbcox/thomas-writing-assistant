@@ -64,6 +64,7 @@ const createMockCapsule = (overrides?: Partial<SerializedCapsule>): SerializedCa
   title: "Mock Capsule",
   promise: "Mock promise",
   cta: "Mock CTA",
+  offerId: null,
   offerMapping: null,
   createdAt: mockDate(),
   updatedAt: mockDate(),

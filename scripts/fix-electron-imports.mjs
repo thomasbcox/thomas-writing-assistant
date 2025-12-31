@@ -24,7 +24,8 @@ function fixImportsInFile(filePath) {
     
     // Fix ~/ imports - convert to relative paths
     // ~/ means src/, so calculate relative path from current file's directory to src
-    content = content.replace(/from\s+(['"])~\/(.*?)(\.js)?\1/g, (match, quote, aliasPath, ext) => {
+    // Handle both static imports (from) and dynamic imports (await import)
+    const fixTildeImport = (match, importType, quote, aliasPath, ext) => {
       // Calculate relative path from current file's directory to dist-electron/src
       let relativePath = relative(currentDir, distElectronSrc);
       
@@ -48,8 +49,14 @@ function fixImportsInFile(filePath) {
         newImportPath += '.js';
       }
       
-      return `from ${quote}${newImportPath}${quote}`;
-    });
+      return `${importType}${quote}${newImportPath}${quote}`;
+    };
+    
+    // Fix static imports: from "~/..."
+    content = content.replace(/(from\s+)(['"])~\/(.*?)(\.js)?\2/g, fixTildeImport);
+    
+    // Fix dynamic imports: await import("~/...")
+    content = content.replace(/(await import\()(['"])~\/(.*?)(\.js)?\2/g, fixTildeImport);
     
     // Fix ../src/ imports - replace with correct relative path and add .js extension if missing
     content = content.replace(/from\s+(['"])(\.\.\/src\/[^'"]+?)(\.js)?\1/g, (match, quote, importPath, ext) => {

@@ -186,6 +186,9 @@ export function TextInputTab() {
           candidates={candidates}
           defaultCreator={defaultCreator}
           defaultYear={defaultYear}
+          onCandidateAccepted={(index) => {
+            setCandidates((prev) => prev.filter((_, i) => i !== index));
+          }}
         />
       )}
       </div>

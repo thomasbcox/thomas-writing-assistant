@@ -12,6 +12,7 @@ import {
   type QuickAction,
   type ChatMessage as APIChatMessage,
 } from "~/lib/api/enrichment";
+import { api } from "~/hooks/useIPC";
 import { EnrichmentChatPanel } from "./EnrichmentChatPanel";
 import { EnrichmentEditorPanel } from "./EnrichmentEditorPanel";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
@@ -49,6 +50,52 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
   const [isAIThinking, setIsAIThinking] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+
+  // Chat persistence - load session for existing concepts
+  const { data: chatSession, refetch: refetchSession } = api.chat.getOrCreateSession.useQuery(
+    { conceptId: conceptId ?? "" },
+    { enabled: !!conceptId && !isNewConcept }
+  );
+
+  const addMessageMutation = api.chat.addMessage.useMutation();
+
+  // Load persisted messages when session is available
+  useEffect(() => {
+    if (chatSession && typeof chatSession === "object" && "id" in chatSession) {
+      const session = chatSession as { id: string; messages?: Array<{ id: string; role: string; content: string; createdAt: string; suggestions?: string; actions?: string }> };
+      setSessionId(session.id);
+      // Convert persisted messages to component format
+      if (session.messages && session.messages.length > 0) {
+        const loadedMessages: ChatMessage[] = session.messages.map((msg) => ({
+          id: msg.id,
+          role: msg.role as "user" | "assistant",
+          content: msg.content,
+          timestamp: new Date(msg.createdAt),
+          suggestions: msg.suggestions ? JSON.parse(msg.suggestions) : undefined,
+          actions: msg.actions ? JSON.parse(msg.actions) : undefined,
+        }));
+        setMessages(loadedMessages);
+      }
+    }
+  }, [chatSession]);
+
+  // Helper to persist a message
+  const persistMessage = useCallback(async (message: ChatMessage) => {
+    if (sessionId) {
+      try {
+        await addMessageMutation.mutateAsync({
+          sessionId,
+          role: message.role,
+          content: message.content,
+          suggestions: message.suggestions ? JSON.stringify(message.suggestions) : undefined,
+          actions: message.actions ? JSON.stringify(message.actions) : undefined,
+        });
+      } catch (error) {
+        console.error("Failed to persist message:", error);
+      }
+    }
+  }, [sessionId, addMessageMutation]);
 
   // Mutations
   const createMutation = useCreateConcept();
@@ -82,23 +129,31 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
     }
   }, [existingConcept, initialData, isNewConcept]);
 
-  // Initial analysis when concept loads
+  // Initial analysis when concept loads (only if no existing messages)
   useEffect(() => {
+    // Skip if we have loaded messages from session
+    if (messages.length > 0) return;
+    // Skip if session is still loading (for existing concepts)
+    if (!isNewConcept && conceptId && !chatSession) return;
+    
     if (formData.title && (isNewConcept || existingConcept)) {
       setIsAIThinking(true);
       analyzeMutation.mutate(formData, {
         onSuccess: (result) => {
           setIsAIThinking(false);
-          setMessages([
-            {
-              id: `msg-${Date.now()}`,
-              role: "assistant" as const,
-              content: result.initialMessage,
-              timestamp: new Date(),
-              suggestions: result.suggestions,
-              actions: result.quickActions,
-            },
-          ]);
+          const initialMessage: ChatMessage = {
+            id: `msg-${Date.now()}`,
+            role: "assistant" as const,
+            content: result.initialMessage,
+            timestamp: new Date(),
+            suggestions: result.suggestions,
+            actions: result.quickActions,
+          };
+          setMessages([initialMessage]);
+          // Persist initial analysis message (only for existing concepts with session)
+          if (sessionId) {
+            void persistMessage(initialMessage);
+          }
           setPendingSuggestions(result.suggestions);
           setQuickActions(result.quickActions);
         },
@@ -108,7 +163,7 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.title, isNewConcept, !!existingConcept]);
+  }, [formData.title, isNewConcept, !!existingConcept, sessionId, messages.length, chatSession]);
 
   // Auto-save for existing concepts (every 30 seconds)
   useEffect(() => {
@@ -238,6 +293,8 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, userMessage]);
+      // Persist user message
+      void persistMessage(userMessage);
       setIsAIThinking(true);
 
       try {
@@ -257,6 +314,8 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
         };
 
         setMessages((prev) => [...prev, assistantMessage]);
+        // Persist assistant message
+        void persistMessage(assistantMessage);
         if (result.suggestions) {
           setPendingSuggestions((prev) => [...prev, ...result.suggestions!]);
         }
@@ -264,20 +323,20 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
           setQuickActions((prev) => [...prev, ...result.actions!]);
         }
       } catch (error) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `msg-${Date.now() + 1}`,
-            role: "assistant" as const,
-            content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : "Unknown error"}`,
-            timestamp: new Date(),
-          },
-        ]);
+        const errorMessage: ChatMessage = {
+          id: `msg-${Date.now() + 1}`,
+          role: "assistant" as const,
+          content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : "Unknown error"}`,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+        // Persist error message too
+        void persistMessage(errorMessage);
       } finally {
         setIsAIThinking(false);
       }
     },
-    [formData, messages, chatMutation],
+    [formData, messages, chatMutation, persistMessage],
   );
 
   const handleSave = useCallback(() => {

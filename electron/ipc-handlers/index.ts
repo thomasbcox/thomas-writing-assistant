@@ -6,6 +6,9 @@ import { registerCapsuleHandlers } from "./capsule-handlers.js";
 import { registerConfigHandlers } from "./config-handlers.js";
 import { registerPdfHandlers } from "./pdf-handlers.js";
 import { registerAiHandlers } from "./ai-handlers.js";
+import { registerEnrichmentHandlers } from "./enrichment-handlers.js";
+import { registerOfferHandlers } from "./offer-handlers.js";
+import { registerChatHandlers } from "./chat-handlers.js";
 
 export function registerAllHandlers() {
   registerConceptHandlers();
@@ -15,6 +18,9 @@ export function registerAllHandlers() {
   registerConfigHandlers();
   registerPdfHandlers();
   registerAiHandlers();
-  // TODO: Add enrichment, dataQuality handlers as needed
+  registerEnrichmentHandlers();
+  registerOfferHandlers();
+  registerChatHandlers();
+  // TODO: Add dataQuality handlers as needed
 }
 

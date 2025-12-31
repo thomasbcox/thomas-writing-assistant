@@ -3,7 +3,7 @@ import { z } from "zod";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { link, linkName, concept } from "../../src/server/schema.js";
 import { getDb } from "../db.js";
-import { logServiceError } from "../../src/lib/logger.js";
+import { logger, logServiceError } from "../../src/lib/logger.js";
 
 // Helper to check if error is a Drizzle relation error
 function isDrizzleRelationError(error: unknown): boolean {
@@ -25,6 +25,8 @@ export function registerLinkHandlers() {
     const db = getDb();
     const summaryOnly = parsed?.summary ?? false;
 
+    logger.info({ operation: "link:getAll", summary: summaryOnly }, "Fetching all links");
+
     if (summaryOnly) {
       const links = await db
         .select({ 
@@ -34,6 +36,7 @@ export function registerLinkHandlers() {
         })
         .from(link)
         .orderBy(desc(link.createdAt));
+      logger.info({ operation: "link:getAll", count: links.length, summary: true }, "Links fetched successfully");
       return links;
     }
 
@@ -46,6 +49,7 @@ export function registerLinkHandlers() {
         },
         orderBy: [desc(link.createdAt)],
       });
+      logger.info({ operation: "link:getAll", count: links.length }, "Links fetched successfully");
       return links;
     } catch (error: unknown) {
       if (!isDrizzleRelationError(error)) {
@@ -91,6 +95,8 @@ export function registerLinkHandlers() {
     const parsed = z.object({ conceptId: z.string() }).parse(input);
     const db = getDb();
 
+    logger.info({ operation: "link:getByConcept", conceptId: parsed.conceptId }, "Fetching links for concept");
+
     try {
       const outgoing = await db.query.link.findMany({
         where: eq(link.sourceId, parsed.conceptId),
@@ -110,9 +116,11 @@ export function registerLinkHandlers() {
         },
       });
 
+      logger.info({ operation: "link:getByConcept", conceptId: parsed.conceptId, outgoing: outgoing.length, incoming: incoming.length }, "Links for concept fetched successfully");
       return { outgoing, incoming };
     } catch (error: unknown) {
       if (!isDrizzleRelationError(error)) {
+        logServiceError(error, "link.getByConcept", { conceptId: parsed.conceptId });
         throw new Error(`Failed to load links: ${error instanceof Error ? error.message : "Unknown error"}`);
       }
 
@@ -171,11 +179,14 @@ export function registerLinkHandlers() {
     
     const db = getDb();
 
+    logger.info({ operation: "link:create", sourceId: parsed.sourceId, targetId: parsed.targetId, linkNameId: parsed.linkNameId }, "Creating link");
+
     const linkNameRecord = await db.query.linkName.findFirst({
       where: eq(linkName.id, parsed.linkNameId),
     });
 
     if (!linkNameRecord) {
+      logger.warn({ operation: "link:create", linkNameId: parsed.linkNameId }, "Link name not found");
       throw new Error("Link name not found");
     }
 
@@ -191,6 +202,7 @@ export function registerLinkHandlers() {
     const existing = existingLinks[0];
 
     if (existing) {
+      logger.info({ operation: "link:create", existingLinkId: existing.id }, "Updating existing link");
       const [updatedLink] = await db
         .update(link)
         .set({
@@ -236,6 +248,8 @@ export function registerLinkHandlers() {
       })
       .returning();
 
+    logger.info({ operation: "link:create", linkId: newLink.id, sourceId: parsed.sourceId, targetId: parsed.targetId }, "Link created successfully");
+
     try {
       const fullLink = await db.query.link.findFirst({
         where: eq(link.id, newLink.id),
@@ -246,7 +260,8 @@ export function registerLinkHandlers() {
         },
       });
       return fullLink!;
-    } catch {
+    } catch (error) {
+      logServiceError(error, "link.create.fetchRelations", { linkId: newLink.id });
       const [sourceResult, targetResult, linkNameResult] = await Promise.all([
         db.select().from(concept).where(eq(concept.id, newLink.sourceId)).limit(1),
         db.select().from(concept).where(eq(concept.id, newLink.targetId)).limit(1),
@@ -271,16 +286,20 @@ export function registerLinkHandlers() {
     
     const db = getDb();
 
+    logger.info({ operation: "link:delete", sourceId: parsed.sourceId, targetId: parsed.targetId }, "Deleting link");
+
     const allLinksData = await db.select().from(link);
     const foundLink = allLinksData.find(
       (l) => l.sourceId === parsed.sourceId && l.targetId === parsed.targetId,
     );
 
     if (!foundLink) {
+      logger.warn({ operation: "link:delete", sourceId: parsed.sourceId, targetId: parsed.targetId }, "Link not found for deletion");
       return null;
     }
 
     await db.delete(link).where(eq(link.id, foundLink.id));
+    logger.info({ operation: "link:delete", linkId: foundLink.id, sourceId: parsed.sourceId, targetId: parsed.targetId }, "Link deleted successfully");
     return foundLink;
   });
 }
