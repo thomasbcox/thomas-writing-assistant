@@ -319,5 +319,31 @@ export class GeminiProvider implements ILLMProvider {
   getTemperature(): number {
     return this.temperature;
   }
+
+  async embed(text: string): Promise<number[]> {
+    // Google's embedding API endpoint
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${this.apiKey}`;
+    
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "models/text-embedding-004",
+        content: {
+          parts: [{ text }],
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Gemini embedding API failed: ${response.status} ${errorText}`);
+    }
+
+    const data = (await response.json()) as { embedding?: { values?: number[] } };
+    return data.embedding?.values ?? [];
+  }
 }
 

@@ -184,6 +184,17 @@ export const ipc = {
       }
       return win.electronAPI.link.create(input);
     },
+    update: (input: {
+      id: string;
+      linkNameId?: string;
+      notes?: string;
+    }) => {
+      const win = getWindowRuntime();
+      if (!win || !win.electronAPI) {
+        throw new Error("IPC client not available - not running in Electron");
+      }
+      return win.electronAPI.link.update(input);
+    },
     delete: (input: { sourceId: string; targetId: string }) => {
       const win = getWindowRuntime();
       if (!win || !win.electronAPI) {

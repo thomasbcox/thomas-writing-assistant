@@ -71,6 +71,8 @@ const config = {
         '^~/(.*)$': '<rootDir>/src/$1',
         '^@prisma/client$': '<rootDir>/node_modules/.prisma/client/client.ts',
         '^electron$': '<rootDir>/src/test/__mocks__/electron.ts',
+        // Map better-sqlite3 to mock for tests (avoids native module issues)
+        '^better-sqlite3$': '<rootDir>/src/test/__mocks__/better-sqlite3.ts',
       },
       transformIgnorePatterns: [
         'node_modules/(?!(@prisma|.prisma)/)',

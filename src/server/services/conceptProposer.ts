@@ -3,6 +3,9 @@ import { getConfigLoader } from "./config";
 import { logServiceError, logger } from "~/lib/logger";
 import type { LLMClient } from "./llm/client";
 import type { ConfigLoader } from "./config";
+import { getCurrentDb } from "~/server/db";
+import { concept } from "~/server/schema";
+import { eq } from "drizzle-orm";
 
 /**
  * Smart chunking function that preserves sentence and paragraph boundaries
@@ -318,6 +321,48 @@ Extract the content directly from the source text when possible. Only generate c
       return [];
     }
 
+    // Filter out duplicates using vector search
+    const { findSimilarConcepts } = await import("./vectorSearch");
+    const db = getCurrentDb();
+    const filteredConcepts: ConceptCandidate[] = [];
+    const duplicateThreshold = 0.85; // High similarity threshold for duplicates
+
+    for (const candidate of validConcepts) {
+      const candidateText = `${candidate.title}\n${candidate.description || ""}\n${candidate.content}`;
+      
+      // Find similar existing concepts using vector search
+      const similarConcepts = await findSimilarConcepts(
+        candidateText,
+        10, // Check top 10 most similar
+        duplicateThreshold, // Only consider high similarity matches
+        [], // Don't exclude any concepts
+      );
+
+      if (similarConcepts.length > 0) {
+        // Found a duplicate - log it but don't add to results
+        const existingConcept = await db
+          .select()
+          .from(concept)
+          .where(eq(concept.id, similarConcepts[0].conceptId))
+          .limit(1);
+
+        if (existingConcept.length > 0) {
+          logger.info({
+            service: "conceptProposer",
+            operation: "generateConceptCandidates",
+            candidateTitle: candidate.title,
+            existingConceptId: existingConcept[0].id,
+            existingConceptTitle: existingConcept[0].title,
+            similarity: similarConcepts[0].similarity,
+          }, "Filtered out duplicate concept candidate");
+          continue; // Skip this candidate
+        }
+      }
+
+      // No duplicate found, add to results
+      filteredConcepts.push(candidate);
+    }
+
     const totalDuration = Date.now() - startTime;
     logger.info({
       service: "conceptProposer",
@@ -325,11 +370,13 @@ Extract the content directly from the source text when possible. Only generate c
       totalDuration,
       llmDuration,
       conceptsGenerated: validConcepts.length,
-      conceptsTitles: validConcepts.map((c) => c.title),
-    }, "Successfully generated concept candidates");
+      conceptsAfterDeduplication: filteredConcepts.length,
+      duplicatesFiltered: validConcepts.length - filteredConcepts.length,
+      conceptsTitles: filteredConcepts.map((c) => c.title),
+    }, "Successfully generated concept candidates with duplicate detection");
 
     // Add default metadata if provided
-    return validConcepts.map((concept) => ({
+    return filteredConcepts.map((concept) => ({
       ...concept,
       // Metadata will be added by the caller
     }));

@@ -61,5 +61,27 @@ export class MockConfigLoader implements ConfigLoaderInterface {
   reloadConfigs(): void {
     // No-op for mock
   }
+
+  validateConfigForContentGeneration(): void {
+    // No-op for mock - tests don't need strict config validation
+    // In real usage, this would throw if config files failed to load
+  }
+
+  getPrompt(key: string, defaultValue?: string): string {
+    // Mock prompt getter - return default or a mock prompt
+    return defaultValue || `Mock prompt for ${key}`;
+  }
+
+  getConfigStatus(): {
+    styleGuide: { loaded: boolean; isEmpty: boolean; error?: string };
+    credo: { loaded: boolean; isEmpty: boolean; error?: string };
+    constraints: { loaded: boolean; isEmpty: boolean; error?: string };
+  } {
+    return {
+      styleGuide: { loaded: true, isEmpty: Object.keys(this.mockStyleGuide).length === 0 },
+      credo: { loaded: true, isEmpty: Object.keys(this.mockCredo).length === 0 },
+      constraints: { loaded: true, isEmpty: Object.keys(this.mockConstraints).length === 0 },
+    };
+  }
 }
 

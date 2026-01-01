@@ -277,6 +277,70 @@ export function registerLinkHandlers() {
     }
   });
 
+  // Update link
+  ipcMain.handle("link:update", async (_event, input: unknown) => {
+    const parsed = z.object({
+      id: z.string(),
+      linkNameId: z.string().optional(),
+      notes: z.string().optional(),
+    }).parse(input);
+    
+    const db = getDb();
+
+    logger.info({ operation: "link:update", linkId: parsed.id }, "Updating link");
+
+    const updateData: { linkNameId?: string; notes?: string | null } = {};
+    if (parsed.linkNameId !== undefined) {
+      updateData.linkNameId = parsed.linkNameId;
+    }
+    if (parsed.notes !== undefined) {
+      updateData.notes = parsed.notes || null;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      logger.warn({ operation: "link:update", linkId: parsed.id }, "No fields to update");
+      throw new Error("No fields provided for update");
+    }
+
+    const [updatedLink] = await db
+      .update(link)
+      .set(updateData)
+      .where(eq(link.id, parsed.id))
+      .returning();
+
+    if (!updatedLink) {
+      logger.warn({ operation: "link:update", linkId: parsed.id }, "Link not found for update");
+      throw new Error("Link not found");
+    }
+
+    logger.info({ operation: "link:update", linkId: parsed.id }, "Link updated successfully");
+
+    try {
+      const fullLink = await db.query.link.findFirst({
+        where: eq(link.id, updatedLink.id),
+        with: {
+          source: true,
+          target: true,
+          linkName: true,
+        },
+      });
+      return fullLink!;
+    } catch {
+      const [sourceResult, targetResult, linkNameResult] = await Promise.all([
+        db.select().from(concept).where(eq(concept.id, updatedLink.sourceId)).limit(1),
+        db.select().from(concept).where(eq(concept.id, updatedLink.targetId)).limit(1),
+        db.select().from(linkName).where(eq(linkName.id, updatedLink.linkNameId)).limit(1),
+      ]);
+
+      return {
+        ...updatedLink,
+        source: sourceResult[0] || null,
+        target: targetResult[0] || null,
+        linkName: linkNameResult[0] || null,
+      };
+    }
+  });
+
   // Delete link
   ipcMain.handle("link:delete", async (_event, input: unknown) => {
     const parsed = z.object({

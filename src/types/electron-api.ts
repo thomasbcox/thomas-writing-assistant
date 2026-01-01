@@ -186,6 +186,12 @@ export interface LinkCreateInput {
   notes?: string;
 }
 
+export interface LinkUpdateInput {
+  id: string;
+  linkNameId?: string;
+  notes?: string;
+}
+
 export interface LinkDeleteInput {
   sourceId: string;
   targetId: string;
@@ -505,6 +511,7 @@ export interface ElectronAPI {
     getAll: (input?: LinkGetAllInput) => Promise<LinkListResult>;
     getByConcept: (input: LinkGetByConceptInput) => Promise<LinksByConceptResult>;
     create: (input: LinkCreateInput) => Promise<SerializedLinkWithRelations>;
+    update: (input: LinkUpdateInput) => Promise<SerializedLinkWithRelations>;
     delete: (input: LinkDeleteInput) => Promise<SerializedLink | null>;
   };
 

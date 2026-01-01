@@ -124,6 +124,10 @@ export class LLMClient {
   ): Promise<Record<string, unknown>> {
     return this.provider.completeJSON(prompt, systemPrompt);
   }
+
+  async embed(text: string): Promise<number[]> {
+    return this.provider.embed(text);
+  }
 }
 
 // Singleton instance

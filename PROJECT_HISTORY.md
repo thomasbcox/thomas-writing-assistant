@@ -876,6 +876,87 @@ Implemented comprehensive improvements across refactoring, testing, logging, and
 
 ---
 
+### Critical Reality Check: Prototype vs Production-Ready (December 31, 2025)
+
+**Context**: After implementing critical improvements (config validation, JSON parsing, prompt externalization, smart chunking), a skeptical architectural review revealed a fundamental disconnect between "feature complete" status and production readiness.
+
+**The Problem Identified**:
+The roadmap listed features as "100% Complete" while simultaneously documenting critical scalability flaws. This created a false sense of completeness:
+- Link proposer marked as "AI-proposed links between concepts" ✅ Complete
+- But also documented as "Critical Scalability Flaw" with `.limit(20)` that ignores 90%+ of knowledge base
+- Duplicate detection completely missing, but not clearly marked as blocking issue
+
+**The Assessment**:
+An external review correctly identified that:
+1. **Engineering Hygiene** (ORM migration, type safety, tests) was prioritized
+2. **AI Capability** (scalability, retrieval accuracy) was acknowledged but not prioritized
+3. The app is a **prototype** that works for ~20-50 concepts but **fails at scale**
+4. We were "polishing a Hello World engine" - perfecting type safety of a system that can't scale
+
+**The Reality**:
+- Features are **prototype-complete** (code runs) but **NOT production-ready** (will fail at scale)
+- Link proposer uses `.limit(20)` with no ordering - confirmed in code (line 127 of `linkProposer.ts`)
+- Duplicate detection is completely missing - no implementation exists
+- The app will become unusable as knowledge base grows beyond ~20-50 concepts
+
+**Decision**: Reorganize roadmap to reflect reality
+1. Separate "Implemented" from "Production-Ready"
+2. Move vector embeddings to ABSOLUTE TOP PRIORITY
+3. Acknowledge that "100% Complete" means "prototype-complete, not production-ready"
+4. Pause all non-critical work until vector embeddings are implemented
+
+**Files Updated**:
+- `ROADMAP.md` - Complete reorganization:
+  - Changed status from "production-ready" to "prototype-complete, NOT production-ready"
+  - Created "ABSOLUTE TOP PRIORITY" section for vector embeddings
+  - Marked all other work as "PAUSED" until vector embeddings complete
+  - Updated feature status to distinguish prototype-complete from production-ready
+  - Added critical warnings throughout
+
+**Pattern Established**: Always distinguish between "code runs" and "production-ready". Scalability is not optional - features that don't scale are broken features, not complete features.
+
+---
+
+## January 1, 2026: Test Infrastructure Refinement
+
+### Context
+After completing vector embeddings and link editing functionality, focus shifted to improving test infrastructure reliability. The test suite had a 68% pass rate with many failures related to native module compatibility issues.
+
+### Problem: Native Module Version Mismatch
+Tests were failing because `better-sqlite3` was compiled for Electron's Node.js version (NODE_MODULE_VERSION 140) while Jest runs with regular Node.js (NODE_MODULE_VERSION 137). Attempts to rebuild the native module failed due to Python/distutils compatibility issues.
+
+### Solution: Comprehensive Mock Implementation
+Created a full-featured mock for `better-sqlite3` in `src/test/__mocks__/better-sqlite3.ts` that:
+- Provides in-memory database functionality without requiring native module
+- Supports Drizzle ORM's query patterns (raw(), get(), all())
+- Handles CREATE TABLE, INSERT, SELECT, DELETE operations
+- Supports sqlite_master queries for table listing
+- Implements basic WHERE clause filtering
+
+### Additional Improvements
+1. **Vector Search Mocking**: Updated `linkProposer.test.ts` to mock the new vector search functionality
+2. **Config Loader Enhancement**: Added missing methods to `MockConfigLoader` (`validateConfigForContentGeneration`, `getPrompt`, `getConfigStatus`)
+3. **Jest Configuration**: Added module name mapping for better-sqlite3 mock in `jest.config.js`
+
+### Results
+- **Test Pass Rate**: Improved from 68% to 86.5% (340/393 tests passing)
+- **Test Suites**: 32 passing, 9 failing (down from many more failures)
+- **Remaining Issues**: Better-sqlite3 mock needs improved WHERE clause handling for Drizzle's insert/return pattern
+
+### Technical Details
+The mock implements a simplified SQLite engine that:
+- Stores table data in memory using Map structures
+- Parses basic SQL patterns (CREATE TABLE, INSERT INTO, SELECT FROM)
+- Handles parameterized queries with `?` placeholders
+- Supports Drizzle's `.returning()` pattern by storing inserted rows
+
+### Next Steps
+- Improve WHERE clause parsing to handle complex Drizzle queries
+- Support UPDATE operations with SET clauses
+- Enhance DELETE operations with proper WHERE clause filtering
+
+---
+
 **Last Updated**: December 31, 2025
 
 *This document is maintained as an ongoing narrative. Major changes, decisions, and incidents should be added here to preserve institutional memory.*

@@ -530,6 +530,18 @@ export const api = {
           onError: options?.onError,
         }),
     },
+    update: {
+      useMutation: (
+        options?: {
+          onSuccess?: (data: any) => void;
+          onError?: (error: Error) => void;
+        },
+      ) =>
+        useIPCMutation(ipc.link.update, {
+          onSuccess: options?.onSuccess,
+          onError: options?.onError,
+        }),
+    },
     delete: {
       useMutation: (
         options?: {

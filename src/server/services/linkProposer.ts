@@ -98,6 +98,7 @@ export async function proposeLinksForConcept(
     .where(eq(link.sourceId, conceptId));
 
   const linkedIds = new Set(existingLinks.map((l) => l.targetId));
+  const allLinkedIds = Array.from(linkedIds);
 
   logger.debug(
     {
@@ -110,21 +111,58 @@ export async function proposeLinksForConcept(
     "Existing links loaded",
   );
 
-  const allLinkedIds = Array.from(linkedIds);
-  const conditions = [
-    not(eq(concept.id, conceptId)),
-    eq(concept.status, "active"),
-  ];
+  // Get the source concept for embedding generation
+  const sourceConcept = await dbInstance
+    .select()
+    .from(concept)
+    .where(eq(concept.id, conceptId))
+    .limit(1);
 
-  if (allLinkedIds.length > 0) {
-    conditions.push(notInArray(concept.id, allLinkedIds as string[]));
+  if (sourceConcept.length === 0) {
+    logger.warn({ conceptId }, "Source concept not found");
+    return [];
   }
 
+  const sourceConceptData = sourceConcept[0];
+  const textToEmbed = `${sourceConceptData.title}\n${sourceConceptData.description || ""}\n${sourceConceptData.content}`;
+
+  // Use vector search to find similar concepts
+  const { findSimilarConcepts, getOrCreateEmbedding } = await import("./vectorSearch");
+  
+  // Ensure source concept has an embedding
+  await getOrCreateEmbedding(conceptId, textToEmbed);
+
+  // Find similar concepts using vector search (exclude already linked concepts)
+  const similarConcepts = await findSimilarConcepts(
+    textToEmbed,
+    20, // Limit to 20 most similar
+    0.0, // No minimum similarity threshold (we'll let LLM decide)
+    [conceptId, ...allLinkedIds], // Exclude source and already linked
+  );
+
+  if (similarConcepts.length === 0) {
+    logger.info(
+      {
+        service: "linkProposer",
+        operation: "proposeLinksForConcept",
+        conceptId,
+      },
+      "No similar concepts found via vector search",
+    );
+    return [];
+  }
+
+  // Get the actual concept records for the similar concepts
+  const candidateIds = similarConcepts.map((sc) => sc.conceptId);
   const candidates = await dbInstance
     .select()
     .from(concept)
-    .where(and(...conditions)!)
-    .limit(20); // Limit for token efficiency
+    .where(
+      and(
+        inArray(concept.id, candidateIds),
+        eq(concept.status, "active"),
+      )!,
+    );
 
   logger.debug(
     {

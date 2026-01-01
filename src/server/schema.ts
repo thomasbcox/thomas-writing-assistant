@@ -161,6 +161,20 @@ export const chatMessage = sqliteTable("ChatMessage", {
   createdAtIdx: { columns: [table.createdAt] },
 }));
 
+// ConceptEmbedding table - stores vector embeddings for concepts
+export const conceptEmbedding = sqliteTable("ConceptEmbedding", {
+  // @ts-expect-error - Drizzle type inference issue with sqliteTable overloads
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  conceptId: text("conceptId").unique().notNull().references(() => concept.id, { onDelete: "cascade" }),
+  embedding: text("embedding").notNull(), // JSON array of numbers stored as text
+  model: text("model").notNull(), // e.g., "text-embedding-3-small" or "text-embedding-004"
+  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).$onUpdate(() => new Date()).notNull(),
+}, (table) => ({
+  conceptIdIdx: { columns: [table.conceptId], unique: true },
+  modelIdx: { columns: [table.model] },
+}));
+
 // Relations - defined after all tables
 // IMPORTANT: Define linkNameRelations BEFORE linkRelations so Drizzle can resolve the bidirectional relationship
 export const linkNameRelations = relations(linkName, ({ many }) => ({
@@ -232,6 +246,20 @@ export const chatMessageRelations = relations(chatMessage, ({ one }) => ({
   }),
 }));
 
+export const conceptEmbeddingRelations = relations(conceptEmbedding, ({ one }) => ({
+  concept: one(concept, {
+    fields: [conceptEmbedding.conceptId],
+    references: [concept.id],
+  }),
+}));
+
+export const conceptRelationsWithEmbedding = relations(concept, ({ one }) => ({
+  embedding: one(conceptEmbedding, {
+    fields: [concept.id],
+    references: [conceptEmbedding.conceptId],
+  }),
+}));
+
 // Type exports for use in code
 export type Concept = typeof concept.$inferSelect;
 export type NewConcept = typeof concept.$inferInsert;
@@ -253,3 +281,5 @@ export type ChatSession = typeof chatSession.$inferSelect;
 export type NewChatSession = typeof chatSession.$inferInsert;
 export type ChatMessage = typeof chatMessage.$inferSelect;
 export type NewChatMessage = typeof chatMessage.$inferInsert;
+export type ConceptEmbedding = typeof conceptEmbedding.$inferSelect;
+export type NewConceptEmbedding = typeof conceptEmbedding.$inferInsert;

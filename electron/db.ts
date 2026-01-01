@@ -211,6 +211,18 @@ function initializeSchema(sqlite: DatabaseType): void {
     
     CREATE INDEX IF NOT EXISTS "ChatMessage_sessionId_idx" ON "ChatMessage" ("sessionId");
     CREATE INDEX IF NOT EXISTS "ChatMessage_createdAt_idx" ON "ChatMessage" ("createdAt");
+    
+    CREATE TABLE IF NOT EXISTS "ConceptEmbedding" (
+      "id" TEXT PRIMARY KEY NOT NULL,
+      "conceptId" TEXT NOT NULL UNIQUE REFERENCES "Concept"("id") ON DELETE CASCADE,
+      "embedding" TEXT NOT NULL,
+      "model" TEXT NOT NULL,
+      "createdAt" INTEGER NOT NULL DEFAULT (unixepoch()),
+      "updatedAt" INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    
+    CREATE UNIQUE INDEX IF NOT EXISTS "ConceptEmbedding_conceptId_unique" ON "ConceptEmbedding" ("conceptId");
+    CREATE INDEX IF NOT EXISTS "ConceptEmbedding_model_idx" ON "ConceptEmbedding" ("model");
   `;
 
   // Split by semicolon and execute each statement

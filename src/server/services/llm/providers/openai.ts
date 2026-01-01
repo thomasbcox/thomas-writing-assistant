@@ -141,5 +141,14 @@ export class OpenAIProvider implements ILLMProvider {
   getTemperature(): number {
     return this.temperature;
   }
+
+  async embed(text: string): Promise<number[]> {
+    const response = await this.client.embeddings.create({
+      model: "text-embedding-3-small", // OpenAI's recommended embedding model
+      input: text,
+    });
+
+    return response.data[0]?.embedding ?? [];
+  }
 }
 

@@ -3,7 +3,7 @@
  * Uses Drizzle ORM for database access
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "@jest/globals";
+import { describe, it, expect, beforeEach, afterEach, jest } from "@jest/globals";
 import { proposeLinksForConcept } from "~/server/services/linkProposer";
 import { MockLLMClient, type LLMClient } from "../mocks/llm-client";
 import { MockConfigLoader, type ConfigLoader } from "../mocks/config-loader";
@@ -12,6 +12,20 @@ import type { DatabaseInstance } from "~/server/db";
 import type { Database as BetterSqlite3Database } from "better-sqlite3";
 import { concept, link, linkName } from "~/server/schema";
 import { createId } from "@paralleldrive/cuid2";
+
+// Mock vector search service
+const mockFindSimilarConcepts = jest.fn<(
+  queryText: string,
+  limit: number,
+  minSimilarity: number,
+  excludeConceptIds?: string[]
+) => Promise<Array<{ conceptId: string; similarity: number }>>>();
+const mockGetOrCreateEmbedding = jest.fn<(conceptId: string, text: string) => Promise<number[]>>();
+
+jest.unstable_mockModule("~/server/services/vectorSearch", () => ({
+  findSimilarConcepts: mockFindSimilarConcepts,
+  getOrCreateEmbedding: mockGetOrCreateEmbedding,
+}));
 
 describe("linkProposer", () => {
   let mockLLMClient: MockLLMClient;
@@ -24,6 +38,12 @@ describe("linkProposer", () => {
     testDb = createTestDb();
     await migrateTestDb(testDb);
     await cleanupTestData(testDb);
+    
+    // Reset vector search mocks
+    mockFindSimilarConcepts.mockReset();
+    mockGetOrCreateEmbedding.mockReset();
+    // Default: return empty embedding (no-op)
+    mockGetOrCreateEmbedding.mockResolvedValue([0.1, 0.2, 0.3] as number[]); // Mock embedding vector
   });
 
   afterEach(async () => {
@@ -99,6 +119,12 @@ describe("linkProposer", () => {
 
     mockLLMClient.setMockCompleteJSON(async () => mockResponse);
     mockConfigLoader.setMockSystemPrompt("Test system prompt");
+    
+    // Mock vector search to return the target concepts
+    mockFindSimilarConcepts.mockResolvedValue([
+      { conceptId: targetConcept1.id, similarity: 0.9 },
+      { conceptId: targetConcept2.id, similarity: 0.7 },
+    ] as Array<{ conceptId: string; similarity: number }>);
 
     // Test link proposal
     const proposals = await proposeLinksForConcept(
@@ -190,6 +216,11 @@ describe("linkProposer", () => {
 
     mockLLMClient.setMockCompleteJSON(async () => mockResponse);
     mockConfigLoader.setMockSystemPrompt("Test prompt");
+    // Mock vector search to return both concepts (vector search doesn't filter by links)
+    mockFindSimilarConcepts.mockResolvedValue([
+      { conceptId: linkedConcept.id, similarity: 0.8 },
+      { conceptId: unlinkedConcept.id, similarity: 0.7 },
+    ] as Array<{ conceptId: string; similarity: number }>);
 
     const proposals = await proposeLinksForConcept(
       sourceConcept.id,
@@ -243,6 +274,7 @@ describe("linkProposer", () => {
 
     mockLLMClient.setMockCompleteJSON(async () => ({ proposals: [] }));
     mockConfigLoader.setMockSystemPrompt("Test prompt");
+    mockFindSimilarConcepts.mockResolvedValue([] as Array<{ conceptId: string; similarity: number }>); // No similar concepts found
 
     const proposals = await proposeLinksForConcept(
       sourceConcept.id,

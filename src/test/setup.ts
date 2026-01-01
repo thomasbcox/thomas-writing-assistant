@@ -60,3 +60,7 @@ jest.mock("pdf-parse", () => {
     ...MockPDFParserConstructor,
   };
 });
+
+// Mock better-sqlite3 globally to avoid native module issues in tests
+// The mock is defined in src/test/__mocks__/better-sqlite3.ts
+// Jest will automatically use it when better-sqlite3 is imported

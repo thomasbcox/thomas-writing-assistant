@@ -13,6 +13,13 @@ export interface ILLMProvider {
     prompt: string,
     systemPrompt?: string,
   ): Promise<Record<string, unknown>>;
+
+  /**
+   * Generate embeddings for the given text
+   * @param text The text to embed
+   * @returns A vector of floating-point numbers representing the text embedding
+   */
+  embed(text: string): Promise<number[]>;
 }
 
 export type LLMProvider = "openai" | "gemini";

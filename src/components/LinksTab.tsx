@@ -15,6 +15,7 @@ export function LinksTab() {
   const [showLinkNameManager, setShowLinkNameManager] = useState(false);
   const [showManualLinkForm, setShowManualLinkForm] = useState(false);
   const { toasts, addToast, removeToast } = useToast();
+  const utils = api.useUtils();
 
   // Clear all tab state
   const handleClear = () => {
@@ -154,6 +155,11 @@ export function LinksTab() {
           isLoading={allLinksLoading}
           error={allLinksError}
           onDeleteLink={handleDeleteLink}
+          onLinkUpdated={() => {
+            // Refetch links after update
+            void utils.link.getByConcept.invalidate({ conceptId: selectedConceptId });
+            void utils.link.getAll.invalidate();
+          }}
         />
       </div>
     </>
