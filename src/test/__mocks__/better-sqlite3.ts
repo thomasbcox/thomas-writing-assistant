@@ -237,24 +237,140 @@ class MockDatabaseImpl extends EventEmitter implements MockDatabase {
       const tableMatch = sql.match(/FROM\s+["']?(\w+)["']?/i);
       if (tableMatch) {
         const tableName = tableMatch[1];
-        const tableData = this.data.get(tableName) || [];
+        let tableData = this.data.get(tableName) || [];
         
-        // Handle WHERE clauses (basic support)
+        // Handle WHERE clauses with improved parsing
         if (sql.includes("WHERE") && params.length > 0) {
-          // Simple WHERE id = ? handling
-          return tableData.filter((row: any) => {
-            if (typeof row === "object" && row !== null) {
-              // Check if any field matches the param (for WHERE id = ?)
-              return Object.values(row).some(val => params.includes(val));
-            }
-            return false;
-          });
+          tableData = this.applyWhereClause(tableData, sql, params);
+        }
+        
+        // Handle LIMIT clause
+        const limitMatch = sql.match(/LIMIT\s+(\d+)/i);
+        if (limitMatch) {
+          const limit = parseInt(limitMatch[1], 10);
+          tableData = tableData.slice(0, limit);
         }
         
         return tableData;
       }
     }
     return [];
+  }
+
+  /**
+   * Apply WHERE clause filtering to table data
+   * Supports common patterns:
+   * - WHERE column = ?
+   * - WHERE column IN (?, ?, ?)
+   * - WHERE column1 = ? AND column2 = ?
+   * - WHERE column IS NULL
+   * - WHERE column IS NOT NULL
+   */
+  private applyWhereClause(
+    data: unknown[],
+    sql: string,
+    params: unknown[]
+  ): unknown[] {
+    let filtered = data;
+    let paramIndex = 0;
+
+    // Handle multiple WHERE conditions (AND/OR)
+    const whereClause = sql.match(/WHERE\s+(.+?)(?:\s+ORDER\s+BY|\s+LIMIT|$)/i);
+    if (!whereClause) {
+      return filtered;
+    }
+
+    const conditions = whereClause[1];
+    
+    // Split by AND (simple case - no parentheses)
+    const andConditions = conditions.split(/\s+AND\s+/i);
+    
+    for (const condition of andConditions) {
+      const trimmed = condition.trim();
+      
+      // Handle column = ?
+      const eqMatch = trimmed.match(/^["']?(\w+)["']?\s*=\s*\?/i);
+      if (eqMatch && paramIndex < params.length) {
+        const columnName = eqMatch[1];
+        const paramValue = params[paramIndex++];
+        filtered = filtered.filter((row: any) => {
+          if (typeof row === "object" && row !== null) {
+            const rowValue = row[columnName];
+            return rowValue === paramValue || 
+                   String(rowValue) === String(paramValue);
+          }
+          return false;
+        });
+        continue;
+      }
+      
+      // Handle column IN (?, ?, ?)
+      const inMatch = trimmed.match(/^["']?(\w+)["']?\s+IN\s*\(([^)]+)\)/i);
+      if (inMatch) {
+        const columnName = inMatch[1];
+        const placeholders = inMatch[2].match(/\?/g);
+        if (placeholders) {
+          const inValues: unknown[] = [];
+          for (let i = 0; i < placeholders.length && paramIndex < params.length; i++) {
+            inValues.push(params[paramIndex++]);
+          }
+          filtered = filtered.filter((row: any) => {
+            if (typeof row === "object" && row !== null) {
+              const rowValue = row[columnName];
+              return inValues.some(val => 
+                rowValue === val || String(rowValue) === String(val)
+              );
+            }
+            return false;
+          });
+          continue;
+        }
+      }
+      
+      // Handle column IS NULL
+      const isNullMatch = trimmed.match(/^["']?(\w+)["']?\s+IS\s+NULL/i);
+      if (isNullMatch) {
+        const columnName = isNullMatch[1];
+        filtered = filtered.filter((row: any) => {
+          if (typeof row === "object" && row !== null) {
+            return row[columnName] === null || row[columnName] === undefined;
+          }
+          return false;
+        });
+        continue;
+      }
+      
+      // Handle column IS NOT NULL
+      const isNotNullMatch = trimmed.match(/^["']?(\w+)["']?\s+IS\s+NOT\s+NULL/i);
+      if (isNotNullMatch) {
+        const columnName = isNotNullMatch[1];
+        filtered = filtered.filter((row: any) => {
+          if (typeof row === "object" && row !== null) {
+            return row[columnName] !== null && row[columnName] !== undefined;
+          }
+          return false;
+        });
+        continue;
+      }
+      
+      // Handle column != ? or column <>
+      const neMatch = trimmed.match(/^["']?(\w+)["']?\s*(?:!=|<>)\s*\?/i);
+      if (neMatch && paramIndex < params.length) {
+        const columnName = neMatch[1];
+        const paramValue = params[paramIndex++];
+        filtered = filtered.filter((row: any) => {
+          if (typeof row === "object" && row !== null) {
+            const rowValue = row[columnName];
+            return rowValue !== paramValue && 
+                   String(rowValue) !== String(paramValue);
+          }
+          return false;
+        });
+        continue;
+      }
+    }
+    
+    return filtered;
   }
 
   // Expose data for test inspection
