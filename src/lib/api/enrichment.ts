@@ -1,6 +1,9 @@
 /**
  * Concept Enrichment API hooks
- * TODO: Implement IPC handlers for concept enrichment
+ * 
+ * Note: IPC handlers exist in electron/ipc-handlers/enrichment-handlers.ts
+ * but are not yet exposed via preload.ts and ipc-client.ts.
+ * These hooks currently throw errors - they need to be wired up to IPC.
  */
 
 import { useIPCMutation } from "~/hooks/useIPC";

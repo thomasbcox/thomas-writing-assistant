@@ -150,13 +150,7 @@ describe("ConfigLoader", () => {
       
       // Files don't exist - set up before creating loader
       // getConfigStatus checks existsSync, so we need to mock it
-      // #region agent log
-      (async () => { try { const fs = await import("fs"); fs.default.appendFileSync("/Users/thomasbcox/Projects/thomas-writing-assistant/.cursor/debug.log", JSON.stringify({location:'config.test.ts:137',message:'Before setting mockReturnValue',data:{mockExistsSyncType:typeof mockExistsSync,isMock:!!mockExistsSync.mockReturnValue},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})+"\n"); } catch {} })();
-      // #endregion
       mockExistsSync.mockReturnValue(false);
-      // #region agent log
-      (async () => { try { const fs = await import("fs"); fs.default.appendFileSync("/Users/thomasbcox/Projects/thomas-writing-assistant/.cursor/debug.log", JSON.stringify({location:'config.test.ts:140',message:'After setting mockReturnValue(false)',data:{mockReturnValue:mockExistsSync.getMockImplementation?.()?.()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})+"\n"); } catch {} })();
-      // #endregion
       // readFileSync won't be called if files don't exist (loadConfigs checks existsSync first)
       
       // Create a mock fs object with our mocked functions
@@ -165,19 +159,10 @@ describe("ConfigLoader", () => {
         readFileSync: mockReadFileSync,
       } as any;
       const freshLoader = new ConfigLoader(mockFs);
-      // #region agent log
-      (async () => { try { const fs = await import("fs"); fs.default.appendFileSync("/Users/thomasbcox/Projects/thomas-writing-assistant/.cursor/debug.log", JSON.stringify({location:'config.test.ts:145',message:'After creating ConfigLoader',data:{styleGuideKeys:Object.keys(freshLoader.getStyleGuide()).length,credoKeys:Object.keys(freshLoader.getCredo()).length,constraintsKeys:Object.keys(freshLoader.getConstraints()).length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})+"\n"); } catch {} })();
-      // #endregion
       // After construction, the internal objects are {} (empty)
       // Now getConfigStatus will check existsSync again
       mockExistsSync.mockReturnValue(false); // Ensure it's still false
-      // #region agent log
-      (async () => { try { const fs = await import("fs"); fs.default.appendFileSync("/Users/thomasbcox/Projects/thomas-writing-assistant/.cursor/debug.log", JSON.stringify({location:'config.test.ts:149',message:'Before getConfigStatus call',data:{mockReturnValue:mockExistsSync.getMockImplementation?.()?.()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})+"\n"); } catch {} })();
-      // #endregion
       const status = freshLoader.getConfigStatus();
-      // #region agent log
-      (async () => { try { const fs = await import("fs"); fs.default.appendFileSync("/Users/thomasbcox/Projects/thomas-writing-assistant/.cursor/debug.log", JSON.stringify({location:'config.test.ts:152',message:'After getConfigStatus call',data:{styleGuideLoaded:status.styleGuide.loaded,styleGuideEmpty:status.styleGuide.isEmpty,credoLoaded:status.credo.loaded,constraintsLoaded:status.constraints.loaded},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})+"\n"); } catch {} })();
-      // #endregion
       
       // Since files don't exist, they should be marked as not loaded/empty
       // loaded = exists && Object.keys().length > 0 = false && false = false

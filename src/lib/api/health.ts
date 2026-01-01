@@ -25,10 +25,6 @@ export function useHealthStatus() {
     async () => {
       const startTime = Date.now();
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'health.ts:27',message:'useHealthStatus query started',data:{startTime},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
-      
       try {
         // Check database by trying to get config status
         const configStatus = await ipc.config.getStatus();
@@ -72,10 +68,6 @@ export function useHealthStatus() {
           responseTime,
           uptime: new Date().toISOString(),
         };
-        
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'health.ts:72',message:'useHealthStatus returning result',data:{resultKeys:Object.keys(result),checksKeys:Object.keys(result.checks),status:result.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1-H2'})}).catch(()=>{});
-        // #endregion
         
         return result;
       } catch (error) {

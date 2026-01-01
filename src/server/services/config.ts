@@ -1,7 +1,4 @@
 import fs from "fs";
-// #region agent log
-(async () => { try { const fsLog = await import("fs"); fsLog.default.appendFileSync("/Users/thomasbcox/Projects/thomas-writing-assistant/.cursor/debug.log", JSON.stringify({location:'config.ts:1',message:'config.ts module loading fs',data:{fsType:typeof fs,fsExistsSyncType:typeof fs?.existsSync,isMock:!!(fs?.existsSync as any)?.mockImplementation},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})+"\n"); } catch {} })();
-// #endregion
 import path from "path";
 import yaml from "js-yaml";
 import { logger } from "~/lib/logger";
@@ -112,13 +109,7 @@ export class ConfigLoader {
     const configDir = path.join(process.cwd(), "config");
     
     const styleGuidePath = path.join(configDir, "style_guide.yaml");
-    // #region agent log
-    (async () => { try { const fsLog = await import("fs"); fsLog.default.appendFileSync("/Users/thomasbcox/Projects/thomas-writing-assistant/.cursor/debug.log", JSON.stringify({location:'config.ts:110',message:'Before existsSync call',data:{path:styleGuidePath,fsExistsSyncType:typeof this.fsModule.existsSync,isMock:!!(this.fsModule.existsSync as any)?.mockImplementation,styleGuideKeys:Object.keys(this.styleGuide).length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})+"\n"); } catch {} })();
-    // #endregion
     const styleGuideExists = this.fsModule.existsSync(styleGuidePath);
-    // #region agent log
-    (async () => { try { const fsLog = await import("fs"); fsLog.default.appendFileSync("/Users/thomasbcox/Projects/thomas-writing-assistant/.cursor/debug.log", JSON.stringify({location:'config.ts:112',message:'After existsSync call',data:{styleGuideExists,styleGuideKeys:Object.keys(this.styleGuide).length,styleGuideLoaded:styleGuideExists && Object.keys(this.styleGuide).length > 0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})+"\n"); } catch {} })();
-    // #endregion
     const styleGuideLoaded = styleGuideExists && Object.keys(this.styleGuide).length > 0;
     const styleGuideEmpty = !styleGuideLoaded || Object.keys(this.styleGuide).length === 0;
 

@@ -343,8 +343,9 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
     if (isNewConcept) {
       createMutation.mutate(formData, {
         onSuccess: () => {
-          // router.push("/?tab=concepts"); // TODO: Implement navigation in Electron app
-          window.location.reload(); // Temporary: reload to go back
+          // Note: In Electron app, navigation is handled via window.location.reload()
+          // or by closing the enrichment panel. Router navigation is not available.
+          window.location.reload();
         },
       });
     } else if (conceptId) {

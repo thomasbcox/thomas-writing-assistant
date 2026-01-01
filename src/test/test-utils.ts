@@ -212,17 +212,7 @@ export async function initTestDb(db: DatabaseInstance) {
  * This creates tables directly using raw SQL
  */
 export async function migrateTestDb(db: DatabaseInstance) {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'test-utils.ts:215',message:'migrateTestDb called',data:{hasDb:!!db,dbType:typeof db},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
-  // #endregion
   await initTestDb(db);
-  // #region agent log
-  const sqlite = (db as any).session?.client;
-  if (sqlite) {
-    const tables = sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{ name: string }>;
-    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'test-utils.ts:222',message:'migrateTestDb completed',data:{tableCount:tables.length,tableNames:tables.map(t=>t.name)},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
-  }
-  // #endregion
 }
 
 /**

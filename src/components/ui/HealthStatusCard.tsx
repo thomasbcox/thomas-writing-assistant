@@ -15,13 +15,6 @@ interface HealthStatusCardProps {
 export function HealthStatusCard({ onNavigate }: HealthStatusCardProps) {
   const { data: health, isLoading, error, refetch } = useHealthStatus();
 
-  // #region agent log
-  // Debug: Log health data shape to verify structure
-  if (health) {
-    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HealthStatusCard.tsx:18',message:'health data received',data:{healthKeys:Object.keys(health),checksKeys:health.checks?Object.keys(health.checks):null,status:health.status,checksDatabase:health.checks?.database,checksConfig:health.checks?.config},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1-H2'})}).catch(()=>{});
-  }
-  // #endregion
-
   const getStatusIcon = (status: "healthy" | "degraded" | "unhealthy") => {
     switch (status) {
       case "healthy":
