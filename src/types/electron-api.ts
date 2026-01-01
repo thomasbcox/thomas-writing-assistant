@@ -395,6 +395,14 @@ export interface AIAvailableModelsResult {
   models: ModelOption[];
 }
 
+export interface EmbeddingStatusResult {
+  totalConcepts: number;
+  conceptsWithEmbeddings: number;
+  conceptsWithoutEmbeddings: number;
+  isIndexing: boolean;
+  lastIndexedAt: string | null; // ISO date string
+}
+
 // Offer Output Types
 export type SerializedOfferWithCapsules = SerializedOffer & {
   capsules: SerializedCapsule[];
@@ -544,6 +552,8 @@ export interface ElectronAPI {
     getSettings: () => Promise<AISettings>;
     updateSettings: (input: AIUpdateSettingsInput) => Promise<AISettingsUpdateResult>;
     getAvailableModels: () => Promise<AIAvailableModelsResult>;
+    getEmbeddingStatus: () => Promise<EmbeddingStatusResult>;
+    generateMissingEmbeddings: (input?: { batchSize?: number }) => Promise<EmbeddingStatusResult>;
   };
 
   ping: () => Promise<string>;

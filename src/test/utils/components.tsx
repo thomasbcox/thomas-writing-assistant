@@ -38,6 +38,7 @@ import type {
   AISettings,
   AISettingsUpdateResult,
   AIAvailableModelsResult,
+  EmbeddingStatusResult,
 } from "~/types/electron-api";
 
 // Helper to create ISO date strings for mock data
@@ -244,6 +245,20 @@ export function createMockElectronAPI(): ElectronAPI {
           { value: "gpt-4o-mini", label: "GPT-4o Mini (Fast & Cheap)" },
           { value: "gpt-4o", label: "GPT-4o (Balanced)" },
         ],
+      }),
+      getEmbeddingStatus: jest.fn<() => Promise<EmbeddingStatusResult>>().mockResolvedValue({
+        totalConcepts: 0,
+        conceptsWithEmbeddings: 0,
+        conceptsWithoutEmbeddings: 0,
+        isIndexing: false,
+        lastIndexedAt: null,
+      }),
+      generateMissingEmbeddings: jest.fn<() => Promise<EmbeddingStatusResult>>().mockResolvedValue({
+        totalConcepts: 0,
+        conceptsWithEmbeddings: 0,
+        conceptsWithoutEmbeddings: 0,
+        isIndexing: false,
+        lastIndexedAt: null,
       }),
     },
 

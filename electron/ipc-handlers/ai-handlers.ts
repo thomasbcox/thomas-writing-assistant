@@ -180,5 +180,25 @@ export function registerAiHandlers() {
       }
     }
   });
+
+  // Get embedding status
+  ipcMain.handle("ai:getEmbeddingStatus", async () => {
+    const { getEmbeddingStatus } = await import("../../src/server/services/embeddingOrchestrator.js");
+    return await getEmbeddingStatus();
+  });
+
+  // Generate missing embeddings (manual trigger)
+  ipcMain.handle("ai:generateMissingEmbeddings", async (_event, input: unknown) => {
+    const parsed = z.object({
+      batchSize: z.number().min(1).max(100).optional(),
+    }).parse(input);
+
+    const { checkAndGenerateMissing } = await import("../../src/server/services/embeddingOrchestrator.js");
+    await checkAndGenerateMissing(parsed.batchSize ?? 10);
+    
+    // Return updated status
+    const { getEmbeddingStatus } = await import("../../src/server/services/embeddingOrchestrator.js");
+    return await getEmbeddingStatus();
+  });
 }
 

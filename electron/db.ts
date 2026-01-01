@@ -215,7 +215,7 @@ function initializeSchema(sqlite: DatabaseType): void {
     CREATE TABLE IF NOT EXISTS "ConceptEmbedding" (
       "id" TEXT PRIMARY KEY NOT NULL,
       "conceptId" TEXT NOT NULL UNIQUE REFERENCES "Concept"("id") ON DELETE CASCADE,
-      "embedding" TEXT NOT NULL,
+      "embedding" BLOB NOT NULL,
       "model" TEXT NOT NULL,
       "createdAt" INTEGER NOT NULL DEFAULT (unixepoch()),
       "updatedAt" INTEGER NOT NULL DEFAULT (unixepoch())

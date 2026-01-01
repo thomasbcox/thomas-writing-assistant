@@ -8,6 +8,7 @@ import { concept, conceptEmbedding } from "~/server/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { getLLMClient } from "./llm/client";
 import { logger } from "~/lib/logger";
+import { getVectorIndex } from "./vectorIndex";
 
 /**
  * Calculate cosine similarity between two vectors
@@ -54,7 +55,27 @@ export async function getOrCreateEmbedding(
 
   if (existing.length > 0) {
     try {
-      return JSON.parse(existing[0].embedding) as number[];
+      const embeddingData = existing[0].embedding;
+      
+      // Handle both binary (Buffer) and legacy JSON text formats
+      if (Buffer.isBuffer(embeddingData)) {
+        // Binary format: Convert blob to Float32Array, then to number[]
+        const floatArray = new Float32Array(embeddingData.buffer, embeddingData.byteOffset, embeddingData.byteLength / 4);
+        return Array.from(floatArray);
+      } else if (typeof embeddingData === "string") {
+        // Legacy JSON format: Parse and convert to binary, then return
+        const parsed = JSON.parse(embeddingData) as number[];
+        // Convert to binary and update the database
+        const floatArray = new Float32Array(parsed);
+        const buffer = Buffer.from(floatArray.buffer);
+        await db
+          .update(conceptEmbedding)
+          .set({ embedding: buffer, updatedAt: new Date() })
+          .where(eq(conceptEmbedding.conceptId, conceptId));
+        return parsed;
+      } else {
+        throw new Error("Unknown embedding format");
+      }
     } catch (error) {
       logger.warn({ conceptId, error }, "Failed to parse existing embedding, regenerating");
       // Fall through to regenerate
@@ -65,31 +86,41 @@ export async function getOrCreateEmbedding(
   const llmClient = getLLMClient();
   const embedding = await llmClient.embed(text);
 
-  // Store embedding
+  // Convert number[] to binary Buffer (Float32Array)
+  const floatArray = new Float32Array(embedding);
+  const buffer = Buffer.from(floatArray.buffer);
+
+  // Store embedding as binary
   await db
     .insert(conceptEmbedding)
     .values({
       conceptId,
-      embedding: JSON.stringify(embedding),
+      embedding: buffer,
       model,
     })
     .onConflictDoUpdate({
       target: conceptEmbedding.conceptId,
       set: {
-        embedding: JSON.stringify(embedding),
+        embedding: buffer,
         updatedAt: new Date(),
       },
     });
+
+  // Update in-memory index
+  const index = getVectorIndex();
+  index.addEmbedding(conceptId, embedding);
 
   return embedding;
 }
 
 /**
  * Find similar concepts using vector search
+ * Uses in-memory index for fast search instead of linear scan
  * @param queryText The text to search for
  * @param limit Maximum number of results to return
  * @param minSimilarity Minimum cosine similarity threshold (0-1)
  * @param excludeConceptIds Concept IDs to exclude from results
+ * @param queryEmbedding Optional pre-computed query embedding (for performance)
  * @returns Array of concept IDs with similarity scores, sorted by similarity (highest first)
  */
 export async function findSimilarConcepts(
@@ -97,54 +128,16 @@ export async function findSimilarConcepts(
   limit: number = 20,
   minSimilarity: number = 0.0,
   excludeConceptIds: string[] = [],
+  queryEmbedding?: number[],
 ): Promise<Array<{ conceptId: string; similarity: number }>> {
-  const db = getCurrentDb();
   const llmClient = getLLMClient();
 
-  // Get model name from LLM client (default to OpenAI's model)
-  const model = llmClient.getProvider() === "openai" ? "text-embedding-3-small" : "text-embedding-004";
+  // Generate embedding for query if not provided
+  const embedding = queryEmbedding ?? await llmClient.embed(queryText);
 
-  // Generate embedding for query
-  const queryEmbedding = await llmClient.embed(queryText);
-
-  // Get all concept embeddings
-  const embeddings = await db
-    .select({
-      conceptId: conceptEmbedding.conceptId,
-      embedding: conceptEmbedding.embedding,
-    })
-    .from(conceptEmbedding)
-    .where(eq(conceptEmbedding.model, model));
-
-  // Calculate similarities
-  const similarities: Array<{ conceptId: string; similarity: number }> = [];
-
-  for (const emb of embeddings) {
-    // Skip excluded concepts
-    if (excludeConceptIds.includes(emb.conceptId)) {
-      continue;
-    }
-
-    try {
-      const embeddingVector = JSON.parse(emb.embedding) as number[];
-      const similarity = cosineSimilarity(queryEmbedding, embeddingVector);
-
-      if (similarity >= minSimilarity) {
-        similarities.push({
-          conceptId: emb.conceptId,
-          similarity,
-        });
-      }
-    } catch (error) {
-      logger.warn({ conceptId: emb.conceptId, error }, "Failed to parse embedding, skipping");
-      continue;
-    }
-  }
-
-  // Sort by similarity (highest first) and limit
-  return similarities
-    .sort((a, b) => b.similarity - a.similarity)
-    .slice(0, limit);
+  // Use in-memory index for fast search
+  const index = getVectorIndex();
+  return index.search(embedding, limit, minSimilarity, excludeConceptIds);
 }
 
 /**

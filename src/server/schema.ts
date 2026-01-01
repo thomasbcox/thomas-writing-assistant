@@ -7,6 +7,7 @@
  */
 
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 import { relations } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 
@@ -166,7 +167,7 @@ export const conceptEmbedding = sqliteTable("ConceptEmbedding", {
   // @ts-expect-error - Drizzle type inference issue with sqliteTable overloads
   id: text("id").primaryKey().$defaultFn(() => createId()),
   conceptId: text("conceptId").unique().notNull().references(() => concept.id, { onDelete: "cascade" }),
-  embedding: text("embedding").notNull(), // JSON array of numbers stored as text
+  embedding: sql<Buffer>`embedding`, // Binary Float32Array stored as BLOB
   model: text("model").notNull(), // e.g., "text-embedding-3-small" or "text-embedding-004"
   createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
   updatedAt: integer("updatedAt", { mode: "timestamp" }).$onUpdate(() => new Date()).notNull(),

@@ -94,6 +94,8 @@ const electronAPI: ElectronAPI = {
     getSettings: () => ipcRenderer.invoke("ai:getSettings"),
     updateSettings: (input) => ipcRenderer.invoke("ai:updateSettings", input),
     getAvailableModels: () => ipcRenderer.invoke("ai:getAvailableModels"),
+    getEmbeddingStatus: () => ipcRenderer.invoke("ai:getEmbeddingStatus"),
+    generateMissingEmbeddings: (input) => ipcRenderer.invoke("ai:generateMissingEmbeddings", input),
   },
 
   // Ping for testing

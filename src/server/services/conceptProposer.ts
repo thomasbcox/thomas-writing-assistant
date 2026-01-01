@@ -8,112 +8,73 @@ import { concept } from "~/server/schema";
 import { eq } from "drizzle-orm";
 
 /**
- * Smart chunking function that preserves sentence and paragraph boundaries
- * Takes chunks from beginning, middle, and end of document
+ * Sliding window chunking function that processes the entire document
+ * Uses overlapping windows to ensure 100% coverage without information loss
+ * 
+ * @param text The full text to chunk
+ * @param chunkSize Target size for each chunk in characters (default: 30000)
+ * @param overlap Overlap between chunks in characters (default: 5000)
+ * @returns Array of text chunks covering the entire document
  */
-function smartChunkText(text: string, chunkSize: number): string {
-  // Split into paragraphs first (double newlines)
-  const paragraphs = text.split(/\n\s*\n/);
-  
-  // If we have few paragraphs, fall back to sentence-based chunking
-  if (paragraphs.length < 10) {
-    return smartChunkBySentences(text, chunkSize);
+function slidingWindowChunk(text: string, chunkSize: number = 30000, overlap: number = 5000): string[] {
+  if (text.length <= chunkSize) {
+    // Document fits in one chunk
+    return [text];
   }
-  
-  // Strategy: Take paragraphs from beginning, middle, and end
-  // Prioritize paragraphs with headings (lines starting with #, ##, etc.)
-  const chunks: string[] = [];
-  const targetChunkSize = chunkSize;
-  
-  // Beginning chunk: take paragraphs until we reach target size
-  let beginningChunk = "";
-  for (let i = 0; i < paragraphs.length && beginningChunk.length < targetChunkSize; i++) {
-    const para = paragraphs[i];
-    if (beginningChunk.length + para.length > targetChunkSize) {
-      // Try to complete the paragraph if it's not too long
-      if (para.length < targetChunkSize * 0.3) {
-        beginningChunk += "\n\n" + para;
-      }
-      break;
-    }
-    beginningChunk += (beginningChunk ? "\n\n" : "") + para;
-  }
-  chunks.push(beginningChunk);
-  
-  // Middle chunk: sample from middle section
-  const middleStart = Math.floor(paragraphs.length * 0.4);
-  const middleEnd = Math.floor(paragraphs.length * 0.6);
-  let middleChunk = "";
-  
-  // Prioritize paragraphs with headings
-  const middleParagraphs = paragraphs.slice(middleStart, middleEnd);
-  const withHeadings = middleParagraphs.filter(p => /^#+\s/.test(p.trim()));
-  const withoutHeadings = middleParagraphs.filter(p => !/^#+\s/.test(p.trim()));
-  
-  // Add paragraphs with headings first, then others
-  const prioritizedMiddle = [...withHeadings, ...withoutHeadings];
-  
-  for (const para of prioritizedMiddle) {
-    if (middleChunk.length + para.length > targetChunkSize) {
-      break;
-    }
-    middleChunk += (middleChunk ? "\n\n" : "") + para;
-  }
-  
-  if (middleChunk) {
-    chunks.push(middleChunk);
-  }
-  
-  // End chunk: take paragraphs from the end
-  let endChunk = "";
-  for (let i = paragraphs.length - 1; i >= 0 && endChunk.length < targetChunkSize; i--) {
-    const para = paragraphs[i];
-    if (endChunk.length + para.length > targetChunkSize) {
-      break;
-    }
-    endChunk = para + (endChunk ? "\n\n" : "") + endChunk;
-  }
-  
-  if (endChunk) {
-    chunks.push(endChunk);
-  }
-  
-  return chunks.join("\n\n[... section break ...]\n\n");
-}
 
-/**
- * Fallback chunking by sentences when paragraph-based chunking isn't suitable
- */
-function smartChunkBySentences(text: string, chunkSize: number): string {
-  // Split by sentence boundaries (period, exclamation, question mark followed by space)
-  const sentences = text.split(/([.!?]\s+)/);
   const chunks: string[] = [];
-  
-  // Beginning chunk
-  let beginningChunk = "";
-  for (let i = 0; i < sentences.length && beginningChunk.length < chunkSize; i++) {
-    beginningChunk += sentences[i];
+  let start = 0;
+
+  while (start < text.length) {
+    let end = start + chunkSize;
+
+    // If this isn't the last chunk, try to end at a sentence boundary
+    if (end < text.length) {
+      // Look for sentence boundary within the last 20% of the chunk
+      const searchStart = Math.max(start, end - chunkSize * 0.2);
+      const searchEnd = Math.min(text.length, end + 1000); // Allow some flexibility
+      const searchText = text.slice(searchStart, searchEnd);
+      
+      // Find last sentence boundary (period, exclamation, question mark followed by space/newline)
+      const sentenceMatch = searchText.match(/[.!?][\s\n]+/g);
+      if (sentenceMatch && sentenceMatch.length > 0) {
+        const lastMatch = sentenceMatch[sentenceMatch.length - 1];
+        const matchIndex = searchText.lastIndexOf(lastMatch);
+        if (matchIndex !== -1) {
+          end = searchStart + matchIndex + lastMatch.length;
+        }
+      } else {
+        // Fall back to paragraph boundary (double newline)
+        const paraMatch = searchText.match(/\n\s*\n/g);
+        if (paraMatch && paraMatch.length > 0) {
+          const lastMatch = paraMatch[paraMatch.length - 1];
+          const matchIndex = searchText.lastIndexOf(lastMatch);
+          if (matchIndex !== -1) {
+            end = searchStart + matchIndex + lastMatch.length;
+          }
+        }
+      }
+    } else {
+      // Last chunk - include everything to the end
+      end = text.length;
+    }
+
+    const chunk = text.slice(start, end);
+    if (chunk.trim().length > 0) {
+      chunks.push(chunk);
+    }
+
+    // Move start position forward with overlap
+    start = end - overlap;
+    
+    // Ensure we make progress (handle edge case where overlap is too large)
+    const previousStart = chunks.length > 0 ? (start - overlap) : 0;
+    if (start <= previousStart) {
+      start = end;
+    }
   }
-  chunks.push(beginningChunk);
-  
-  // Middle chunk
-  const middleStart = Math.floor(sentences.length * 0.4);
-  const middleEnd = Math.floor(sentences.length * 0.6);
-  const middleChunk = sentences.slice(middleStart, middleEnd).join("");
-  if (middleChunk) {
-    chunks.push(middleChunk);
-  }
-  
-  // End chunk
-  let endChunk = "";
-  for (let i = sentences.length - 1; i >= 0 && endChunk.length < chunkSize; i--) {
-    endChunk = sentences[i] + endChunk;
-  }
-  if (endChunk) {
-    chunks.push(endChunk);
-  }
-  
-  return chunks.join("\n\n[... section break ...]\n\n");
+
+  return chunks;
 }
 
 export interface ConceptCandidate {
@@ -160,29 +121,18 @@ export async function generateConceptCandidates(
     model: client.getModel(),
   }, "Starting concept generation");
 
-  // For large documents, use a smarter sampling strategy:
-  // - If text is under 500k chars, use it all (modern models handle 128k-2M tokens easily)
-  // - If longer, take first 30k, middle 30k, and last 30k (up to 90k total)
-  // This ensures we capture content from throughout the document
-  let textToAnalyze: string;
-  if (text.length <= 500000) {
-    textToAnalyze = text;
-    logger.debug({
-      service: "conceptProposer",
-      operation: "generateConceptCandidates",
-      strategy: "full_text",
-      textToAnalyzeLength: textToAnalyze.length,
-    }, "Using full text for analysis");
-  } else {
-    textToAnalyze = smartChunkText(text, 30000);
-    logger.debug({
-      service: "conceptProposer",
-      operation: "generateConceptCandidates",
-      strategy: "smart_chunked",
-      textToAnalyzeLength: textToAnalyze.length,
-      originalLength: text.length,
-    }, "Using smart chunking strategy for large document");
-  }
+  // Use sliding window chunking to process entire document
+  // This ensures 100% coverage without information loss
+  const chunks = slidingWindowChunk(text, 30000, 5000);
+  
+  logger.debug({
+    service: "conceptProposer",
+    operation: "generateConceptCandidates",
+    strategy: "sliding_window",
+    chunkCount: chunks.length,
+    totalLength: text.length,
+    averageChunkLength: chunks.length > 0 ? Math.round(text.length / chunks.length) : 0,
+  }, "Using sliding window chunking to process entire document");
 
   const systemPromptDefault = "You are analyzing text to extract distinct, standalone concepts. Each concept should be a complete idea that can stand alone.";
   const systemPrompt = config.getSystemPrompt(
@@ -223,181 +173,208 @@ Response format (structured output will ensure valid JSON):
 Extract the content directly from the source text when possible. Only generate content if the source text doesn't contain enough detail.`
   );
 
-  // Replace template variables
-  const prompt = promptTemplate
-    .replace(/\{\{maxCandidates\}\}/g, String(maxCandidates))
-    .replace(/\{\{textToAnalyze\}\}/g, textToAnalyze)
-    .replace(/\{\{instructions\}\}/g, instructionText);
+  // Process all chunks and merge results
+  const allConcepts: ConceptCandidate[] = [];
+  const conceptsPerChunk = Math.max(1, Math.ceil(maxCandidates / chunks.length));
 
-  try {
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    const chunkNumber = i + 1;
+    
     logger.debug({
       service: "conceptProposer",
       operation: "generateConceptCandidates",
-      promptLength: prompt.length,
-      systemPromptLength: systemPrompt.length,
-      textToAnalyzeLength: textToAnalyze.length,
-    }, "Calling LLM for concept extraction");
+      chunkNumber,
+      totalChunks: chunks.length,
+      chunkLength: chunk.length,
+    }, `Processing chunk ${chunkNumber} of ${chunks.length}`);
 
-    const llmStartTime = Date.now();
-    const response = await client.completeJSON(prompt, systemPrompt);
-    const llmDuration = Date.now() - llmStartTime;
+    // Import prompt utilities for escaping user content
+    const { escapeTemplateContent } = await import("./promptUtils");
 
-    logger.info({
+    // Replace template variables (escape user content to prevent prompt injection)
+    const prompt = promptTemplate
+      .replace(/\{\{maxCandidates\}\}/g, String(conceptsPerChunk))
+      .replace(/\{\{textToAnalyze\}\}/g, escapeTemplateContent(chunk))
+      .replace(/\{\{instructions\}\}/g, escapeTemplateContent(instructionText));
+
+    try {
+      logger.debug({
+        service: "conceptProposer",
+        operation: "generateConceptCandidates",
+        chunkNumber,
+        promptLength: prompt.length,
+        systemPromptLength: systemPrompt.length,
+        chunkLength: chunk.length,
+      }, `Calling LLM for concept extraction (chunk ${chunkNumber})`);
+
+      const llmStartTime = Date.now();
+      const response = await client.completeJSON(prompt, systemPrompt);
+      const llmDuration = Date.now() - llmStartTime;
+
+      logger.info({
+        service: "conceptProposer",
+        operation: "generateConceptCandidates",
+        chunkNumber,
+        llmDuration,
+        responseKeys: Object.keys(response),
+      }, `LLM response received for chunk ${chunkNumber}`);
+
+      const chunkConcepts = (response.concepts as ConceptCandidate[]) ?? [];
+      allConcepts.push(...chunkConcepts);
+    } catch (error) {
+      logger.error({
+        service: "conceptProposer",
+        operation: "generateConceptCandidates",
+        chunkNumber,
+        error,
+      }, `Failed to process chunk ${chunkNumber}, continuing with other chunks`);
+      // Continue processing other chunks even if one fails
+    }
+  }
+
+  // Deduplicate concepts across chunks by title (case-insensitive)
+  const seenTitles = new Set<string>();
+  const uniqueConcepts: ConceptCandidate[] = [];
+  
+  for (const concept of allConcepts) {
+    const normalizedTitle = concept.title?.toLowerCase().trim();
+    if (normalizedTitle && !seenTitles.has(normalizedTitle)) {
+      seenTitles.add(normalizedTitle);
+      uniqueConcepts.push(concept);
+    }
+  }
+
+  // Limit to maxCandidates
+  const concepts = uniqueConcepts.slice(0, maxCandidates);
+
+  logger.debug({
+    service: "conceptProposer",
+    operation: "generateConceptCandidates",
+    conceptsReceived: concepts.length,
+    conceptsDetails: concepts.map((c, i) => ({
+      index: i,
+      hasTitle: !!c?.title,
+      titleLength: c?.title?.length ?? 0,
+      hasContent: !!c?.content,
+      contentLength: c?.content?.length ?? 0,
+      hasSummary: !!c?.summary,
+      hasDescription: !!c?.description,
+    })),
+  }, "Processing LLM response");
+
+  // Validate that we got concepts
+  if (!Array.isArray(concepts) || concepts.length === 0) {
+    logger.warn({
       service: "conceptProposer",
       operation: "generateConceptCandidates",
-      llmDuration,
-      responseKeys: Object.keys(response),
-    }, "LLM response received");
+      chunkCount: chunks.length,
+    }, "No concepts generated from any chunk");
+    logServiceError(
+      new Error("No concepts generated from any chunk"),
+      "conceptProposer",
+      {
+        textLength: text.length,
+        chunkCount: chunks.length,
+        maxCandidates,
+        hasInstructions: !!instructions,
+      },
+    );
+    return [];
+  }
 
-    const concepts = (response.concepts as ConceptCandidate[]) ?? [];
+  // Filter out any invalid concepts
+  const validConcepts = concepts.filter(
+    (c) => c && typeof c.title === "string" && typeof c.content === "string",
+  );
 
-    logger.debug({
+  if (validConcepts.length === 0) {
+    logger.warn({
       service: "conceptProposer",
       operation: "generateConceptCandidates",
       conceptsReceived: concepts.length,
-      conceptsDetails: concepts.map((c, i) => ({
+      invalidConceptsDetails: concepts.map((c, i) => ({
         index: i,
-        hasTitle: !!c?.title,
-        titleLength: c?.title?.length ?? 0,
-        hasContent: !!c?.content,
-        contentLength: c?.content?.length ?? 0,
-        hasSummary: !!c?.summary,
-        hasDescription: !!c?.description,
+        concept: c,
+        isValid: !!(c && typeof c.title === "string" && typeof c.content === "string"),
+        titleValid: typeof c?.title === "string",
+        contentValid: typeof c?.content === "string",
       })),
-    }, "Processing LLM response");
-
-    // Validate that we got concepts
-    if (!Array.isArray(concepts) || concepts.length === 0) {
-      logger.warn({
-        service: "conceptProposer",
-        operation: "generateConceptCandidates",
-        responseKeys: Object.keys(response),
-        responsePreview: JSON.stringify(response).slice(0, 500),
-      }, "LLM returned invalid or empty concepts array");
-      logServiceError(
-        new Error(`LLM returned invalid or empty concepts array. Response: ${JSON.stringify(response).slice(0, 500)}`),
-        "conceptProposer",
-        {
-          textLength: text.length,
-          textToAnalyzeLength: textToAnalyze.length,
-          maxCandidates,
-          hasInstructions: !!instructions,
-          responseKeys: Object.keys(response),
-          llmResponsePreview: JSON.stringify(response).slice(0, 2000),
-        },
-      );
-      return [];
-    }
-
-    // Filter out any invalid concepts
-    const validConcepts = concepts.filter(
-      (c) => c && typeof c.title === "string" && typeof c.content === "string",
-    );
-
-    if (validConcepts.length === 0) {
-      logger.warn({
-        service: "conceptProposer",
-        operation: "generateConceptCandidates",
+    }, "All concepts were invalid after filtering");
+    logServiceError(
+      new Error("All concepts were invalid after filtering"),
+      "conceptProposer",
+      {
+        textLength: text.length,
+        chunkCount: chunks.length,
+        maxCandidates,
         conceptsReceived: concepts.length,
-        invalidConceptsDetails: concepts.map((c, i) => ({
-          index: i,
-          concept: c,
-          isValid: !!(c && typeof c.title === "string" && typeof c.content === "string"),
-          titleValid: typeof c?.title === "string",
-          contentValid: typeof c?.content === "string",
-        })),
-      }, "All concepts were invalid after filtering");
-      logServiceError(
-        new Error("All concepts were invalid after filtering"),
-        "conceptProposer",
-        {
-          textLength: text.length,
-          textToAnalyzeLength: textToAnalyze.length,
-          maxCandidates,
-          conceptsReceived: concepts.length,
-          llmResponsePreview: JSON.stringify(response).slice(0, 2000),
-        },
-      );
-      return [];
-    }
-
-    // Filter out duplicates using vector search
-    const { findSimilarConcepts } = await import("./vectorSearch");
-    const db = getCurrentDb();
-    const filteredConcepts: ConceptCandidate[] = [];
-    const duplicateThreshold = 0.85; // High similarity threshold for duplicates
-
-    for (const candidate of validConcepts) {
-      const candidateText = `${candidate.title}\n${candidate.description || ""}\n${candidate.content}`;
-      
-      // Find similar existing concepts using vector search
-      const similarConcepts = await findSimilarConcepts(
-        candidateText,
-        10, // Check top 10 most similar
-        duplicateThreshold, // Only consider high similarity matches
-        [], // Don't exclude any concepts
-      );
-
-      if (similarConcepts.length > 0) {
-        // Found a duplicate - log it but don't add to results
-        const existingConcept = await db
-          .select()
-          .from(concept)
-          .where(eq(concept.id, similarConcepts[0].conceptId))
-          .limit(1);
-
-        if (existingConcept.length > 0) {
-          logger.info({
-            service: "conceptProposer",
-            operation: "generateConceptCandidates",
-            candidateTitle: candidate.title,
-            existingConceptId: existingConcept[0].id,
-            existingConceptTitle: existingConcept[0].title,
-            similarity: similarConcepts[0].similarity,
-          }, "Filtered out duplicate concept candidate");
-          continue; // Skip this candidate
-        }
-      }
-
-      // No duplicate found, add to results
-      filteredConcepts.push(candidate);
-    }
-
-    const totalDuration = Date.now() - startTime;
-    logger.info({
-      service: "conceptProposer",
-      operation: "generateConceptCandidates",
-      totalDuration,
-      llmDuration,
-      conceptsGenerated: validConcepts.length,
-      conceptsAfterDeduplication: filteredConcepts.length,
-      duplicatesFiltered: validConcepts.length - filteredConcepts.length,
-      conceptsTitles: filteredConcepts.map((c) => c.title),
-    }, "Successfully generated concept candidates with duplicate detection");
-
-    // Add default metadata if provided
-    return filteredConcepts.map((concept) => ({
-      ...concept,
-      // Metadata will be added by the caller
-    }));
-  } catch (error) {
-    const totalDuration = Date.now() - startTime;
-    logger.error({
-      service: "conceptProposer",
-      operation: "generateConceptCandidates",
-      totalDuration,
-      error: error instanceof Error ? error.message : String(error),
-    }, "Concept generation failed");
-    logServiceError(error, "conceptProposer", {
-      textLength: text.length,
-      textToAnalyzeLength: textToAnalyze.length,
-      maxCandidates,
-      hasInstructions: !!instructions,
-      duration: totalDuration,
-      provider: client.getProvider(),
-      model: client.getModel(),
-    });
+      },
+    );
     return [];
   }
+
+  // Filter out duplicates using vector search
+  const { findSimilarConcepts } = await import("./vectorSearch");
+  const db = getCurrentDb();
+  const filteredConcepts: ConceptCandidate[] = [];
+  const duplicateThreshold = 0.85; // High similarity threshold for duplicates
+
+  for (const candidate of validConcepts) {
+    const candidateText = `${candidate.title}\n${candidate.description || ""}\n${candidate.content}`;
+    
+    // Generate embedding for candidate to use in search
+    const candidateEmbedding = await client.embed(candidateText);
+    
+    // Find similar existing concepts using vector search
+    const similarConcepts = await findSimilarConcepts(
+      candidateText,
+      10, // Check top 10 most similar
+      duplicateThreshold, // Only consider high similarity matches
+      [], // Don't exclude any concepts
+      candidateEmbedding, // Pass pre-computed embedding
+    );
+
+    if (similarConcepts.length > 0) {
+      // Found a duplicate - log it but don't add to results
+      const existingConcept = await db
+        .select()
+        .from(concept)
+        .where(eq(concept.id, similarConcepts[0].conceptId))
+        .limit(1);
+
+      if (existingConcept.length > 0) {
+        logger.info({
+          service: "conceptProposer",
+          operation: "generateConceptCandidates",
+          candidateTitle: candidate.title,
+          existingConceptId: existingConcept[0].id,
+          existingConceptTitle: existingConcept[0].title,
+          similarity: similarConcepts[0].similarity,
+        }, "Filtered out duplicate concept candidate");
+        continue; // Skip this candidate
+      }
+    }
+
+    // No duplicate found, add to results
+    filteredConcepts.push(candidate);
+  }
+
+  const totalDuration = Date.now() - startTime;
+  logger.info({
+    service: "conceptProposer",
+    operation: "generateConceptCandidates",
+    totalDuration,
+    conceptsGenerated: validConcepts.length,
+    conceptsAfterDeduplication: filteredConcepts.length,
+    duplicatesFiltered: validConcepts.length - filteredConcepts.length,
+    conceptsTitles: filteredConcepts.map((c) => c.title),
+  }, "Successfully generated concept candidates with duplicate detection");
+
+  // Add default metadata if provided
+  return filteredConcepts.map((concept) => ({
+    ...concept,
+    // Metadata will be added by the caller
+  }));
 }
 

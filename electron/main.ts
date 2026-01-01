@@ -57,9 +57,16 @@ function createWindow() {
 }
 
 // This method will be called when Electron has finished initialization
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Initialize database first
   initDb();
+  
+  // Initialize vector index in background (non-blocking)
+  import("../src/server/services/vectorIndex.js").then(({ initializeVectorIndex }) => {
+    initializeVectorIndex().catch((error) => {
+      console.error("Failed to initialize vector index:", error);
+    });
+  });
   
   // Then create window
   createWindow();

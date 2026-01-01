@@ -240,15 +240,15 @@ export function createTestChatMessage(overrides: Partial<NewChatMessage> & { ses
  * Create a test concept embedding with sensible defaults
  * Requires conceptId, embedding, and model to be provided
  * 
- * @param overrides - Partial overrides for specific fields (must include conceptId, embedding, model)
+ * @param overrides - Partial overrides for specific fields (must include conceptId, embedding (as Buffer), model)
  * @returns A concept embedding object ready for database insertion
  */
-export function createTestEmbedding(overrides: Partial<NewConceptEmbedding> & { conceptId: string; embedding: string; model: string }): NewConceptEmbedding {
+export function createTestEmbedding(overrides: Partial<NewConceptEmbedding> & { conceptId: string; embedding: Buffer; model: string }): NewConceptEmbedding {
   const { conceptId, embedding, model, ...rest } = overrides;
   return {
     id: createId(),
     conceptId,
-    embedding, // JSON string of number[]
+    embedding, // Binary Buffer (Float32Array)
     model,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -262,9 +262,9 @@ export function createTestEmbedding(overrides: Partial<NewConceptEmbedding> & { 
  * 
  * @param text - The text to generate an embedding for
  * @param dimensions - The dimension of the embedding vector (default: 1536)
- * @returns A JSON string representation of the embedding vector
+ * @returns A Buffer containing the binary Float32Array representation
  */
-export function createDeterministicEmbedding(text: string, dimensions: number = 1536): string {
+export function createDeterministicEmbedding(text: string, dimensions: number = 1536): Buffer {
   // Simple hash function to generate deterministic values
   let hash = 0;
   for (let i = 0; i < text.length; i++) {
@@ -283,6 +283,8 @@ export function createDeterministicEmbedding(text: string, dimensions: number = 
     vector.push(value);
   }
   
-  return JSON.stringify(vector);
+  // Convert to binary Buffer (Float32Array)
+  const floatArray = new Float32Array(vector);
+  return Buffer.from(floatArray.buffer);
 }
 

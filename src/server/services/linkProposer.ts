@@ -317,13 +317,16 @@ Response format (structured output will ensure valid JSON):
 Only include proposals with confidence >= 0.5. Limit to {{maxProposals}} proposals.`
   );
 
-  // Replace template variables
+  // Import prompt utilities for escaping user content
+  const { escapeTemplateContent } = await import("./promptUtils");
+
+  // Replace template variables (escape user content to prevent prompt injection)
   const prompt = promptTemplate
-    .replace(/\{\{sourceTitle\}\}/g, sourceConcept.title)
-    .replace(/\{\{sourceDescription\}\}/g, sourceConcept.description ?? "None")
-    .replace(/\{\{sourceContentPreview\}\}/g, sourceConcept.content.slice(0, 500))
-    .replace(/\{\{candidateList\}\}/g, candidateList)
-    .replace(/\{\{linkNames\}\}/g, allLinkNames)
+    .replace(/\{\{sourceTitle\}\}/g, escapeTemplateContent(sourceConcept.title))
+    .replace(/\{\{sourceDescription\}\}/g, escapeTemplateContent(sourceConcept.description ?? "None"))
+    .replace(/\{\{sourceContentPreview\}\}/g, escapeTemplateContent(sourceConcept.content.slice(0, 500)))
+    .replace(/\{\{candidateList\}\}/g, candidateList) // Already formatted, safe
+    .replace(/\{\{linkNames\}\}/g, allLinkNames) // Already formatted, safe
     .replace(/\{\{maxProposals\}\}/g, String(maxProposals));
 
   try {
