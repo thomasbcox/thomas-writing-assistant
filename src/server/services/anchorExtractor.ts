@@ -56,7 +56,7 @@ Extract the following:
 3. **Solution Steps**: 3-7 key solution steps or takeaways (as a JSON array)
 4. **Proof** (optional): Any proof points, statistics, or evidence mentioned
 
-Return a JSON object:
+Response format (structured output will ensure valid JSON):
 {
   "title": "extracted title",
   "painPoints": ["pain point 1", "pain point 2", ...],

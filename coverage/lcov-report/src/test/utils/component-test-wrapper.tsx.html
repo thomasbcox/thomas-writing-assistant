@@ -308,7 +308,8 @@
 <a name='L243'></a><a href='#L243'>243</a>
 <a name='L244'></a><a href='#L244'>244</a>
 <a name='L245'></a><a href='#L245'>245</a>
-<a name='L246'></a><a href='#L246'>246</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L246'></a><a href='#L246'>246</a>
+<a name='L247'></a><a href='#L247'>247</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -370,6 +371,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -619,6 +621,7 @@ const createMockCapsule = (overrides?: Partial&lt;SerializedCapsule&gt;): Serial
   title: "Mock Capsule",
   promise: "Mock promise",
   cta: "Mock CTA",
+  offerId: null,
   offerMapping: null,
   createdAt: mockDate(),
   updatedAt: mockDate(),
@@ -659,22 +662,22 @@ const createMockLinkWithRelations = (overrides?: Partial&lt;SerializedLinkWithRe
  */
 const mockElectronAPI = {
   concept: {
-    list: jest.fn&lt;() =&gt; Promise&lt;SerializedConcept[]&gt;&gt;().mockResolvedValue([]),
-    getById: jest.fn&lt;() =&gt; Promise&lt;SerializedConcept | null&gt;&gt;().mockResolvedValue(null),
-    create: jest.fn&lt;() =&gt; Promise&lt;SerializedConcept&gt;&gt;().mockResolvedValue(createMockConcept()),
-    update: jest.fn&lt;() =&gt; Promise&lt;SerializedConcept&gt;&gt;().mockResolvedValue(createMockConcept({ title: "Updated Concept" })),
-    delete: jest.fn&lt;() =&gt; Promise&lt;SerializedConcept&gt;&gt;().mockResolvedValue(createMockConcept({ status: "trash", trashedAt: mockDate() })),
-    restore: jest.fn&lt;() =&gt; Promise&lt;SerializedConcept&gt;&gt;().mockResolvedValue(createMockConcept({ title: "Restored Concept" })),
-    purgeTrash: jest.fn&lt;() =&gt; Promise&lt;ConceptPurgeTrashResult&gt;&gt;().mockResolvedValue({ deletedCount: 0 }),
-    proposeLinks: jest.fn&lt;() =&gt; Promise&lt;ConceptProposeLinksResult&gt;&gt;().mockResolvedValue([]),
-    generateCandidates: jest.fn&lt;() =&gt; Promise&lt;ConceptGenerateCandidatesResult&gt;&gt;().mockResolvedValue([]),
+    list: jest.fn&lt;(input: any) =&gt; Promise&lt;SerializedConcept[]&gt;&gt;().mockResolvedValue([]),
+    getById: jest.fn&lt;(input: any) =&gt; Promise&lt;SerializedConcept | null&gt;&gt;().mockResolvedValue(null),
+    create: jest.fn&lt;(input: any) =&gt; Promise&lt;SerializedConcept&gt;&gt;().mockResolvedValue(createMockConcept()),
+    update: jest.fn&lt;(input: any) =&gt; Promise&lt;SerializedConcept&gt;&gt;().mockResolvedValue(createMockConcept({ title: "Updated Concept" })),
+    delete: jest.fn&lt;(input: any) =&gt; Promise&lt;SerializedConcept&gt;&gt;().mockResolvedValue(createMockConcept({ status: "trash", trashedAt: mockDate() })),
+    restore: jest.fn&lt;(input: any) =&gt; Promise&lt;SerializedConcept&gt;&gt;().mockResolvedValue(createMockConcept({ title: "Restored Concept" })),
+    purgeTrash: jest.fn&lt;(input: any) =&gt; Promise&lt;ConceptPurgeTrashResult&gt;&gt;().mockResolvedValue({ deletedCount: 0 }),
+    proposeLinks: jest.fn&lt;(input: any) =&gt; Promise&lt;ConceptProposeLinksResult&gt;&gt;().mockResolvedValue([]),
+    generateCandidates: jest.fn&lt;(input: any) =&gt; Promise&lt;ConceptGenerateCandidatesResult&gt;&gt;().mockResolvedValue([]),
   },
 &nbsp;
   capsule: {
-    list: jest.fn&lt;() =&gt; Promise&lt;CapsuleListResult&gt;&gt;().mockResolvedValue([]),
-    getById: jest.fn&lt;() =&gt; Promise&lt;CapsuleResult&gt;&gt;().mockResolvedValue(null),
-    create: jest.fn&lt;() =&gt; Promise&lt;SerializedCapsule&gt;&gt;().mockResolvedValue(createMockCapsule()),
-    createAnchorFromPDF: jest.fn&lt;() =&gt; Promise&lt;CapsuleCreateAnchorFromPDFResult&gt;&gt;().mockResolvedValue({
+    list: jest.fn&lt;(input?: any) =&gt; Promise&lt;CapsuleListResult&gt;&gt;().mockResolvedValue([]),
+    getById: jest.fn&lt;(input: any) =&gt; Promise&lt;CapsuleResult&gt;&gt;().mockResolvedValue(null),
+    create: jest.fn&lt;(input: any) =&gt; Promise&lt;SerializedCapsule&gt;&gt;().mockResolvedValue(createMockCapsule()),
+    createAnchorFromPDF: jest.fn&lt;(input: any) =&gt; Promise&lt;CapsuleCreateAnchorFromPDFResult&gt;&gt;().mockResolvedValue({
       anchor: {
         id: "mock-anchor-id",
         capsuleId: "mock-capsule-id",
@@ -691,18 +694,18 @@ const mockElectronAPI = {
   },
 &nbsp;
   link: {
-    getAll: jest.fn&lt;() =&gt; Promise&lt;LinkListResult&gt;&gt;().mockResolvedValue([]),
-    getByConcept: jest.fn&lt;() =&gt; Promise&lt;LinksByConceptResult&gt;&gt;().mockResolvedValue({ outgoing: [], incoming: [] }),
-    create: jest.fn&lt;() =&gt; Promise&lt;SerializedLinkWithRelations&gt;&gt;().mockResolvedValue(createMockLinkWithRelations()),
-    delete: jest.fn&lt;() =&gt; Promise&lt;SerializedLinkWithRelations | null&gt;&gt;().mockResolvedValue(null),
+    getAll: jest.fn&lt;(input?: any) =&gt; Promise&lt;LinkListResult&gt;&gt;().mockResolvedValue([]),
+    getByConcept: jest.fn&lt;(input: any) =&gt; Promise&lt;LinksByConceptResult&gt;&gt;().mockResolvedValue({ outgoing: [], incoming: [] }),
+    create: jest.fn&lt;(input: any) =&gt; Promise&lt;SerializedLinkWithRelations&gt;&gt;().mockResolvedValue(createMockLinkWithRelations()),
+    delete: jest.fn&lt;(input: any) =&gt; Promise&lt;SerializedLinkWithRelations | null&gt;&gt;().mockResolvedValue(null),
   },
 &nbsp;
   linkName: {
     getAll: jest.fn&lt;() =&gt; Promise&lt;LinkNameListResult&gt;&gt;().mockResolvedValue([]),
-    create: jest.fn&lt;() =&gt; Promise&lt;SerializedLinkName&gt;&gt;().mockResolvedValue(createMockLinkName()),
-    update: jest.fn&lt;() =&gt; Promise&lt;SerializedLinkName&gt;&gt;().mockResolvedValue(createMockLinkName({ forwardName: "updated forward" })),
-    delete: jest.fn&lt;() =&gt; Promise&lt;SerializedLinkName&gt;&gt;().mockResolvedValue(createMockLinkName({ isDeleted: true })),
-    getUsage: jest.fn&lt;() =&gt; Promise&lt;LinkNameUsageResult&gt;&gt;().mockResolvedValue({ count: 0 }),
+    create: jest.fn&lt;(input: any) =&gt; Promise&lt;SerializedLinkName&gt;&gt;().mockResolvedValue(createMockLinkName()),
+    update: jest.fn&lt;(input: any) =&gt; Promise&lt;SerializedLinkName&gt;&gt;().mockResolvedValue(createMockLinkName({ forwardName: "updated forward" })),
+    delete: jest.fn&lt;(input: any) =&gt; Promise&lt;SerializedLinkName&gt;&gt;().mockResolvedValue(createMockLinkName({ isDeleted: true })),
+    getUsage: jest.fn&lt;(input: any) =&gt; Promise&lt;LinkNameUsageResult&gt;&gt;().mockResolvedValue({ count: 0 }),
   },
 &nbsp;
   config: {
@@ -712,14 +715,14 @@ const mockElectronAPI = {
     getStyleGuideRaw: jest.fn&lt;() =&gt; Promise&lt;ConfigRawResult&gt;&gt;().mockResolvedValue({ content: "voice: professional\ntone: friendly" }),
     getCredoRaw: jest.fn&lt;() =&gt; Promise&lt;ConfigRawResult&gt;&gt;().mockResolvedValue({ content: "values:\n  - quality\n  - clarity" }),
     getConstraintsRaw: jest.fn&lt;() =&gt; Promise&lt;ConfigRawResult&gt;&gt;().mockResolvedValue({ content: "rules:\n  - no jargon" }),
-    updateStyleGuide: jest.fn&lt;() =&gt; Promise&lt;ConfigUpdateResult&gt;&gt;().mockResolvedValue({ success: true }),
-    updateCredo: jest.fn&lt;() =&gt; Promise&lt;ConfigUpdateResult&gt;&gt;().mockResolvedValue({ success: true }),
-    updateConstraints: jest.fn&lt;() =&gt; Promise&lt;ConfigUpdateResult&gt;&gt;().mockResolvedValue({ success: true }),
+    updateStyleGuide: jest.fn&lt;(input: any) =&gt; Promise&lt;ConfigUpdateResult&gt;&gt;().mockResolvedValue({ success: true }),
+    updateCredo: jest.fn&lt;(input: any) =&gt; Promise&lt;ConfigUpdateResult&gt;&gt;().mockResolvedValue({ success: true }),
+    updateConstraints: jest.fn&lt;(input: any) =&gt; Promise&lt;ConfigUpdateResult&gt;&gt;().mockResolvedValue({ success: true }),
     getStatus: jest.fn&lt;() =&gt; Promise&lt;ConfigStatusResult&gt;&gt;().mockResolvedValue({ styleGuide: true, credo: true, constraints: true }),
   },
 &nbsp;
   pdf: {
-    extractText: jest.fn&lt;() =&gt; Promise&lt;PdfExtractResult&gt;&gt;().mockResolvedValue({ text: "Extracted text content", numPages: 1 }),
+    extractText: jest.fn&lt;(input: any) =&gt; Promise&lt;PdfExtractResult&gt;&gt;().mockResolvedValue({ text: "Extracted text content", numPages: 1 }),
   },
 &nbsp;
   ai: {
@@ -732,7 +735,7 @@ const mockElectronAPI = {
         gemini: false,
       },
     }),
-    updateSettings: jest.fn&lt;() =&gt; Promise&lt;AISettingsUpdateResult&gt;&gt;().mockResolvedValue({
+    updateSettings: jest.fn&lt;(input: any) =&gt; Promise&lt;AISettingsUpdateResult&gt;&gt;().mockResolvedValue({
       provider: "openai" as const,
       model: "gpt-4o-mini",
       temperature: 0.7,
@@ -805,7 +808,7 @@ export {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-30T04:59:42.868Z
+                at 2026-01-01T15:31:15.816Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

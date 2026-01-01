@@ -72,7 +72,7 @@ Generate the following content types:
 3. 1 lead magnet (downloadable resource description)
 4. 2-3 Pinterest pins (descriptions optimized for Pinterest)
 
-Return a JSON object:
+Response format (structured output will ensure valid JSON):
 {
   "social_posts": ["post 1", "post 2", ...],
   "email": "full email content",

@@ -161,11 +161,11 @@ export async function generateConceptCandidates(
   }, "Starting concept generation");
 
   // For large documents, use a smarter sampling strategy:
-  // - If text is under 50k chars, use it all
+  // - If text is under 500k chars, use it all (modern models handle 128k-2M tokens easily)
   // - If longer, take first 30k, middle 30k, and last 30k (up to 90k total)
   // This ensures we capture content from throughout the document
   let textToAnalyze: string;
-  if (text.length <= 50000) {
+  if (text.length <= 500000) {
     textToAnalyze = text;
     logger.debug({
       service: "conceptProposer",
@@ -208,7 +208,7 @@ TEXT TO ANALYZE:
 {{textToAnalyze}}
 {{instructions}}
 
-Return a JSON object with a "concepts" array:
+Response format (structured output will ensure valid JSON):
 {
   "concepts": [
     {

@@ -25,7 +25,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/25</span>
+                <span class='fraction'>0/24</span>
             </div>
         
             
@@ -39,14 +39,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/5</span>
+                <span class='fraction'>0/3</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/24</span>
+                <span class='fraction'>0/23</span>
             </div>
         
             
@@ -152,14 +152,7 @@
 <a name='L87'></a><a href='#L87'>87</a>
 <a name='L88'></a><a href='#L88'>88</a>
 <a name='L89'></a><a href='#L89'>89</a>
-<a name='L90'></a><a href='#L90'>90</a>
-<a name='L91'></a><a href='#L91'>91</a>
-<a name='L92'></a><a href='#L92'>92</a>
-<a name='L93'></a><a href='#L93'>93</a>
-<a name='L94'></a><a href='#L94'>94</a>
-<a name='L95'></a><a href='#L95'>95</a>
-<a name='L96'></a><a href='#L96'>96</a>
-<a name='L97'></a><a href='#L97'>97</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L90'></a><a href='#L90'>90</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -185,10 +178,6 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -234,10 +223,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -249,6 +234,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -281,10 +267,6 @@ export function <span class="fstat-no" title="function not covered" >useHealthSt
 <span class="cstat-no" title="statement not covered" >  return useIPCQuery&lt;HealthStatus&gt;(</span>
 <span class="fstat-no" title="function not covered" >    async </span>() =&gt; {
       const startTime = <span class="cstat-no" title="statement not covered" >Date.now();</span>
-      
-      // #region agent log
-<span class="cstat-no" title="statement not covered" >      fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'health.ts:27',message:'useHealthStatus query started',data:{startTime},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(<span class="fstat-no" title="function not covered" >()=</span>&gt;{});</span>
-      // #endregion
       
 <span class="cstat-no" title="statement not covered" >      try {</span>
         // Check database by trying to get config status
@@ -319,32 +301,29 @@ export function <span class="fstat-no" title="function not covered" >useHealthSt
 <span class="cstat-no" title="statement not covered" >          status = issues.some(<span class="fstat-no" title="function not covered" >i </span>=&gt; <span class="cstat-no" title="statement not covered" >i.includes("Database"))</span> ? "unhealthy" : "degraded";</span>
         }
         
-        const result = <span class="cstat-no" title="statement not covered" >{</span>
+        const result: HealthStatus = <span class="cstat-no" title="statement not covered" >{</span>
           status,
           checks: {
-            database: dbHealthy ? "healthy" : "unhealthy",
-            config: configHealthy ? "healthy" : "degraded",
+            database: dbHealthy ? "healthy" as const : "unhealthy" as const,
+            config: configHealthy ? "healthy" as const : "degraded" as const,
           },
           issues: issues.length &gt; 0 ? issues : undefined,
           responseTime,
           uptime: new Date().toISOString(),
         };
         
-        // #region agent log
-<span class="cstat-no" title="statement not covered" >        fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'health.ts:72',message:'useHealthStatus returning result',data:{resultKeys:Object.keys(result),checksKeys:Object.keys(result.checks),status:result.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1-H2'})}).catch(<span class="fstat-no" title="function not covered" >()=</span>&gt;{});</span>
-        // #endregion
-        
 <span class="cstat-no" title="statement not covered" >        return result;</span>
       } catch (error) {
-<span class="cstat-no" title="statement not covered" >        return {</span>
-          status: "unhealthy",
+        const errorResult: HealthStatus = <span class="cstat-no" title="statement not covered" >{</span>
+          status: "unhealthy" as const,
           checks: {
-            database: "unhealthy",
-            config: "unhealthy",
+            database: "unhealthy" as const,
+            config: "unhealthy" as const,
           },
           issues: [error instanceof Error ? error.message : "Unknown error"],
           responseTime: Date.now() - startTime,
         };
+<span class="cstat-no" title="statement not covered" >        return errorResult;</span>
       }
     },
     { inputs: [], refetchOnMount: true },
@@ -358,7 +337,7 @@ export function <span class="fstat-no" title="function not covered" >useHealthSt
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-30T04:59:42.868Z
+                at 2026-01-01T15:31:15.816Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

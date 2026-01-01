@@ -135,7 +135,7 @@ export async function proposeLinksForConcept(
   // Find similar concepts using vector search (exclude already linked concepts)
   const similarConcepts = await findSimilarConcepts(
     textToEmbed,
-    20, // Limit to 20 most similar
+    100, // Limit to 100 most similar (increased from 20 for better recall with <1000 concepts)
     0.0, // No minimum similarity threshold (we'll let LLM decide)
     [conceptId, ...allLinkedIds], // Exclude source and already linked
   );
@@ -302,7 +302,7 @@ For each candidate concept, determine:
 2. The most appropriate link name from the available list
 3. A brief reasoning
 
-Return a JSON object with a "proposals" array:
+Response format (structured output will ensure valid JSON):
 {
   "proposals": [
     {

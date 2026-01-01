@@ -1,7 +1,7 @@
 # Roadmap & Status
 
 **Last Updated**: January 1, 2026  
-**Current Status**: Core features implemented. Vector embeddings and link editing completed. App is now production-ready for scaling. Test infrastructure refinement in progress (86.5% pass rate, targeting 90%+). Offer mapping workflow is next priority.
+**Current Status**: Core features implemented. Vector embeddings and link editing completed. App optimized for <1000 concepts scale. Test infrastructure refinement in progress (86.5% pass rate, targeting 90%+). Offer mapping workflow is next priority.
 
 ---
 
@@ -556,10 +556,18 @@ Together, they limit scalability, reliability, and user trust. Fixing them trans
    - ✅ Fixed better-sqlite3 native module version mismatch (created mock)
    - ✅ Added vector search mocks for new functionality
    - ✅ Enhanced MockConfigLoader with missing methods
-   - 🔧 Improving WHERE clause handling in database mock
+   - ✅ Improved WHERE clause handling in database mock
    - Current pass rate: 86.5% (340/393 tests)
    - Target: 90%+ pass rate
    - **Priority**: MEDIUM - Close to target, minor improvements needed
+
+4. **Scale Optimizations for <1000 Concepts** ✅ **COMPLETED**
+   - ✅ Increased vector search limit from 20 to 100 (better recall for link proposals)
+   - ✅ Increased text chunking threshold from 50k to 500k characters (leverages modern model context windows)
+   - ✅ Removed redundant JSON instructions from prompts (structured output already enforced)
+   - ✅ Verified Gemini structured output support (already implemented via responseMimeType)
+   - **Impact**: Better accuracy and recall for link proposals, better concept extraction from large documents
+   - **Priority**: HIGH - Optimizes app for stated scale constraint
 
 ### Medium Term (Features)
 5. **Offer Mapping Workflow**

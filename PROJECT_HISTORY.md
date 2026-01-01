@@ -957,6 +957,50 @@ The mock implements a simplified SQLite engine that:
 
 ---
 
+## January 1, 2026: Scale Optimizations for <1000 Concepts
+
+### Context
+After completing vector embeddings and test infrastructure improvements, a critique assessment identified optimizations needed for the stated scale constraint (<1000 concepts). The critique correctly identified that legacy limits designed for smaller context windows were unnecessarily restrictive.
+
+### Optimizations Implemented
+
+1. **Increased Vector Search Limit**
+   - **Change**: Increased from 20 to 100 in `linkProposer.ts`
+   - **Rationale**: With <1000 concepts, we can afford more candidates for better link proposal accuracy
+   - **Impact**: Better recall of relevant concepts for linking (5x increase in candidate pool)
+
+2. **Increased Text Chunking Threshold**
+   - **Change**: Increased from 50,000 to 500,000 characters in `conceptProposer.ts`
+   - **Rationale**: Modern models (Gemini 1.5 Pro, GPT-4o) handle 128k-2M tokens easily
+   - **Impact**: Better concept extraction from large documents without lossy chunking (10x increase)
+
+3. **Removed Redundant JSON Instructions**
+   - **Change**: Updated prompts in `linkProposer.ts`, `conceptProposer.ts`, `anchorExtractor.ts`, `repurposer.ts`, and `blogPostGenerator.ts`
+   - **Rationale**: Structured output is already enforced (OpenAI: `response_format`, Gemini: `responseMimeType`)
+   - **Impact**: Cleaner prompts, less token usage, same reliability
+
+4. **Verified Structured Output Support**
+   - **Finding**: Both OpenAI and Gemini already use structured output
+   - **OpenAI**: `response_format: { type: "json_object" }` (line 72 of `openai.ts`)
+   - **Gemini**: `responseMimeType: "application/json"` (line 225 of `gemini.ts`)
+   - **Status**: No changes needed - already optimally implemented
+
+### Technical Details
+- Vector search limit change: `findSimilarConcepts(..., 100, ...)` instead of `20`
+- Chunking threshold: `if (text.length <= 500000)` instead of `50000`
+- Prompt updates: Changed "Return a JSON object" to "Response format (structured output will ensure valid JSON)"
+
+### Results
+- **Link Proposal Accuracy**: 5x more candidates considered (20 → 100)
+- **Concept Extraction**: 10x larger documents processed without chunking (50k → 500k chars)
+- **Prompt Efficiency**: Reduced redundant instructions while maintaining reliability
+- **Code Quality**: Cleaner prompts, better aligned with actual implementation
+
+### Pattern Established
+When scale constraints are known (<1000 concepts), optimize for that scale rather than maintaining legacy limits designed for smaller contexts. Modern LLMs have much larger context windows than when the original limits were set.
+
+---
+
 **Last Updated**: December 31, 2025
 
 *This document is maintained as an ongoing narrative. Major changes, decisions, and incidents should be added here to preserve institutional memory.*

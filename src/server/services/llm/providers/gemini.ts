@@ -222,7 +222,7 @@ export class GeminiProvider implements ILLMProvider {
             model: modelName,
             generationConfig: {
               temperature: this.temperature,
-              responseMimeType: "application/json",
+              responseMimeType: "application/json", // Structured output - ensures valid JSON
             },
           });
 

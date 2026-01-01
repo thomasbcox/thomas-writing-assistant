@@ -123,7 +123,7 @@ REQUIREMENTS:
 5. Maintain consistency with the author's style guide, values, and constraints
 6. Make the content engaging, valuable, and authentic
 
-Return a JSON object:
+Response format (structured output will ensure valid JSON):
 {
   "title": "blog post title",
   "introduction": "compelling introduction paragraph(s)",
