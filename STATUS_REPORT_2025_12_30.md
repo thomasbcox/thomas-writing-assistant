@@ -365,5 +365,69 @@ All planned improvements have been successfully implemented and tested. The code
 
 ---
 
-*Report Generated: December 30, 2025*
+---
+
+## December 31, 2025 Update: Critical Scalability Improvements
+
+**Status**: 4 of 6 critical improvements completed
+
+### Completed Improvements ✅
+
+1. **Config Error Handling** ✅
+   - Services now validate configs before content generation
+   - Clear error messages when config files fail to load
+   - Prevents silent degradation of content quality
+
+2. **JSON Parsing Robustness** ✅
+   - Retry logic with exponential backoff (3 attempts)
+   - JSON validation (ensures object, not array/null)
+   - Enhanced error messages with response previews
+   - Implemented in both OpenAI and Gemini providers
+
+3. **Prompt Externalization** ✅
+   - All prompts moved to `config/prompts.yaml`
+   - Hot-reload support (no restart needed)
+   - Template variable replacement system
+   - Fallback to defaults if prompts.yaml not present
+
+4. **Smart Text Chunking** ✅
+   - Paragraph-aware chunking (respects semantic boundaries)
+   - Prioritizes sections with headings
+   - Falls back to sentence-based chunking
+   - Preserves context (doesn't cut mid-sentence)
+
+### Verified Resolutions ✅
+
+5. **Drizzle ORM Relations** ✅
+   - Verified: No `as any` assertions in source code
+   - Schema correctly ordered
+   - Working fallback pattern exists
+   - Relations work correctly
+
+6. **Type Safety** ✅
+   - Verified: No technical debt from `as any` assertions
+   - Proper types maintained throughout codebase
+
+### Remaining Work
+
+- **Vector Embeddings**: Needed for semantic search (blocks scalability improvements #1 and #2)
+  - "First 20" problem: Link proposer needs semantic similarity
+  - Duplicate detection: Needs vector pre-filtering to avoid O(N×M) complexity
+
+**Files Modified**:
+- `src/server/services/config.ts` - Error tracking and prompt loading
+- `src/server/services/llm/providers/openai.ts` - JSON retry logic
+- `src/server/services/llm/providers/gemini.ts` - JSON retry logic
+- `src/server/services/conceptProposer.ts` - Smart chunking
+- All content generation services - Config validation
+- `config/prompts.yaml` - New file with all prompts
+
+**Documentation Updated**:
+- `PROJECT_HISTORY.md` - Added implementation details
+- `ROADMAP.md` - Marked improvements as completed, removed outdated issues
+
+---
+
+*Report Generated: December 30, 2025*  
+*Last Updated: December 31, 2025*
 

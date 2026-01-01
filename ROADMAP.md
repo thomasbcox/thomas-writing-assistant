@@ -1,7 +1,7 @@
 # Roadmap & Status
 
-**Last Updated**: December 19, 2024  
-**Current Status**: Core features complete, production-ready for basic use
+**Last Updated**: December 31, 2025  
+**Current Status**: Core features complete, production-ready for basic use. Critical scalability improvements partially implemented (4 of 6 completed).
 
 ---
 
@@ -135,54 +135,205 @@
 
 ## 🚀 Next Priorities
 
+### Critical Priority (Architecture & Scalability Improvements)
+
+#### 0. **Scalability & Architecture Improvements** 🔴
+- **Status**: Critical - Identified through code review and architectural analysis
+- **Date Identified**: December 31, 2025
+- **Priority**: **CRITICAL** - These issues will prevent the app from scaling beyond small datasets
+
+**Summary**: The current implementation relies heavily on "brute force" AI to solve architectural problems, resulting in a system that will face severe scalability, cost, and accuracy issues as the dataset grows. The app needs to implement local intelligence (search indexing, vector embeddings, caching) to reduce reliance on LLMs for basic data sorting and retrieval tasks.
+
+##### 1. The "First 20" Problem - Critical Scalability Flaw
+
+**Why It's Valid:**
+The link proposer queries concepts with `.limit(20)` and no ordering. With more than 20 concepts, it picks 20 arbitrary records (likely insertion order), so relevant concepts can be ignored.
+
+**Why Fix It:**
+- Quality degrades as the knowledge base grows
+- Users miss important connections
+- Wasted LLM calls on irrelevant candidates
+- The system becomes less useful over time
+
+**Before vs After (Layman's Terms):**
+
+**Before (Current State):**
+- You have 100 concepts about "machine learning"
+- You ask the system to find links for a new concept about "neural networks"
+- The system randomly picks 20 concepts (maybe about "cooking" or "history")
+- It asks the AI to find connections, but the relevant ML concepts aren't in that set
+- Result: Misses obvious connections
+
+**After (With Proper Retrieval):**
+- You ask for links for "neural networks"
+- The system uses semantic search to find the 20 most similar concepts (e.g., "deep learning", "backpropagation", "gradient descent")
+- It then asks the AI to analyze those relevant candidates
+- Result: Finds meaningful connections
+
+**Implementation Needed:**
+- Add vector embeddings for semantic similarity search
+- Pre-filter candidates using vector search before LLM analysis
+- Order results by relevance, not insertion order
+- **Files to Modify**: `src/server/services/linkProposer.ts`
+
+##### 2. Duplicate Detection Plan - O(N×M) Complexity Explosion
+
+**Why It's Valid:**
+The proposed plan compares each new candidate against all existing concepts via LLM. With 5 candidates and 100 concepts, that's 500 LLM calls, which will:
+- Hit token limits quickly
+- Be extremely expensive
+- Be very slow
+
+**Why Fix It:**
+- Prevents the feature from working at scale
+- Costs grow linearly with data size
+- Users wait minutes or hit errors
+- The feature becomes unusable
+
+**Before vs After (Layman's Terms):**
+
+**Before (Proposed Plan):**
+- You upload a document that generates 5 new concept candidates
+- You have 100 existing concepts
+- The system makes 500 AI comparisons (5 × 100)
+- Each comparison takes 2 seconds
+- Total time: ~17 minutes
+- Cost: $50+ per upload
+- Result: Feature is too slow/expensive to use
+
+**After (With Vector Pre-Filtering):**
+- You upload a document generating 5 candidates
+- The system uses fast semantic search to find the 10 most similar existing concepts (milliseconds, not seconds)
+- It then asks the AI to compare only those 10
+- Total comparisons: 50 (5 × 10)
+- Total time: ~2 minutes
+- Cost: $5 per upload
+- Result: Feature is fast and affordable
+
+**Implementation Needed:**
+- Implement vector embeddings for concept similarity
+- Pre-filter using vector search before LLM comparison
+- Limit comparisons to top N most similar concepts
+- **Files to Modify**: `.cursor/plans/concept_duplicate_detection_and_edit_proposals_8a393e81.plan.md`, `src/server/services/conceptProposer.ts`
+
+##### 3. Silent Config Failures - Critical Data Loss ✅ **COMPLETED**
+
+**Status**: ✅ **FIXED** - December 31, 2025
+
+**Solution Implemented**:
+- ✅ Added `configErrors` Map to track config file failures
+- ✅ Added `validateConfigForContentGeneration()` method that throws clear errors
+- ✅ All content generation services now validate configs before generating
+- ✅ Error logging changed from `warn` to `error` with actionable messages
+- ✅ Services fail loudly with clear error messages
+
+**Files Modified**:
+- ✅ `src/server/services/config.ts` - Error tracking and validation
+- ✅ All content generation services - Config validation added
+
+**Result**: Config failures now prevent content generation with clear error messages, preventing silent degradation.
+
+##### 4. Prompt Hardcoding - Deployment Bottleneck ✅ **COMPLETED**
+
+**Status**: ✅ **FIXED** - December 31, 2025
+
+**Solution Implemented**:
+- ✅ Created `config/prompts.yaml` with all AI prompts
+- ✅ Added `Prompts` interface and `getPrompt()` method to `ConfigLoader`
+- ✅ All services updated to use config-based prompts with template variables
+- ✅ Prompts support hot-reload (no restart needed)
+- ✅ Fallback to defaults if prompts.yaml not present
+
+**Files Modified**:
+- ✅ `src/server/services/config.ts` - Prompts loading and `getPrompt()` method
+- ✅ `src/server/services/linkProposer.ts` - Uses prompt templates
+- ✅ `src/server/services/conceptProposer.ts` - Uses prompt templates
+- ✅ `src/server/services/conceptEnricher.ts` - Uses prompt templates
+- ✅ `src/server/services/repurposer.ts` - Uses prompt templates
+- ✅ `src/server/services/anchorExtractor.ts` - Uses prompt templates
+- ✅ `src/server/services/blogPostGenerator.ts` - Uses prompt templates
+- ✅ `config/prompts.yaml` - New file with all prompts
+
+**Result**: Prompts can now be tuned by editing `config/prompts.yaml` with immediate effect (hot-reload).
+
+##### 5. JSON Parsing Fragility - Silent Data Corruption Risk ✅ **COMPLETED**
+
+**Status**: ✅ **FIXED** - December 31, 2025
+
+**Solution Implemented**:
+- ✅ Added retry logic with exponential backoff (3 attempts by default)
+- ✅ Added JSON validation (ensures response is an object, not array/null)
+- ✅ Enhanced error messages with response previews
+- ✅ Implemented in both OpenAI and Gemini providers
+
+**Files Modified**:
+- ✅ `src/server/services/llm/providers/openai.ts` - Retry logic and validation
+- ✅ `src/server/services/llm/providers/gemini.ts` - Retry logic and validation
+
+**Result**: LLM JSON responses are now validated and retried automatically, with clear error messages on failure.
+
+##### 6. Text Chunking Naivety - Information Loss ✅ **COMPLETED**
+
+**Status**: ✅ **FIXED** - December 31, 2025
+
+**Solution Implemented**:
+- ✅ Implemented paragraph-aware chunking (splits on double newlines)
+- ✅ Prioritizes paragraphs with headings (markdown-style `#` headers)
+- ✅ Falls back to sentence-based chunking for documents with few paragraphs
+- ✅ Preserves context boundaries (doesn't cut mid-sentence)
+
+**Files Modified**:
+- ✅ `src/server/services/conceptProposer.ts` - Added `smartChunkText()` and `smartChunkBySentences()` functions
+
+**Result**: Large documents are now chunked intelligently, preserving semantic boundaries and prioritizing important sections.
+
+##### Summary: Why These Improvements Matter
+
+These issues compound:
+- The "First 20" problem makes link proposals worse as data grows
+- O(N×M) duplicate detection becomes unusable at scale
+- Silent failures lead to bad data and wasted time
+- Hardcoded prompts slow iteration
+- Fragile parsing risks data corruption
+- Naive chunking loses important information
+
+Together, they limit scalability, reliability, and user trust. Fixing them transforms the app from a prototype that works for small datasets into a production system that scales and maintains quality.
+
+**The Investment is Justified Because:**
+1. Prevents technical debt from blocking growth
+2. Reduces costs through better retrieval
+3. Improves reliability and user trust
+4. Enables faster iteration and experimentation
+5. Makes the app production-ready rather than a proof-of-concept
+
+**Priority**: **CRITICAL** - These are fundamental architectural issues that will prevent scaling
+**Effort**: High (requires vector embeddings, prompt management system, improved error handling)
+**Impact**: Very High - Determines whether the app can scale beyond small datasets
+
 ### Critical Priority (Technical Debt & Root Causes)
 
-#### 1. **Drizzle ORM Relation System Root Cause Fix** 🔴
-- **Status**: Critical Issue - Blocking proper type safety
-- **Problem**: 48 instances of `(ctx.db.query as any)` masking Drizzle relation resolution failures
-- **Root Cause**: 
-  - Schema forward reference: `link` table references `linkName.id` before `linkName` is defined
-  - Drizzle's relation resolver fails when querying `linkName` directly from `link` table
-  - Works when accessed via intermediate relations (e.g., `concept.outgoingLinks.linkName`) but fails directly
-  - Error: "Cannot read properties of undefined (reading 'referencedTable')"
-- **Current Workaround**: Manual relation loading (N+1 query pattern) instead of Drizzle's relational API
-- **Impact**: 
-  - Type safety compromised (48 `as any` assertions)
-  - Performance degradation (manual loading vs optimized joins)
-  - Technical debt accumulating
-  - Runtime errors masked by type assertions
-- **Investigation Needed**:
-  - [ ] Test reordering schema definitions (define `linkName` before `link`)
-  - [ ] Research Drizzle relation resolution with forward references
-  - [ ] Check if Drizzle configuration issue (schema import order, relation registration)
-  - [ ] Verify if this is a known Drizzle limitation with SQLite
-- **Potential Solutions**:
-  1. **Schema Reordering**: Move `linkName` definition before `link` (may break foreign key references)
-  2. **Drizzle Configuration**: Investigate relation registration order or explicit relation setup
-  3. **Accept Manual Loading**: Document as intentional pattern, optimize with batching
-  4. **Type Wrapper**: Create properly typed wrapper functions instead of `as any`
-- **Priority**: **CRITICAL** - This is blocking proper type safety and causing runtime errors
-- **Effort**: High (requires investigation + implementation)
-
-#### 2. **Type Safety Technical Debt** 🔴
-- **Status**: Critical - 48 `as any` assertions throughout codebase
+#### 1. **Drizzle ORM Relation System** ✅ **RESOLVED**
+- **Status**: ✅ **RESOLVED** - December 31, 2025
+- **Investigation Results**:
+  - ✅ No `as any` assertions found in current codebase (only in test files/coverage reports)
+  - ✅ Schema correctly ordered (`linkName` defined before `link` in `src/server/schema.ts`)
+  - ✅ Working fallback pattern exists in link handlers (`electron/ipc-handlers/link-handlers.ts`)
+  - ✅ Relations work correctly when accessed via intermediate relations
+  - ✅ Proper error handling with `isDrizzleRelationError()` helper
 - **Current State**:
-  - 14 instances in `src/server/api/routers/` (all Drizzle query related)
-  - 34 instances in `src/app/api/` (mostly Drizzle query related, some legitimate request body parsing)
-- **Problem**: Using `as any` to bypass TypeScript errors instead of fixing root causes
-- **Impact**:
-  - Type safety compromised
-  - Runtime errors hidden until production
-  - Makes refactoring dangerous
-  - Violates TypeScript best practices
-- **Tasks**:
-  - [ ] Audit all `as any` usages - categorize legitimate vs technical debt
-  - [ ] Fix Drizzle relation issues (see #1 above)
-  - [ ] Create properly typed query wrappers where needed
-  - [ ] Remove all unnecessary `as any` assertions
-  - [ ] Add ESLint rule to warn on `as any` usage
-- **Priority**: **CRITICAL** - Directly related to #1
-- **Effort**: Medium (after #1 is resolved)
+  - Code uses proper Drizzle relations with `db.query.link.findMany({ with: {...} })`
+  - Fallback to batched queries when relation errors occur (graceful degradation)
+  - No type safety compromises found
+  - No runtime errors masked by type assertions
+- **Conclusion**: Issue appears to have been resolved in a previous implementation cycle. The codebase now uses proper Drizzle relations with appropriate fallbacks.
+
+#### 2. **Type Safety Technical Debt** ✅ **VERIFIED CLEAN**
+- **Status**: ✅ **VERIFIED** - December 31, 2025
+- **Investigation Results**:
+  - ✅ No `as any` assertions found in source code (only in test utilities where appropriate)
+  - ✅ All Drizzle queries use proper types
+  - ✅ Type safety maintained throughout codebase
+- **Conclusion**: The codebase maintains proper type safety. No technical debt found related to `as any` assertions.
 
 ### High Priority
 
@@ -356,12 +507,14 @@
 
 ## 🎯 Short-Term Goals (Next 1-2 Sessions)
 
-### Immediate (Critical Technical Debt)
-1. **Investigate Drizzle Relation Root Cause**
-   - Test schema reordering (move `linkName` before `link`)
-   - Research Drizzle relation resolution with forward references
-   - Document findings and determine proper fix strategy
-   - **Priority**: CRITICAL - Blocks type safety improvements
+### Immediate (Critical Scalability)
+1. **Implement Vector Embeddings for Semantic Search**
+   - Add embedding methods to LLM providers (OpenAI/Gemini embedding APIs)
+   - Create database schema for storing embeddings
+   - Implement vector search service with cosine similarity
+   - Update `linkProposer` to use vector search for candidate selection
+   - Update duplicate detection to use vector pre-filtering
+   - **Priority**: CRITICAL - Blocks scalability improvements
 
 2. **Fix Link Management UX Issues**
    - Add loading spinner and time counter to "Propose Links"
@@ -369,14 +522,8 @@
    - Implement link editing functionality
    - **Priority**: HIGH - Critical UX gaps
 
-### Short Term (Technical Debt)
-3. **Remove Type Safety Technical Debt**
-   - After #1 is resolved, remove all unnecessary `as any` assertions
-   - Create properly typed query wrappers
-   - Add ESLint rule to prevent future `as any` usage
-   - **Priority**: HIGH - Depends on #1
-
-4. **Test Infrastructure Refinement**
+### Short Term (Infrastructure)
+3. **Test Infrastructure Refinement**
    - Fix remaining API route test failures
    - Improve mock helper utility
    - Target: 90%+ pass rate
@@ -414,12 +561,11 @@
 - ✅ Production-ready server management (PM2)
 
 ### Known Issues
-- 🔴 **CRITICAL**: Drizzle relation resolution failures causing 48 `as any` type assertions
-- 🔴 **CRITICAL**: Type safety compromised by widespread use of `as any` to bypass TypeScript
 - ⚠️ Some test failures due to mock infrastructure (not code issues)
 - ⚠️ Component tests need tRPC provider setup
 - ⚠️ Offer mapping workflow is partial (field exists, no UI)
 - ⚠️ Link management missing edit functionality and proper user feedback
+- 🔴 **CRITICAL**: Vector embeddings needed for semantic search (blocks scalability improvements #1 and #2)
 
 ### Future Considerations
 - 📅 Rotation system (planned but not urgent)
@@ -433,12 +579,14 @@
 
 **The Thomas Writing Assistant is production-ready for basic use.** All core features are implemented, tested, and working. The recent migration to Drizzle ORM has improved the codebase quality and test reliability.
 
-**Next Focus**: **CRITICAL** - Fix Drizzle relation root cause and remove type safety technical debt. **HIGH** - Improve link management UX with proper feedback and editing.
+**Next Focus**: **CRITICAL** - Implement vector embeddings for semantic search (blocks scalability). **HIGH** - Improve link management UX with proper feedback and editing.
 
-**Status**: ✅ **Core features complete** | 🔴 **CRITICAL technical debt** (Drizzle relations, type safety) | ⚠️ **Test infrastructure needs refinement** | 📅 **Future enhancements planned**
+**Status**: ✅ **Core features complete** | ✅ **Critical improvements completed** (config validation, JSON parsing, prompt externalization, smart chunking) | 🔴 **CRITICAL** - Vector embeddings needed for scalability | ⚠️ **Test infrastructure needs refinement** | 📅 **Future enhancements planned**
 
 ---
 
-*Last Updated: December 18, 2024*  
+*Last Updated: December 31, 2025*  
 *Test Status: 255/373 passing (68%)*  
-*Feature Completion: 100% for core requirements*
+*Feature Completion: 100% for core requirements*  
+*Critical Improvements: 4 of 6 completed (config validation, JSON parsing, prompt externalization, smart chunking)*  
+*Remaining: Vector embeddings for semantic search (blocks scalability improvements #1 and #2)*

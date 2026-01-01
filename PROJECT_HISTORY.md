@@ -750,6 +750,132 @@ Implemented comprehensive improvements across refactoring, testing, logging, and
 
 ---
 
-**Last Updated**: December 30, 2025
+### Critical Scalability & Architecture Improvements (December 31, 2025)
+
+**Context**: A comprehensive architectural review identified critical scalability issues that would prevent the app from scaling beyond small datasets. The review highlighted that the app was using "brute force" AI to solve problems that should be handled with local intelligence.
+
+**Problems Identified**:
+1. **Config Failures**: Silent failures when config files couldn't load, leading to content generation without user's style guide
+2. **JSON Parsing Fragility**: No retry logic or validation for LLM JSON responses
+3. **Prompt Hardcoding**: Prompts embedded in code, requiring code changes for prompt tuning
+4. **Text Chunking Naivety**: Simple character-based chunking that could cut through important sections
+5. **"First 20" Problem**: Link proposer randomly selected 20 concepts without semantic relevance
+6. **O(N×M) Duplicate Detection**: Proposed plan would require 500+ LLM calls for 5 candidates vs 100 concepts
+
+**Solutions Implemented**:
+
+#### 1. Config Error Handling ✅
+**Problem**: Config files (style guide, credo, constraints) failed silently, allowing content generation without user's preferences.
+
+**Solution**:
+- Added `configErrors` Map to `ConfigLoader` to track failures
+- Added `validateConfigForContentGeneration()` method that throws clear errors
+- Updated all content generation services to validate configs before generating
+- Changed error logging from `warn` to `error` with clear messages
+- Services now fail loudly with actionable error messages
+
+**Files Modified**:
+- `src/server/services/config.ts` - Added error tracking and validation
+- All content generation services - Added config validation before generation
+
+**Pattern Established**: Critical configuration failures should prevent operations that depend on them, not silently degrade.
+
+#### 2. JSON Parsing Robustness ✅
+**Problem**: LLM JSON responses could be malformed, causing silent failures or data corruption.
+
+**Solution**:
+- Added retry logic with exponential backoff (3 attempts by default)
+- Added JSON validation (ensures response is an object, not array/null)
+- Enhanced error messages with response previews
+- Implemented in both OpenAI and Gemini providers
+
+**Files Modified**:
+- `src/server/services/llm/providers/openai.ts` - Added retry logic and validation
+- `src/server/services/llm/providers/gemini.ts` - Added retry logic and validation
+
+**Pattern Established**: External API responses should be validated and retried with exponential backoff. Failures should provide actionable error messages.
+
+#### 3. Prompt Externalization ✅
+**Problem**: Prompts were hardcoded in services, requiring code changes and redeployment for prompt tuning.
+
+**Solution**:
+- Created `config/prompts.yaml` with all AI prompts
+- Added `Prompts` interface to `ConfigLoader`
+- Added `getPrompt()` method with fallback to defaults
+- Updated all services to use config-based prompts with template variable replacement
+- Prompts support hot-reload (no restart needed)
+
+**Files Modified**:
+- `src/server/services/config.ts` - Added prompts loading and `getPrompt()` method
+- `src/server/services/linkProposer.ts` - Uses prompt templates
+- `src/server/services/conceptProposer.ts` - Uses prompt templates
+- `src/server/services/conceptEnricher.ts` - Uses prompt templates
+- `src/server/services/repurposer.ts` - Uses prompt templates
+- `src/server/services/anchorExtractor.ts` - Uses prompt templates
+- `src/server/services/blogPostGenerator.ts` - Uses prompt templates
+- `config/prompts.yaml` - New file with all prompts
+
+**Pattern Established**: User-configurable strings (prompts, templates) should be externalized to config files with hot-reload support.
+
+#### 4. Smart Text Chunking ✅
+**Problem**: Large documents were chunked by simple character slicing, potentially cutting through important sections.
+
+**Solution**:
+- Implemented paragraph-aware chunking (splits on double newlines)
+- Prioritizes paragraphs with headings (markdown-style `#` headers)
+- Falls back to sentence-based chunking for documents with few paragraphs
+- Preserves context boundaries (doesn't cut mid-sentence)
+
+**Files Modified**:
+- `src/server/services/conceptProposer.ts` - Added `smartChunkText()` and `smartChunkBySentences()` functions
+
+**Pattern Established**: Text processing should respect semantic boundaries (paragraphs, sentences) rather than arbitrary character counts.
+
+#### 5. Drizzle ORM Relation Issue Resolution ✅
+**Problem**: ROADMAP documented 48 instances of `(ctx.db.query as any)` masking relation resolution failures.
+
+**Investigation Results**:
+- No `as any` assertions found in current codebase (only in test files/coverage reports)
+- Schema correctly ordered (`linkName` defined before `link`)
+- Working fallback pattern exists in link handlers
+- Relations work correctly when accessed via intermediate relations
+
+**Status**: Issue appears to have been resolved. The codebase uses proper Drizzle relations with fallback to batched queries when needed. No type safety compromises found.
+
+**Files Verified**:
+- `src/server/schema.ts` - Schema correctly ordered
+- `electron/ipc-handlers/link-handlers.ts` - Uses proper relations with fallback
+
+**Pattern Established**: Schema ordering matters for Drizzle relations. Always define referenced tables before tables that reference them.
+
+#### 6. Remaining Work: Vector Embeddings
+**Status**: Identified but not yet implemented
+
+**Why Needed**:
+- "First 20" problem: Link proposer needs semantic similarity search
+- Duplicate detection: Needs vector pre-filtering to avoid O(N×M) complexity
+
+**Implementation Plan**:
+- Add embedding methods to LLM providers (OpenAI/Gemini embedding APIs)
+- Create database schema for storing embeddings
+- Implement vector search service with cosine similarity
+- Update `linkProposer` to use vector search for candidate selection
+- Update duplicate detection to use vector pre-filtering
+
+**Priority**: CRITICAL for scalability, but requires significant implementation effort.
+
+### Documentation Updates
+**Decision**: Comprehensive documentation review and update
+
+**Files Updated**:
+- `PROJECT_HISTORY.md` - Added this implementation cycle
+- `ROADMAP.md` - Updated to reflect completed improvements and remove outdated issues
+- All docs verified for accuracy against current codebase
+
+**Pattern**: Documentation should be reviewed and updated whenever major improvements are made. Outdated TODOs should be removed, completed work should be documented in history.
+
+---
+
+**Last Updated**: December 31, 2025
 
 *This document is maintained as an ongoing narrative. Major changes, decisions, and incidents should be added here to preserve institutional memory.*

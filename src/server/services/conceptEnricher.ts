@@ -53,9 +53,20 @@ export async function analyzeConcept(
   const client = llmClient ?? getLLMClient();
   const config = configLoader ?? getConfigLoader();
 
+  // Validate config before generating content
   try {
+    config.validateConfigForContentGeneration();
+  } catch (error) {
+    logServiceError(error, "conceptEnricher.analyzeConcept", {
+      conceptTitle: conceptData.title,
+    });
+    throw error;
+  }
+
+  try {
+    const systemPromptDefault = "You are an expert knowledge base curator helping enrich concept entries with accurate metadata, clear definitions, and practical applications.";
     const systemPrompt = config.getSystemPrompt(
-      "You are an expert knowledge base curator helping enrich concept entries with accurate metadata, clear definitions, and practical applications.",
+      config.getPrompt("conceptEnricher.analyzeSystemPrompt", systemPromptDefault)
     );
 
     const prompt = `Analyze this concept entry and suggest improvements:
@@ -135,9 +146,20 @@ export async function enrichMetadata(
   const client = llmClient ?? getLLMClient();
   const config = configLoader ?? getConfigLoader();
 
+  // Validate config before generating content
   try {
+    config.validateConfigForContentGeneration();
+  } catch (error) {
+    logServiceError(error, "conceptEnricher.enrichMetadata", {
+      title,
+    });
+    throw error;
+  }
+
+  try {
+    const systemPromptDefault = "You are a research assistant. Use your knowledge to find accurate metadata about concepts, theories, and frameworks. Provide creator names, publication years, and source information.";
     const systemPrompt = config.getSystemPrompt(
-      "You are a research assistant. Use your knowledge to find accurate metadata about concepts, theories, and frameworks. Provide creator names, publication years, and source information.",
+      config.getPrompt("conceptEnricher.enrichMetadataSystemPrompt", systemPromptDefault)
     );
 
     const prompt = `Find metadata for this concept:
@@ -195,9 +217,20 @@ export async function chatEnrichConcept(
   const client = llmClient ?? getLLMClient();
   const config = configLoader ?? getConfigLoader();
 
+  // Validate config before generating content
   try {
+    config.validateConfigForContentGeneration();
+  } catch (error) {
+    logServiceError(error, "conceptEnricher.chatEnrichConcept", {
+      conceptTitle: conceptData.title,
+    });
+    throw error;
+  }
+
+  try {
+    const systemPromptDefault = "You are an expert assistant helping to enrich concept entries. You can suggest improvements, fetch information, expand definitions, and help refine content. Be conversational and helpful.";
     const systemPrompt = config.getSystemPrompt(
-      "You are an expert assistant helping to enrich concept entries. You can suggest improvements, fetch information, expand definitions, and help refine content. Be conversational and helpful.",
+      config.getPrompt("conceptEnricher.chatSystemPrompt", systemPromptDefault)
     );
 
     const historyText = chatHistory
@@ -281,9 +314,20 @@ export async function expandDefinition(
   const client = llmClient ?? getLLMClient();
   const config = configLoader ?? getConfigLoader();
 
+  // Validate config before generating content
   try {
+    config.validateConfigForContentGeneration();
+  } catch (error) {
+    logServiceError(error, "conceptEnricher.expandDefinition", {
+      conceptTitle,
+    });
+    throw error;
+  }
+
+  try {
+    const systemPromptDefault = "You are an expert at writing clear, concise definitions. Expand definitions while maintaining accuracy and clarity.";
     const systemPrompt = config.getSystemPrompt(
-      "You are an expert at writing clear, concise definitions. Expand definitions while maintaining accuracy and clarity.",
+      config.getPrompt("conceptEnricher.expandDefinitionSystemPrompt", systemPromptDefault)
     );
 
     const prompt = `Expand this definition for "${conceptTitle}":

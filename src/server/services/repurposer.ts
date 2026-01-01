@@ -22,6 +22,17 @@ export async function repurposeAnchorContent(
   // Use provided instances or fall back to singletons for backward compatibility
   const client = llmClient ?? getLLMClient();
   const config = configLoader ?? getConfigLoader();
+
+  // Validate config before generating content
+  try {
+    config.validateConfigForContentGeneration();
+  } catch (error) {
+    logServiceError(error, "repurposer", {
+      anchorTitle,
+      anchorContentLength: anchorContent.length,
+    });
+    throw error;
+  }
   
   logger.info({
     service: "repurposer",
@@ -34,8 +45,9 @@ export async function repurposeAnchorContent(
     solutionStepsCount: solutionSteps?.length ?? 0,
   }, "Starting content repurposing");
 
+  const systemPromptDefault = "You are repurposing anchor blog content into multiple short-form formats following Jana Osofsky's capsule content strategy.";
   const systemPrompt = config.getSystemPrompt(
-    "You are repurposing anchor blog content into multiple short-form formats following Jana Osofsky's capsule content strategy.",
+    config.getPrompt("repurposer.systemPrompt", systemPromptDefault)
   );
 
   const painPointsText = painPoints

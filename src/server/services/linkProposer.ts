@@ -35,6 +35,17 @@ export async function proposeLinksForConcept(
   const client = llmClient ?? getLLMClient();
   const config = configLoader ?? getConfigLoader();
 
+  // Validate config before generating content
+  try {
+    config.validateConfigForContentGeneration();
+  } catch (error) {
+    logServiceError(error, "linkProposer", {
+      conceptId,
+      maxProposals,
+    });
+    throw error;
+  }
+
   logger.info(
     {
       service: "linkProposer",
@@ -218,28 +229,35 @@ async function proposeLinksWithLLM(
     ...linkNames.map((ln) => ln.forwardName),
   ].join(", ");
 
+  // Get prompts from config with fallback to defaults
+  const systemPromptDefault = "You are analyzing relationships between concepts in a knowledge graph. Propose meaningful, typed links.";
   const systemPrompt = configLoader.getSystemPrompt(
-    "You are analyzing relationships between concepts in a knowledge graph. Propose meaningful, typed links.",
+    configLoader.getPrompt("linkProposer.systemPrompt", systemPromptDefault)
   );
 
-  const prompt = `Analyze the relationship between this concept and the candidate concepts below.
-
-SOURCE CONCEPT:
-Title: ${sourceConcept.title}
-Description: ${sourceConcept.description ?? "None"}
-Content Preview: ${sourceConcept.content.slice(0, 500)}
-
-CANDIDATE CONCEPTS:
-${candidateDescriptions
-  .map(
-    (c, i) => `
+  // Build user prompt from template or use default
+  const candidateList = candidateDescriptions
+    .map(
+      (c, i) => `
 ${i + 1}. ID: ${c.id}
    Title: ${c.title}
    Content Preview: ${c.content_preview}`,
-  )
-  .join("\n")}
+    )
+    .join("\n");
 
-AVAILABLE LINK NAMES: ${allLinkNames}
+  const promptTemplate = configLoader.getPrompt(
+    "linkProposer.userPromptTemplate",
+    `Analyze the relationship between this concept and the candidate concepts below.
+
+SOURCE CONCEPT:
+Title: {{sourceTitle}}
+Description: {{sourceDescription}}
+Content Preview: {{sourceContentPreview}}
+
+CANDIDATE CONCEPTS:
+{{candidateList}}
+
+AVAILABLE LINK NAMES: {{linkNames}}
 
 For each candidate concept, determine:
 1. If there's a meaningful relationship (confidence 0.0-1.0)
@@ -258,7 +276,17 @@ Return a JSON object with a "proposals" array:
   ]
 }
 
-Only include proposals with confidence >= 0.5. Limit to ${maxProposals} proposals.`;
+Only include proposals with confidence >= 0.5. Limit to {{maxProposals}} proposals.`
+  );
+
+  // Replace template variables
+  const prompt = promptTemplate
+    .replace(/\{\{sourceTitle\}\}/g, sourceConcept.title)
+    .replace(/\{\{sourceDescription\}\}/g, sourceConcept.description ?? "None")
+    .replace(/\{\{sourceContentPreview\}\}/g, sourceConcept.content.slice(0, 500))
+    .replace(/\{\{candidateList\}\}/g, candidateList)
+    .replace(/\{\{linkNames\}\}/g, allLinkNames)
+    .replace(/\{\{maxProposals\}\}/g, String(maxProposals));
 
   try {
     logger.debug(

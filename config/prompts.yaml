@@ -1,0 +1,85 @@
+# AI Prompt Templates
+# Customize these prompts to change how the AI behaves
+# Changes take effect immediately (hot-reload) without restarting the app
+
+linkProposer:
+  systemPrompt: "You are analyzing relationships between concepts in a knowledge graph. Propose meaningful, typed links."
+  # User prompt template - use {{variable}} for placeholders
+  # Available variables: sourceTitle, sourceDescription, sourceContentPreview, candidateList, linkNames, maxProposals
+  userPromptTemplate: |
+    Analyze the relationship between this concept and the candidate concepts below.
+
+    SOURCE CONCEPT:
+    Title: {{sourceTitle}}
+    Description: {{sourceDescription}}
+    Content Preview: {{sourceContentPreview}}
+
+    CANDIDATE CONCEPTS:
+    {{candidateList}}
+
+    AVAILABLE LINK NAMES: {{linkNames}}
+
+    For each candidate concept, determine:
+    1. If there's a meaningful relationship (confidence 0.0-1.0)
+    2. The most appropriate link name from the available list
+    3. A brief reasoning
+
+    Return a JSON object with a "proposals" array:
+    {
+      "proposals": [
+        {
+          "target_id": "concept-id",
+          "forward_name": "link name",
+          "confidence": 0.85,
+          "reasoning": "Brief explanation"
+        }
+      ]
+    }
+
+    Only include proposals with confidence >= 0.5. Limit to {{maxProposals}} proposals.
+
+conceptProposer:
+  systemPrompt: "You are analyzing text to extract distinct, standalone concepts. Each concept should be a complete idea that can stand alone."
+  # Available variables: textToAnalyze, instructions, maxCandidates
+  userPromptTemplate: |
+    Analyze the following text and extract {{maxCandidates}} distinct core concepts.
+
+    Each concept should be:
+    - A complete, standalone idea (typically 1-2 pages worth of content)
+    - Clearly distinct from other concepts
+    - Have a clear title and summary
+    - Include the full content text
+
+    TEXT TO ANALYZE:
+    {{textToAnalyze}}
+    {{instructions}}
+
+    Return a JSON object with a "concepts" array:
+    {
+      "concepts": [
+        {
+          "title": "Concept Title",
+          "description": "Short description for search",
+          "summary": "Brief summary",
+          "content": "Full content text (extracted from the source text, preserving original formatting)"
+        }
+      ]
+    }
+
+    Extract the content directly from the source text when possible. Only generate content if the source text doesn't contain enough detail.
+
+conceptEnricher:
+  analyzeSystemPrompt: "You are an expert knowledge base curator helping enrich concept entries with accurate metadata, clear definitions, and practical applications."
+  enrichMetadataSystemPrompt: "You are a research assistant. Use your knowledge to find accurate metadata about concepts, theories, and frameworks. Provide creator names, publication years, and source information."
+  chatSystemPrompt: "You are an expert assistant helping to enrich concept entries. You can suggest improvements, fetch information, expand definitions, and help refine content. Be conversational and helpful."
+  expandDefinitionSystemPrompt: "You are an expert at writing clear, concise definitions. Expand definitions while maintaining accuracy and clarity."
+
+repurposer:
+  systemPrompt: "You are repurposing anchor blog content into multiple short-form formats following Jana Osofsky's capsule content strategy."
+
+anchorExtractor:
+  systemPrompt: "You are analyzing a blog post or article to extract key metadata for capsule content strategy. Extract the title, pain points, solution steps, and proof points."
+
+blogPostGenerator:
+  systemPrompt: "You are a professional blog writer creating engaging, informative blog posts that follow the user's style guide and incorporate their concepts."
+

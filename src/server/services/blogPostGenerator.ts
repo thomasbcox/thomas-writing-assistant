@@ -49,6 +49,17 @@ export async function generateBlogPost(
   const client = llmClient ?? getLLMClient();
   const config = configLoader ?? getConfigLoader();
 
+  // Validate config before generating content
+  try {
+    config.validateConfigForContentGeneration();
+  } catch (error) {
+    logServiceError(error, "blogPostGenerator", {
+      topic: input.topic,
+      conceptCount: conceptReferences.length,
+    });
+    throw error;
+  }
+
   logger.info({
     service: "blogPostGenerator",
     operation: "generateBlogPost",
@@ -59,8 +70,9 @@ export async function generateBlogPost(
     includeCTA: input.includeCTA ?? false,
   }, "Starting blog post generation");
 
+  const systemPromptDefault = "You are an expert blog post writer creating high-quality, engaging blog posts that maintain the author's unique voice, values, and perspective.";
   const systemPrompt = config.getSystemPrompt(
-    "You are an expert blog post writer creating high-quality, engaging blog posts that maintain the author's unique voice, values, and perspective.",
+    config.getPrompt("blogPostGenerator.systemPrompt", systemPromptDefault)
   );
 
   // Build concept context

@@ -184,6 +184,7 @@ export class GeminiProvider implements ILLMProvider {
   async completeJSON(
     prompt: string,
     systemPrompt?: string,
+    maxRetries: number = 3,
   ): Promise<Record<string, unknown>> {
     // Combine system prompt and user prompt
     const fullPrompt = systemPrompt
@@ -214,47 +215,101 @@ export class GeminiProvider implements ILLMProvider {
     let lastError: Error | null = null;
 
     for (const modelName of modelsToTry) {
-      try {
-        const model = this.genAI.getGenerativeModel({
-          model: modelName,
-          generationConfig: {
-            temperature: this.temperature,
-            responseMimeType: "application/json",
-          },
-        });
-
-        const result = await model.generateContent(fullPrompt);
-        const response = await result.response;
-        const content = response.text() ?? "{}";
-        
-        // If successful, update our model to this one for future calls
-        if (modelName !== this.model) {
-          logger.info({ oldModel: this.model, newModel: modelName }, "Switched to working Gemini model");
-          this.model = modelName;
-        }
-
+      // Retry logic for each model
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
-          return JSON.parse(content) as Record<string, unknown>;
-        } catch (parseError) {
-          throw new Error(`Failed to parse JSON response: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+          const model = this.genAI.getGenerativeModel({
+            model: modelName,
+            generationConfig: {
+              temperature: this.temperature,
+              responseMimeType: "application/json",
+            },
+          });
+
+          const result = await model.generateContent(fullPrompt);
+          const response = await result.response;
+          const content = response.text() ?? "{}";
+          
+          // If successful, update our model to this one for future calls
+          if (modelName !== this.model) {
+            logger.info({ oldModel: this.model, newModel: modelName }, "Switched to working Gemini model");
+            this.model = modelName;
+          }
+
+          // Try to parse JSON
+          try {
+            const parsed = JSON.parse(content) as Record<string, unknown>;
+            
+            // Validate it's actually an object (not null, array, etc.)
+            if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+              throw new Error(`Response is not a JSON object: ${typeof parsed}`);
+            }
+            
+            return parsed;
+          } catch (parseError) {
+            const parseErr = parseError instanceof Error ? parseError : new Error(String(parseError));
+            
+            // If this is the last attempt for this model, try next model or throw
+            if (attempt === maxRetries - 1) {
+              // If this is the last model, throw error
+              if (modelName === modelsToTry[modelsToTry.length - 1]) {
+                throw new Error(
+                  `Failed to parse JSON response after ${maxRetries} attempts with all models. ` +
+                  `Last error: ${parseErr.message}. ` +
+                  `Response preview: ${content.slice(0, 200)}`
+                );
+              }
+              // Otherwise, break to try next model
+              lastError = parseErr;
+              break;
+            }
+            
+            // Log and retry with exponential backoff
+            logger.warn(
+              { model: modelName, attempt: attempt + 1, error: parseErr.message },
+              "JSON parse failed, retrying with exponential backoff"
+            );
+            lastError = parseErr;
+            
+            // Exponential backoff: wait 1s, 2s, 4s
+            await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+            continue;
+          }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          lastError = error instanceof Error ? error : new Error(String(error));
+          
+          // If it's a 404/model not found error, try next model immediately
+          if (errorMessage.includes("404") || errorMessage.includes("not found") || errorMessage.includes("is not found")) {
+            logger.warn({ model: modelName, error: errorMessage }, "Model not available, trying next fallback");
+            break; // Break to try next model
+          }
+          
+          // If it's a JSON parsing error and we have retries left, retry
+          if ((errorMessage.includes("parse") || errorMessage.includes("JSON")) && attempt < maxRetries - 1) {
+            logger.warn(
+              { model: modelName, attempt: attempt + 1, error: errorMessage },
+              "JSON parse error, retrying with exponential backoff"
+            );
+            // Exponential backoff
+            await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+            continue;
+          }
+          
+          // For other errors or last attempt, break to try next model or throw
+          if (modelName === modelsToTry[modelsToTry.length - 1] && attempt === maxRetries - 1) {
+            throw error;
+          }
+          break; // Try next model
         }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        lastError = error instanceof Error ? error : new Error(String(error));
-        
-        // If it's a 404/model not found error, try next model
-        if (errorMessage.includes("404") || errorMessage.includes("not found") || errorMessage.includes("is not found")) {
-          logger.warn({ model: modelName, error: errorMessage }, "Model not available, trying next fallback");
-          continue; // Try next model
-        }
-        
-        // For other errors (like JSON parsing), re-throw immediately
-        throw error;
       }
     }
 
     // If we've tried all models and none worked, throw the last error
-    throw new Error(`All Gemini models failed. Last error: ${lastError?.message ?? "Unknown error"}`);
+    throw new Error(
+      `All Gemini models failed after ${maxRetries} attempts each. ` +
+      `Last error: ${lastError?.message ?? "Unknown error"}`
+    );
   }
 
   getModel(): string {

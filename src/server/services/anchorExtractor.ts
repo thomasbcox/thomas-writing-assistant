@@ -1,6 +1,6 @@
 import { getLLMClient } from "./llm/client";
 import { getConfigLoader } from "./config";
-import { logger } from "~/lib/logger";
+import { logger, logServiceError } from "~/lib/logger";
 import type { LLMClient } from "./llm/client";
 import type { ConfigLoader } from "./config";
 
@@ -21,14 +21,25 @@ export async function extractAnchorMetadata(
   const client = llmClient ?? getLLMClient();
   const config = configLoader ?? getConfigLoader();
 
+  // Validate config before generating content
+  try {
+    config.validateConfigForContentGeneration();
+  } catch (error) {
+    logServiceError(error, "anchorExtractor", {
+      contentLength: pdfContent.length,
+    });
+    throw error;
+  }
+
   logger.info({
     service: "anchorExtractor",
     operation: "extractAnchorMetadata",
     contentLength: pdfContent.length,
   }, "Starting anchor metadata extraction");
 
+  const systemPromptDefault = "You are analyzing a blog post or article to extract key metadata for capsule content strategy. Extract the title, pain points, solution steps, and proof points.";
   const systemPrompt = config.getSystemPrompt(
-    "You are analyzing a blog post or article to extract key metadata for capsule content strategy. Extract the title, pain points, solution steps, and proof points.",
+    config.getPrompt("anchorExtractor.systemPrompt", systemPromptDefault)
   );
 
   // Truncate content if too long (keep first 4000 chars for analysis)

@@ -4,6 +4,115 @@ import { logServiceError, logger } from "~/lib/logger";
 import type { LLMClient } from "./llm/client";
 import type { ConfigLoader } from "./config";
 
+/**
+ * Smart chunking function that preserves sentence and paragraph boundaries
+ * Takes chunks from beginning, middle, and end of document
+ */
+function smartChunkText(text: string, chunkSize: number): string {
+  // Split into paragraphs first (double newlines)
+  const paragraphs = text.split(/\n\s*\n/);
+  
+  // If we have few paragraphs, fall back to sentence-based chunking
+  if (paragraphs.length < 10) {
+    return smartChunkBySentences(text, chunkSize);
+  }
+  
+  // Strategy: Take paragraphs from beginning, middle, and end
+  // Prioritize paragraphs with headings (lines starting with #, ##, etc.)
+  const chunks: string[] = [];
+  const targetChunkSize = chunkSize;
+  
+  // Beginning chunk: take paragraphs until we reach target size
+  let beginningChunk = "";
+  for (let i = 0; i < paragraphs.length && beginningChunk.length < targetChunkSize; i++) {
+    const para = paragraphs[i];
+    if (beginningChunk.length + para.length > targetChunkSize) {
+      // Try to complete the paragraph if it's not too long
+      if (para.length < targetChunkSize * 0.3) {
+        beginningChunk += "\n\n" + para;
+      }
+      break;
+    }
+    beginningChunk += (beginningChunk ? "\n\n" : "") + para;
+  }
+  chunks.push(beginningChunk);
+  
+  // Middle chunk: sample from middle section
+  const middleStart = Math.floor(paragraphs.length * 0.4);
+  const middleEnd = Math.floor(paragraphs.length * 0.6);
+  let middleChunk = "";
+  
+  // Prioritize paragraphs with headings
+  const middleParagraphs = paragraphs.slice(middleStart, middleEnd);
+  const withHeadings = middleParagraphs.filter(p => /^#+\s/.test(p.trim()));
+  const withoutHeadings = middleParagraphs.filter(p => !/^#+\s/.test(p.trim()));
+  
+  // Add paragraphs with headings first, then others
+  const prioritizedMiddle = [...withHeadings, ...withoutHeadings];
+  
+  for (const para of prioritizedMiddle) {
+    if (middleChunk.length + para.length > targetChunkSize) {
+      break;
+    }
+    middleChunk += (middleChunk ? "\n\n" : "") + para;
+  }
+  
+  if (middleChunk) {
+    chunks.push(middleChunk);
+  }
+  
+  // End chunk: take paragraphs from the end
+  let endChunk = "";
+  for (let i = paragraphs.length - 1; i >= 0 && endChunk.length < targetChunkSize; i--) {
+    const para = paragraphs[i];
+    if (endChunk.length + para.length > targetChunkSize) {
+      break;
+    }
+    endChunk = para + (endChunk ? "\n\n" : "") + endChunk;
+  }
+  
+  if (endChunk) {
+    chunks.push(endChunk);
+  }
+  
+  return chunks.join("\n\n[... section break ...]\n\n");
+}
+
+/**
+ * Fallback chunking by sentences when paragraph-based chunking isn't suitable
+ */
+function smartChunkBySentences(text: string, chunkSize: number): string {
+  // Split by sentence boundaries (period, exclamation, question mark followed by space)
+  const sentences = text.split(/([.!?]\s+)/);
+  const chunks: string[] = [];
+  
+  // Beginning chunk
+  let beginningChunk = "";
+  for (let i = 0; i < sentences.length && beginningChunk.length < chunkSize; i++) {
+    beginningChunk += sentences[i];
+  }
+  chunks.push(beginningChunk);
+  
+  // Middle chunk
+  const middleStart = Math.floor(sentences.length * 0.4);
+  const middleEnd = Math.floor(sentences.length * 0.6);
+  const middleChunk = sentences.slice(middleStart, middleEnd).join("");
+  if (middleChunk) {
+    chunks.push(middleChunk);
+  }
+  
+  // End chunk
+  let endChunk = "";
+  for (let i = sentences.length - 1; i >= 0 && endChunk.length < chunkSize; i--) {
+    endChunk = sentences[i] + endChunk;
+  }
+  if (endChunk) {
+    chunks.push(endChunk);
+  }
+  
+  return chunks.join("\n\n[... section break ...]\n\n");
+}
+
 export interface ConceptCandidate {
   title: string;
   content: string;
@@ -24,6 +133,17 @@ export async function generateConceptCandidates(
   // Use provided instances or fall back to singletons for backward compatibility
   const client = llmClient ?? getLLMClient();
   const config = configLoader ?? getConfigLoader();
+
+  // Validate config before generating content
+  try {
+    config.validateConfigForContentGeneration();
+  } catch (error) {
+    logServiceError(error, "conceptProposer", {
+      textLength: text.length,
+      maxCandidates,
+    });
+    throw error;
+  }
 
   logger.info({
     service: "conceptProposer",
@@ -51,30 +171,29 @@ export async function generateConceptCandidates(
       textToAnalyzeLength: textToAnalyze.length,
     }, "Using full text for analysis");
   } else {
-    const chunkSize = 30000;
-    const first = text.slice(0, chunkSize);
-    const middle = text.slice(Math.floor(text.length / 2) - chunkSize / 2, Math.floor(text.length / 2) + chunkSize / 2);
-    const last = text.slice(-chunkSize);
-    textToAnalyze = `${first}\n\n[... middle section ...]\n\n${middle}\n\n[... end section ...]\n\n${last}`;
+    textToAnalyze = smartChunkText(text, 30000);
     logger.debug({
       service: "conceptProposer",
       operation: "generateConceptCandidates",
-      strategy: "sampled",
+      strategy: "smart_chunked",
       textToAnalyzeLength: textToAnalyze.length,
       originalLength: text.length,
-      chunkSize,
-    }, "Using sampled text strategy for large document");
+    }, "Using smart chunking strategy for large document");
   }
 
+  const systemPromptDefault = "You are analyzing text to extract distinct, standalone concepts. Each concept should be a complete idea that can stand alone.";
   const systemPrompt = config.getSystemPrompt(
-    "You are analyzing text to extract distinct, standalone concepts. Each concept should be a complete idea that can stand alone.",
+    config.getPrompt("conceptProposer.systemPrompt", systemPromptDefault)
   );
 
   const instructionText = instructions
     ? `\n\nSPECIFIC INSTRUCTIONS:\n${instructions}\n`
     : "";
 
-  const prompt = `Analyze the following text and extract ${maxCandidates} distinct core concepts.
+  // Get user prompt template from config
+  const promptTemplate = config.getPrompt(
+    "conceptProposer.userPromptTemplate",
+    `Analyze the following text and extract {{maxCandidates}} distinct core concepts.
 
 Each concept should be:
 - A complete, standalone idea (typically 1-2 pages worth of content)
@@ -83,8 +202,8 @@ Each concept should be:
 - Include the full content text
 
 TEXT TO ANALYZE:
-${textToAnalyze}
-${instructionText}
+{{textToAnalyze}}
+{{instructions}}
 
 Return a JSON object with a "concepts" array:
 {
@@ -98,7 +217,14 @@ Return a JSON object with a "concepts" array:
   ]
 }
 
-Extract the content directly from the source text when possible. Only generate content if the source text doesn't contain enough detail.`;
+Extract the content directly from the source text when possible. Only generate content if the source text doesn't contain enough detail.`
+  );
+
+  // Replace template variables
+  const prompt = promptTemplate
+    .replace(/\{\{maxCandidates\}\}/g, String(maxCandidates))
+    .replace(/\{\{textToAnalyze\}\}/g, textToAnalyze)
+    .replace(/\{\{instructions\}\}/g, instructionText);
 
   try {
     logger.debug({

@@ -32,11 +32,43 @@ export interface Constraints {
   [key: string]: unknown;
 }
 
+export interface Prompts {
+  linkProposer?: {
+    systemPrompt?: string;
+    userPromptTemplate?: string;
+  };
+  conceptProposer?: {
+    systemPrompt?: string;
+    userPromptTemplate?: string;
+  };
+  conceptEnricher?: {
+    analyzeSystemPrompt?: string;
+    enrichMetadataSystemPrompt?: string;
+    chatSystemPrompt?: string;
+    expandDefinitionSystemPrompt?: string;
+  };
+  repurposer?: {
+    systemPrompt?: string;
+    userPromptTemplate?: string;
+  };
+  anchorExtractor?: {
+    systemPrompt?: string;
+    userPromptTemplate?: string;
+  };
+  blogPostGenerator?: {
+    systemPrompt?: string;
+    userPromptTemplate?: string;
+  };
+  [key: string]: unknown;
+}
+
 export class ConfigLoader {
   private styleGuide: StyleGuide = {};
   private credo: Credo = {};
   private constraints: Constraints = {};
+  private prompts: Prompts = {};
   private fsModule: typeof fs;
+  private configErrors: Map<string, Error> = new Map();
 
   constructor(fsModule?: typeof fs) {
     this.fsModule = (fsModule ?? fs) as typeof fs;
@@ -54,38 +86,74 @@ export class ConfigLoader {
 
   private loadConfigs() {
     const configDir = path.join(process.cwd(), "config");
+    this.configErrors.clear();
 
-    try {
-      // Load style guide
-      const styleGuidePath = path.join(configDir, "style_guide.yaml");
-      if (this.fsModule.existsSync(styleGuidePath)) {
+    // Load style guide
+    const styleGuidePath = path.join(configDir, "style_guide.yaml");
+    if (this.fsModule.existsSync(styleGuidePath)) {
+      try {
         const content = this.fsModule.readFileSync(styleGuidePath, "utf-8");
         this.styleGuide = (yaml.load(content) as StyleGuide) ?? {};
+        this.configErrors.delete("style_guide.yaml");
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        this.configErrors.set("style_guide.yaml", err);
+        logger.error(
+          { err: error, configFile: "style_guide.yaml", errorMessage: err.message },
+          "CRITICAL: Failed to load style guide - content generation may not match user's voice"
+        );
+        // Don't throw - allow app to start, but track the error
       }
-    } catch (error) {
-      logger.warn({ err: error, configFile: "style_guide.yaml" }, "Failed to load config file");
     }
 
-    try {
-      // Load credo
-      const credoPath = path.join(configDir, "credo.yaml");
-      if (this.fsModule.existsSync(credoPath)) {
+    // Load credo
+    const credoPath = path.join(configDir, "credo.yaml");
+    if (this.fsModule.existsSync(credoPath)) {
+      try {
         const content = this.fsModule.readFileSync(credoPath, "utf-8");
         this.credo = (yaml.load(content) as Credo) ?? {};
+        this.configErrors.delete("credo.yaml");
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        this.configErrors.set("credo.yaml", err);
+        logger.error(
+          { err: error, configFile: "credo.yaml", errorMessage: err.message },
+          "CRITICAL: Failed to load credo - content may not reflect user's values"
+        );
       }
-    } catch (error) {
-      logger.warn({ err: error, configFile: "credo.yaml" }, "Failed to load config file");
     }
 
-    try {
-      // Load constraints
-      const constraintsPath = path.join(configDir, "constraints.yaml");
-      if (this.fsModule.existsSync(constraintsPath)) {
+    // Load constraints
+    const constraintsPath = path.join(configDir, "constraints.yaml");
+    if (this.fsModule.existsSync(constraintsPath)) {
+      try {
         const content = this.fsModule.readFileSync(constraintsPath, "utf-8");
         this.constraints = (yaml.load(content) as Constraints) ?? {};
+        this.configErrors.delete("constraints.yaml");
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        this.configErrors.set("constraints.yaml", err);
+        logger.error(
+          { err: error, configFile: "constraints.yaml", errorMessage: err.message },
+          "CRITICAL: Failed to load constraints - content may violate user's rules"
+        );
       }
-    } catch (error) {
-      logger.warn({ err: error, configFile: "constraints.yaml" }, "Failed to load config file");
+    }
+
+    // Load prompts (optional - falls back to defaults if not present)
+    const promptsPath = path.join(configDir, "prompts.yaml");
+    if (this.fsModule.existsSync(promptsPath)) {
+      try {
+        const content = this.fsModule.readFileSync(promptsPath, "utf-8");
+        this.prompts = (yaml.load(content) as Prompts) ?? {};
+        this.configErrors.delete("prompts.yaml");
+      } catch (error) {
+        // Prompts are optional, so we only warn (don't treat as critical error)
+        logger.warn(
+          { err: error, configFile: "prompts.yaml", errorMessage: error instanceof Error ? error.message : String(error) },
+          "Failed to load prompts.yaml - using default prompts"
+        );
+      }
     }
   }
 
@@ -101,10 +169,70 @@ export class ConfigLoader {
     return this.constraints;
   }
 
+  getPrompts(): Prompts {
+    return this.prompts;
+  }
+
+  /**
+   * Get a prompt from config, with fallback to default
+   */
+  getPrompt(path: string, defaultValue: string): string {
+    const parts = path.split(".");
+    let value: unknown = this.prompts;
+    
+    for (const part of parts) {
+      if (value && typeof value === "object" && part in value) {
+        value = (value as Record<string, unknown>)[part];
+      } else {
+        return defaultValue;
+      }
+    }
+    
+    return typeof value === "string" ? value : defaultValue;
+  }
+
+  /**
+   * Check if critical config files are valid
+   * Returns true if all configs loaded successfully, false if any failed
+   */
+  isConfigValid(): boolean {
+    return this.configErrors.size === 0;
+  }
+
+  /**
+   * Get all config errors
+   */
+  getConfigErrors(): Map<string, Error> {
+    return new Map(this.configErrors);
+  }
+
+  /**
+   * Get error for a specific config file
+   */
+  getConfigError(configFile: string): Error | undefined {
+    return this.configErrors.get(configFile);
+  }
+
+  /**
+   * Validate that configs are loaded before content generation
+   * Throws an error if critical configs failed to load
+   */
+  validateConfigForContentGeneration(): void {
+    if (this.configErrors.size > 0) {
+      const errorMessages = Array.from(this.configErrors.entries())
+        .map(([file, err]) => `${file}: ${err.message}`)
+        .join("; ");
+      throw new Error(
+        `Cannot generate content: Critical config files failed to load. ${errorMessages}. ` +
+        `Please fix the config files in the Config tab before generating content.`
+      );
+    }
+  }
+
   getConfigStatus(): {
-    styleGuide: { loaded: boolean; isEmpty: boolean };
-    credo: { loaded: boolean; isEmpty: boolean };
-    constraints: { loaded: boolean; isEmpty: boolean };
+    styleGuide: { loaded: boolean; isEmpty: boolean; error?: string };
+    credo: { loaded: boolean; isEmpty: boolean; error?: string };
+    constraints: { loaded: boolean; isEmpty: boolean; error?: string };
   } {
     const configDir = path.join(process.cwd(), "config");
     
@@ -123,18 +251,25 @@ export class ConfigLoader {
     const constraintsLoaded = constraintsExists && Object.keys(this.constraints).length > 0;
     const constraintsEmpty = !constraintsLoaded || Object.keys(this.constraints).length === 0;
 
+    const styleGuideError = this.configErrors.get("style_guide.yaml");
+    const credoError = this.configErrors.get("credo.yaml");
+    const constraintsError = this.configErrors.get("constraints.yaml");
+
     return {
       styleGuide: {
         loaded: styleGuideLoaded,
         isEmpty: styleGuideEmpty,
+        error: styleGuideError?.message,
       },
       credo: {
         loaded: credoLoaded,
         isEmpty: credoEmpty,
+        error: credoError?.message,
       },
       constraints: {
         loaded: constraintsLoaded,
         isEmpty: constraintsEmpty,
+        error: constraintsError?.message,
       },
     };
   }
