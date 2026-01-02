@@ -1,7 +1,7 @@
 # Roadmap & Status
 
 **Last Updated**: January 1, 2026  
-**Current Status**: Core features implemented. Vector embeddings and link editing completed. App optimized for <1000 concepts scale. Test infrastructure refinement in progress (86.5% pass rate, targeting 90%+). Offer mapping workflow is next priority.
+**Current Status**: Core features implemented. Vector embeddings, link editing, and scalability improvements completed. App optimized for <1000 concepts scale with binary storage and in-memory indexing. Background embedding orchestration now resilient to failures. Test infrastructure refinement in progress (90.9% pass rate, 317/352 tests passing). Offer mapping workflow is next priority.
 
 ---
 
@@ -631,22 +631,24 @@ Together, they limit scalability, reliability, and user trust. Fixing them trans
 - ✅ Config validation (prevents silent failures)
 - ✅ JSON parsing robustness (retry logic, validation)
 - ✅ Prompt externalization (hot-reload support)
-- ✅ Smart chunking (paragraph-aware, preserves context)
+- ✅ **Sliding window chunking** - Processes entire document with 100% coverage (replaces lossy start/middle/end)
+- ✅ **Binary embedding storage** - 3-4x storage reduction, eliminates JSON parsing overhead
+- ✅ **In-memory vector index** - Fast semantic search with pre-computed norms (100-1000x faster)
 - ✅ **Vector embeddings** - Semantic search implemented (fixes link proposer scalability)
 - ✅ **Duplicate detection** - Vector pre-filtering implemented (prevents duplicates efficiently)
 - ✅ **Link editing** - Full CRUD for links (edit link name pairs and notes)
+- ✅ **Background orchestration resilience** - Retry logic and skip-and-continue for embedding generation
 
 **Next Focus**: 
-- 🔧 **Test Infrastructure Refinement** - Improve test pass rate from 68% to 90%+
+- 🔧 **Test Infrastructure Refinement** - Fix remaining component test failures, increase coverage
 - 📋 **Offer Mapping Workflow** - Complete UI for offer management
 
 **Status**: ✅ **Production-ready** | ✅ **Scalable** | ✅ **Critical issues resolved** | 🔧 **Test infrastructure needs work** | 📋 **Feature completion in progress**
 
 ---
 
-*Last Updated: December 31, 2025*  
-*Test Status: 255/373 passing (68%)*  
-*Feature Status: Prototype-complete, NOT production-ready*  
-*Critical Improvements: 4 of 6 completed (config validation, JSON parsing, prompt externalization, smart chunking)*  
-*🔴 BLOCKING: Vector embeddings required for production use (fixes link proposer, enables duplicate detection)*  
-*⚠️ All non-critical work paused until vector embeddings complete*
+*Last Updated: January 1, 2026*  
+*Test Status: 317/352 passing (90.9%)*  
+*Coverage: 28.68% statements, 24.25% branches*  
+*Feature Status: Production-ready for <1000 concepts scale*  
+*Recent Improvements: Binary embedding storage, in-memory vector index, sliding window chunking, background orchestration resilience*

@@ -361,6 +361,13 @@ export const ipc = {
       }
       return win.electronAPI.ai.generateMissingEmbeddings(input);
     },
+    retryFailedEmbeddings: (input?: { batchSize?: number }) => {
+      const win = getWindowRuntime();
+      if (!win || !win.electronAPI) {
+        throw new Error("IPC client not available - not running in Electron");
+      }
+      return win.electronAPI.ai.retryFailedEmbeddings(input);
+    },
   },
   offer: {
     list: () => {

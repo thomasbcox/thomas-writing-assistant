@@ -260,6 +260,13 @@ export function createMockElectronAPI(): ElectronAPI {
         isIndexing: false,
         lastIndexedAt: null,
       }),
+      retryFailedEmbeddings: jest.fn<() => Promise<EmbeddingStatusResult>>().mockResolvedValue({
+        totalConcepts: 0,
+        conceptsWithEmbeddings: 0,
+        conceptsWithoutEmbeddings: 0,
+        isIndexing: false,
+        lastIndexedAt: null,
+      }),
     },
 
     ping: jest.fn<() => Promise<string>>().mockResolvedValue("pong"),

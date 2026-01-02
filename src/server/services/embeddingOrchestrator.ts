@@ -10,12 +10,44 @@ import { generateMissingEmbeddings } from "./vectorSearch";
 import { getVectorIndex } from "./vectorIndex";
 import { logger } from "~/lib/logger";
 
+/**
+ * Retry helper function with exponential backoff
+ * Attempts to execute a function, retrying on failure with increasing delays
+ * 
+ * @param fn Function to retry
+ * @param maxRetries Maximum number of retry attempts (default: 3)
+ * @param baseDelay Base delay in milliseconds for exponential backoff (default: 1000)
+ * @returns Result of the function, or null if all retries failed
+ */
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000,
+): Promise<T | null> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (attempt === maxRetries - 1) {
+        logger.warn({ attempt: attempt + 1, maxRetries, error }, "Max retries reached, skipping batch");
+        return null; // Skip this batch
+      }
+      const delay = baseDelay * Math.pow(2, attempt);
+      logger.debug({ attempt: attempt + 1, delay, error }, "Retrying after delay");
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+  return null;
+}
+
 interface EmbeddingStatus {
   totalConcepts: number;
   conceptsWithEmbeddings: number;
   conceptsWithoutEmbeddings: number;
   isIndexing: boolean;
   lastIndexedAt: Date | null;
+  successfulBatches?: number;
+  failedBatches?: number;
 }
 
 /**
@@ -74,6 +106,8 @@ export async function checkAndGenerateMissing(
   );
 
   let processed = 0;
+  let successfulBatches = 0;
+  let failedBatches = 0;
   const totalToProcess = status.conceptsWithoutEmbeddings;
 
   // Process in batches until all embeddings are generated
@@ -81,48 +115,115 @@ export async function checkAndGenerateMissing(
     const beforeStatus = await getEmbeddingStatus();
     
     if (beforeStatus.conceptsWithoutEmbeddings === 0) {
-      logger.info({ processed }, "All embeddings generated");
+      logger.info({ processed, successfulBatches, failedBatches }, "All embeddings generated");
       break;
     }
 
-    try {
+    // Use retry logic with exponential backoff
+    const result = await retryWithBackoff(async () => {
       await generateMissingEmbeddings(batchSize);
-      processed += batchSize;
+      return true;
+    });
 
-      // Update vector index after generating embeddings
-      const index = getVectorIndex();
-      await index.initialize();
+    if (result === null) {
+      // Retry failed, skip this batch and continue
+      failedBatches++;
+      logger.warn(
+        {
+          failedBatches,
+          successfulBatches,
+          remaining: beforeStatus.conceptsWithoutEmbeddings,
+        },
+        "Batch failed after retries, skipping and continuing",
+      );
 
-      const currentStatus = await getEmbeddingStatus();
-      
+      // Update progress even on failure
       if (onProgress) {
+        const currentStatus = await getEmbeddingStatus();
         onProgress({
           ...currentStatus,
           isIndexing: currentStatus.conceptsWithoutEmbeddings > 0,
         });
       }
 
-      logger.debug(
-        {
-          processed,
-          remaining: currentStatus.conceptsWithoutEmbeddings,
-          progress: `${Math.round((processed / totalToProcess) * 100)}%`,
-        },
-        "Embedding generation progress",
-      );
-
-      // If no progress was made, break to avoid infinite loop
-      if (currentStatus.conceptsWithoutEmbeddings >= beforeStatus.conceptsWithoutEmbeddings) {
-        logger.warn("No progress made in embedding generation, stopping");
+      // Check if we should continue: only stop if ALL batches have failed
+      // and no progress has been made at all
+      const currentStatus = await getEmbeddingStatus();
+      if (
+        currentStatus.conceptsWithoutEmbeddings >= beforeStatus.conceptsWithoutEmbeddings &&
+        successfulBatches === 0
+      ) {
+        logger.error(
+          {
+            failedBatches,
+            successfulBatches,
+            remaining: currentStatus.conceptsWithoutEmbeddings,
+          },
+          "All batches failed, stopping orchestration",
+        );
         break;
       }
-    } catch (error) {
-      logger.error({ error, processed }, "Error during embedding generation");
-      throw error;
+
+      // Continue to next batch even if this one failed
+      continue;
+    }
+
+    // Batch succeeded
+    successfulBatches++;
+    processed += batchSize;
+
+    // Update vector index after generating embeddings
+    const index = getVectorIndex();
+    await index.initialize();
+
+    const currentStatus = await getEmbeddingStatus();
+    
+    if (onProgress) {
+      onProgress({
+        ...currentStatus,
+        isIndexing: currentStatus.conceptsWithoutEmbeddings > 0,
+        successfulBatches,
+        failedBatches,
+      });
+    }
+
+    logger.debug(
+      {
+        processed,
+        remaining: currentStatus.conceptsWithoutEmbeddings,
+        progress: `${Math.round((processed / totalToProcess) * 100)}%`,
+        successfulBatches,
+        failedBatches,
+      },
+      "Embedding generation progress",
+    );
+
+    // If no progress was made, but we had some successes, continue
+    // Only stop if we made no progress AND all batches failed
+    if (
+      currentStatus.conceptsWithoutEmbeddings >= beforeStatus.conceptsWithoutEmbeddings &&
+      successfulBatches === 0
+    ) {
+      logger.warn(
+        {
+          successfulBatches,
+          failedBatches,
+          remaining: currentStatus.conceptsWithoutEmbeddings,
+        },
+        "No progress made and all batches failed, stopping",
+      );
+      break;
     }
   }
 
-  logger.info({ totalProcessed: processed }, "Background embedding generation completed");
+  logger.info(
+    {
+      totalProcessed: processed,
+      successfulBatches,
+      failedBatches,
+    },
+    "Background embedding generation completed",
+  );
 }
 
 /**

@@ -122,8 +122,10 @@ describe("conceptProposer", () => {
     expect(result).toHaveLength(0);
   });
 
-  it("should use text sampling strategy for large documents", async () => {
-    const largeText = "x".repeat(60000); // 60k chars
+  it("should use sliding window chunking for large documents", async () => {
+    // Use a reasonable size that will create chunks but not exceed array limits
+    // Sliding window uses 30k window with 5k overlap, so 60k chars = ~2-3 chunks
+    const largeText = "x".repeat(60000); // 60k chars - will create ~2 chunks
     const mockResponse = {
       concepts: [
         {

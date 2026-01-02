@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">21.42% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>3/14</span>
+                <span class='fraction'>0/14</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">25% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>2/8</span>
+                <span class='fraction'>0/8</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">12.5% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>1/8</span>
+                <span class='fraction'>0/8</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">21.42% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>3/14</span>
+                <span class='fraction'>0/14</span>
             </div>
         
             
@@ -233,22 +233,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -258,8 +242,24 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -384,8 +384,8 @@ interface ConceptCreateFormProps {
   isPending: boolean;
 }
 &nbsp;
-export function ConceptCreateForm({ onSubmit, isPending }: ConceptCreateFormProps) {
-  const [formData, setFormData] = useState({
+export function <span class="fstat-no" title="function not covered" >ConceptCreateForm(</span>{ onSubmit, isPending }: ConceptCreateFormProps) {
+  const [formData, setFormData] = <span class="cstat-no" title="statement not covered" >useState({</span>
     title: "",
     description: "",
     content: "",
@@ -394,7 +394,7 @@ export function ConceptCreateForm({ onSubmit, isPending }: ConceptCreateFormProp
     year: "",
   });
 &nbsp;
-  const handleSubmit = <span class="fstat-no" title="function not covered" >(e</span>: React.FormEvent) =&gt; {
+  const handleSubmit = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(e</span>: React.FormEvent) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >    e.preventDefault();</span>
 <span class="cstat-no" title="statement not covered" >    if (!formData.title.trim() || !formData.content.trim()) {</span>
 <span class="cstat-no" title="statement not covered" >      return;</span>
@@ -411,7 +411,7 @@ export function ConceptCreateForm({ onSubmit, isPending }: ConceptCreateFormProp
     });
   };
 &nbsp;
-  return (
+<span class="cstat-no" title="statement not covered" >  return (</span>
     &lt;div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6"&gt;
       &lt;h2 className="text-lg font-semibold text-gray-900 mb-5"&gt;Create New Concept&lt;/h2&gt;
       &lt;form onSubmit={handleSubmit} className="space-y-4"&gt;
@@ -511,8 +511,8 @@ export function ConceptCreateForm({ onSubmit, isPending }: ConceptCreateFormProp
           disabled={isPending}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
         &gt;
-          {isPending &amp;&amp; <span class="branch-1 cbranch-no" title="branch not covered" >&lt;LoadingSpinner size="sm" /&gt;}</span>
-          {isPending ? <span class="branch-0 cbranch-no" title="branch not covered" >"Creating..." </span>: "Create Concept"}
+          {isPending &amp;&amp; &lt;LoadingSpinner size="sm" /&gt;}
+          {isPending ? "Creating..." : "Create Concept"}
         &lt;/button&gt;
       &lt;/form&gt;
     &lt;/div&gt;
@@ -526,7 +526,7 @@ export function ConceptCreateForm({ onSubmit, isPending }: ConceptCreateFormProp
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-01-01T15:31:15.816Z
+                at 2026-01-02T16:03:53.747Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

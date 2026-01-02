@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">69.23% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>9/13</span>
+                <span class='fraction'>0/13</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">78.26% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>18/23</span>
+                <span class='fraction'>0/23</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">33.33% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>2/6</span>
+                <span class='fraction'>0/6</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">69.23% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>9/13</span>
+                <span class='fraction'>0/13</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line medium'></div>
+    <div class='status-line low'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -219,31 +219,18 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">18x</span>
-<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -255,10 +242,23 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -338,7 +338,7 @@ interface ConceptListProps {
   onRestore: (id: string) =&gt; void;
 }
 &nbsp;
-export function ConceptList({
+export function <span class="fstat-no" title="function not covered" >ConceptList(</span>{
   concepts,
   isLoading,
   error,
@@ -348,18 +348,18 @@ export function ConceptList({
   onDelete,
   onRestore,
 }: ConceptListProps) {
-  if (isLoading) {
-    return (
+<span class="cstat-no" title="statement not covered" >  if (isLoading) {</span>
+<span class="cstat-no" title="statement not covered" >    return (</span>
       &lt;div className="flex justify-center py-12"&gt;
         &lt;LoadingSpinner size="lg" /&gt;
       &lt;/div&gt;
     );
   }
 &nbsp;
-  if (error) {
+<span class="cstat-no" title="statement not covered" >  if (error) {</span>
     // Display full error details including MSW response data
-    const errorDetails = JSON.stringify(error, null, 2);
-    return (
+    const errorDetails = <span class="cstat-no" title="statement not covered" >JSON.stringify(error, null, 2);</span>
+<span class="cstat-no" title="statement not covered" >    return (</span>
       &lt;div className="bg-red-50 border border-red-200 rounded-lg p-4"&gt;
         &lt;p className="text-sm text-red-800"&gt;
           Error loading concepts: {error.message}
@@ -371,27 +371,27 @@ export function ConceptList({
     );
   }
 &nbsp;
-  if (!concepts || !Array.isArray(concepts) || concepts.length === 0) {
-    return (
+<span class="cstat-no" title="statement not covered" >  if (!concepts || !Array.isArray(concepts) || concepts.length === 0) {</span>
+<span class="cstat-no" title="statement not covered" >    return (</span>
       &lt;EmptyState
-        title={showTrash ? <span class="branch-0 cbranch-no" title="branch not covered" >"No trashed concepts" </span>: "No concepts yet"}
+        title={showTrash ? "No trashed concepts" : "No concepts yet"}
         message={
           showTrash
-            ? <span class="branch-0 cbranch-no" title="branch not covered" >"There are no concepts in the trash."</span>
+            ? "There are no concepts in the trash."
             : "Get started by creating your first concept above."
         }
       /&gt;
     );
   }
 &nbsp;
-  return (
+<span class="cstat-no" title="statement not covered" >  return (</span>
     &lt;div className="space-y-3"&gt;
-      {concepts.map((concept) =&gt; (
-        &lt;div
+      {concepts.map(<span class="fstat-no" title="function not covered" >(c</span>oncept) =&gt; (
+<span class="cstat-no" title="statement not covered" >        &lt;div</span>
           key={concept.id}
           className={`p-4 border rounded-lg ${
             concept.status === "trash"
-              ? <span class="branch-0 cbranch-no" title="branch not covered" >"bg-gray-50 border-gray-200 opacity-75"</span>
+              ? "bg-gray-50 border-gray-200 opacity-75"
               : "bg-white border-gray-200 hover:border-gray-300"
           } transition-colors`}
         &gt;
@@ -422,7 +422,7 @@ export function ConceptList({
                 View
               &lt;/button&gt;
               {concept.status === "trash" ? (
-<span class="branch-0 cbranch-no" title="branch not covered" >                &lt;button</span>
+                &lt;button
                   onClick={<span class="fstat-no" title="function not covered" >() =</span>&gt; <span class="cstat-no" title="statement not covered" >onRestore(concept.id)}</span>
                   className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
                 &gt;
@@ -440,7 +440,7 @@ export function ConceptList({
                 onClick={<span class="fstat-no" title="function not covered" >() =</span>&gt; <span class="cstat-no" title="statement not covered" >onDelete(concept.id)}</span>
                 className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
               &gt;
-                {concept.status === "trash" ? <span class="branch-0 cbranch-no" title="branch not covered" >"Delete" </span>: "Trash"}
+                {concept.status === "trash" ? "Delete" : "Trash"}
               &lt;/button&gt;
             &lt;/div&gt;
           &lt;/div&gt;
@@ -457,7 +457,7 @@ export function ConceptList({
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-01-01T15:31:15.816Z
+                at 2026-01-02T16:03:53.747Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

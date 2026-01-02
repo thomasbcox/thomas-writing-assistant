@@ -554,6 +554,7 @@ export interface ElectronAPI {
     getAvailableModels: () => Promise<AIAvailableModelsResult>;
     getEmbeddingStatus: () => Promise<EmbeddingStatusResult>;
     generateMissingEmbeddings: (input?: { batchSize?: number }) => Promise<EmbeddingStatusResult>;
+    retryFailedEmbeddings: (input?: { batchSize?: number }) => Promise<EmbeddingStatusResult>;
   };
 
   ping: () => Promise<string>;
