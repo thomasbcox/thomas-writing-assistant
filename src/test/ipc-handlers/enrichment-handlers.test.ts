@@ -44,6 +44,8 @@ describe("Enrichment Handlers", () => {
 
     mockConfigLoader = {
       getSystemPrompt: jest.fn((prompt) => prompt),
+      validateConfigForContentGeneration: jest.fn(),
+      getPrompt: jest.fn((key: string, defaultValue?: string) => defaultValue || `Mock prompt for ${key}`),
     } as unknown as ConfigLoader;
 
     jest.clearAllMocks();

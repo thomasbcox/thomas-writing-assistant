@@ -46,6 +46,7 @@ const config = {
       roots: ['<rootDir>/src', '<rootDir>/electron'],
       testMatch: ['<rootDir>/src/test/**/*.test.ts', '!<rootDir>/src/test/components/**', '!<rootDir>/src/test/hooks/**'],
       modulePathIgnorePatterns: ['<rootDir>/dist-electron'],
+      testTimeout: 10000, // 10 second timeout per test
       transform: {
         '^.+\\.ts$': ['ts-jest', {
           useESM: true,
@@ -84,6 +85,7 @@ const config = {
       displayName: 'jsdom',
       testEnvironment: 'jsdom',
       testMatch: ['<rootDir>/src/test/components/**/*.test.tsx', '<rootDir>/src/test/hooks/**/*.test.tsx'],
+      testTimeout: 10000, // 10 second timeout per test
       transform: {
         '^.+\\.tsx?$': ['ts-jest', {
           useESM: true,

@@ -4,6 +4,7 @@
  */
 
 import { getCurrentDb } from "~/server/db";
+import type { DatabaseInstance } from "~/server/db";
 import { concept, conceptEmbedding } from "~/server/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { getLLMClient } from "./llm/client";
@@ -39,12 +40,15 @@ function cosineSimilarity(a: number[], b: number[]): number {
 /**
  * Get or create embedding for a concept
  */
-export async function getOrCreateEmbedding(
+/**
+ * Get or create embedding with context (new signature)
+ */
+export async function getOrCreateEmbeddingWithContext(
   conceptId: string,
   text: string,
+  db: DatabaseInstance,
   model: string = "text-embedding-3-small",
 ): Promise<number[]> {
-  const db = getCurrentDb();
 
   // Check if embedding already exists
   const existing = await db
@@ -84,7 +88,14 @@ export async function getOrCreateEmbedding(
 
   // Generate new embedding
   const llmClient = getLLMClient();
-  const embedding = await llmClient.embed(text);
+  let embedding: number[];
+  try {
+    embedding = await llmClient.embed(text);
+  } catch (error) {
+    // If embedding generation fails, don't store anything
+    logger.error({ conceptId, error }, "Failed to generate embedding");
+    throw error;
+  }
 
   // Convert number[] to binary Buffer (Float32Array)
   const floatArray = new Float32Array(embedding);
@@ -111,6 +122,19 @@ export async function getOrCreateEmbedding(
   index.addEmbedding(conceptId, embedding);
 
   return embedding;
+}
+
+/**
+ * Legacy wrapper for getOrCreateEmbeddingWithContext
+ * @deprecated Use getOrCreateEmbeddingWithContext instead
+ */
+export async function getOrCreateEmbedding(
+  conceptId: string,
+  text: string,
+  model: string = "text-embedding-3-small",
+): Promise<number[]> {
+  const db = getCurrentDb();
+  return getOrCreateEmbeddingWithContext(conceptId, text, db, model);
 }
 
 /**
@@ -144,8 +168,10 @@ export async function findSimilarConcepts(
  * Batch generate embeddings for concepts that don't have them
  * @param batchSize Number of concepts to process at once
  */
-export async function generateMissingEmbeddings(batchSize: number = 10): Promise<void> {
-  const db = getCurrentDb();
+export async function generateMissingEmbeddingsWithContext(
+  db: DatabaseInstance,
+  batchSize: number = 10,
+): Promise<void> {
   const llmClient = getLLMClient();
   const model = llmClient.getProvider() === "openai" ? "text-embedding-3-small" : "text-embedding-004";
 
@@ -169,10 +195,20 @@ export async function generateMissingEmbeddings(batchSize: number = 10): Promise
       // Create text representation for embedding (title + description + content)
       const textToEmbed = `${conceptData.title}\n${conceptData.description || ""}\n${conceptData.content}`;
 
-      await getOrCreateEmbedding(conceptData.id, textToEmbed, model);
+      await getOrCreateEmbeddingWithContext(conceptData.id, textToEmbed, db, model);
     } catch (error) {
       logger.error({ conceptId: conceptData.id, error }, "Failed to generate embedding for concept");
     }
   }
+}
+
+/**
+ * Generate missing embeddings (backward compatible wrapper)
+ * @deprecated Use generateMissingEmbeddingsWithContext instead
+ */
+export async function generateMissingEmbeddings(
+  batchSize: number = 10,
+): Promise<void> {
+  return generateMissingEmbeddingsWithContext(getCurrentDb(), batchSize);
 }
 

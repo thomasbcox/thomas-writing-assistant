@@ -244,7 +244,7 @@ Description: ${conceptData.description}
 Creator: ${conceptData.creator}
 Source: ${conceptData.source}
 Year: ${conceptData.year}
-Content: ${conceptData.content.substring(0, 500)}...`;
+Content: ${conceptData.content ? conceptData.content.substring(0, 500) : ""}...`;
 
     const prompt = `${conceptContext}
 

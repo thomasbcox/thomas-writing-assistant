@@ -62,7 +62,25 @@ export class MockConfigLoader implements ConfigLoaderInterface {
     // No-op for mock
   }
 
+  private validateShouldThrow = false;
+  private validateErrorMessage?: string;
+
+  setMockValidateConfigForContentGeneration(fn: () => void) {
+    // Allow tests to set a function that throws
+    try {
+      fn();
+      this.validateShouldThrow = false;
+      this.validateErrorMessage = undefined;
+    } catch (error) {
+      this.validateShouldThrow = true;
+      this.validateErrorMessage = (error as Error).message;
+    }
+  }
+
   validateConfigForContentGeneration(): void {
+    if (this.validateShouldThrow && this.validateErrorMessage) {
+      throw new Error(this.validateErrorMessage);
+    }
     // No-op for mock - tests don't need strict config validation
     // In real usage, this would throw if config files failed to load
   }

@@ -4,6 +4,7 @@
  */
 
 import { getCurrentDb } from "~/server/db";
+import type { DatabaseInstance } from "~/server/db";
 import { concept, conceptEmbedding } from "~/server/schema";
 import { isNull, eq } from "drizzle-orm";
 import { generateMissingEmbeddings } from "./vectorSearch";
@@ -109,9 +110,12 @@ export async function checkAndGenerateMissing(
   let successfulBatches = 0;
   let failedBatches = 0;
   const totalToProcess = status.conceptsWithoutEmbeddings;
+  const maxIterations = Math.ceil(totalToProcess / batchSize) + 10; // Safety limit: expected iterations + buffer
+  let iterationCount = 0;
 
   // Process in batches until all embeddings are generated
-  while (true) {
+  while (iterationCount < maxIterations) {
+    iterationCount++;
     const beforeStatus = await getEmbeddingStatus();
     
     if (beforeStatus.conceptsWithoutEmbeddings === 0) {
@@ -160,6 +164,19 @@ export async function checkAndGenerateMissing(
             remaining: currentStatus.conceptsWithoutEmbeddings,
           },
           "All batches failed, stopping orchestration",
+        );
+        break;
+      }
+      
+      // Safety check: if we've exceeded max iterations, stop
+      if (iterationCount >= maxIterations) {
+        logger.warn(
+          {
+            iterationCount,
+            maxIterations,
+            remaining: currentStatus.conceptsWithoutEmbeddings,
+          },
+          "Reached maximum iteration limit, stopping to prevent infinite loop",
         );
         break;
       }
@@ -230,9 +247,9 @@ export async function checkAndGenerateMissing(
  * Generate embeddings for a specific concept
  * Useful for immediate embedding after concept creation
  */
-export async function generateEmbeddingForConcept(conceptId: string): Promise<void> {
-  const db = getCurrentDb();
-  const conceptData = await db
+export async function generateEmbeddingForConcept(conceptId: string, db?: DatabaseInstance): Promise<void> {
+  const dbInstance = db ?? getCurrentDb();
+  const conceptData = await dbInstance
     .select()
     .from(concept)
     .where(eq(concept.id, conceptId))
@@ -244,10 +261,11 @@ export async function generateEmbeddingForConcept(conceptId: string): Promise<vo
 
   const textToEmbed = `${conceptData[0].title}\n${conceptData[0].description || ""}\n${conceptData[0].content}`;
   
-  const { getOrCreateEmbedding } = await import("./vectorSearch");
-  const llmClient = (await import("./llm/client")).getLLMClient();
+  const { getLLMClient } = await import("./llm/client");
+  const llmClient = getLLMClient();
   const model = llmClient.getProvider() === "openai" ? "text-embedding-3-small" : "text-embedding-004";
   
+  const { getOrCreateEmbedding } = await import("./vectorSearch");
   await getOrCreateEmbedding(conceptId, textToEmbed, model);
 
   // Update vector index

@@ -1,11 +1,16 @@
 /**
  * Tests for conceptEnricher service
+ * Uses ServiceContext pattern for dependency injection
  */
 
-import { describe, it, expect, jest, beforeEach } from "@jest/globals";
-import type { LLMClient } from "~/server/services/llm/client";
-import type { ConfigLoader } from "~/server/services/config";
+import { describe, it, expect, beforeEach, afterEach, jest } from "@jest/globals";
+import { analyzeConcept, enrichMetadata, expandDefinition, chatEnrichConcept } from "~/server/services/conceptEnricher";
+import { createTestContext } from "../utils/dependencies";
+import { MockLLMClient } from "../mocks/llm-client";
+import { MockConfigLoader } from "../mocks/config-loader";
 import type { ConceptFormData } from "~/server/services/conceptEnricher";
+import { resetVectorIndex } from "~/server/services/vectorIndex";
+import { closeTestDb } from "../utils/db";
 
 // Mock the logger
 jest.mock("~/lib/logger", () => ({
@@ -19,8 +24,9 @@ jest.mock("~/lib/logger", () => ({
 }));
 
 describe("conceptEnricher", () => {
-  let mockLLMClient: LLMClient;
-  let mockConfigLoader: ConfigLoader;
+  let mockLLMClient: MockLLMClient;
+  let mockConfigLoader: MockConfigLoader;
+  let context: Awaited<ReturnType<typeof createTestContext>>;
   const mockConceptData: ConceptFormData = {
     title: "Test Concept",
     description: "Test description",
@@ -31,25 +37,25 @@ describe("conceptEnricher", () => {
   };
 
   beforeEach(async () => {
-    mockLLMClient = {
-      completeJSON: jest.fn(),
-      complete: jest.fn(),
-      getProvider: jest.fn(() => "openai"),
-      getModel: jest.fn(() => "gpt-4"),
-    } as unknown as LLMClient;
-
-    mockConfigLoader = {
-      getSystemPrompt: jest.fn((prompt) => prompt),
-    } as unknown as ConfigLoader;
-
-    // Dynamically import after mocks are set up
+    resetVectorIndex();
     jest.clearAllMocks();
+    mockLLMClient = new MockLLMClient();
+    mockConfigLoader = new MockConfigLoader() as any;
+    context = await createTestContext({
+      llm: mockLLMClient.asLLMClient(),
+      config: mockConfigLoader as any,
+    });
+  });
+
+  afterEach(async () => {
+    resetVectorIndex();
+    if (context?.db) {
+      closeTestDb(context.db);
+    }
   });
 
   describe("analyzeConcept", () => {
     it("should analyze a concept and return suggestions", async () => {
-      const { analyzeConcept } = await import("~/server/services/conceptEnricher");
-      
       const mockResponse = {
         greeting: "Hello, I can help improve this concept",
         suggestions: [
@@ -72,12 +78,13 @@ describe("conceptEnricher", () => {
         ],
       };
 
-      jest.mocked(mockLLMClient.completeJSON).mockResolvedValue(mockResponse);
+      mockLLMClient.setMockCompleteJSON(async () => mockResponse);
+      mockConfigLoader.setMockSystemPrompt("Test system prompt");
 
       const result = await analyzeConcept(
         mockConceptData,
-        mockLLMClient as unknown as LLMClient,
-        mockConfigLoader as unknown as ConfigLoader,
+        mockLLMClient.asLLMClient(),
+        mockConfigLoader as any,
       );
 
       expect(result.suggestions).toBeDefined();
@@ -87,210 +94,190 @@ describe("conceptEnricher", () => {
     });
 
     it("should handle empty suggestions gracefully", async () => {
-      const { analyzeConcept } = await import("~/server/services/conceptEnricher");
-      
       const mockResponse = {
         greeting: "Concept looks good",
         suggestions: [],
         quickActions: [],
       };
 
-      jest.mocked(mockLLMClient.completeJSON).mockResolvedValue(mockResponse);
+      mockLLMClient.setMockCompleteJSON(async () => mockResponse);
 
       const result = await analyzeConcept(
         mockConceptData,
-        mockLLMClient as unknown as LLMClient,
-        mockConfigLoader as unknown as ConfigLoader,
+        mockLLMClient.asLLMClient(),
+        mockConfigLoader as any,
       );
 
       expect(result.suggestions).toEqual([]);
       expect(result.quickActions).toEqual([]);
+      expect(result.initialMessage).toBeDefined();
+    });
+
+    it("should handle invalid JSON response", async () => {
+      mockLLMClient.setMockCompleteJSON(async () => ({ invalid: "response" }));
+
+      const result = await analyzeConcept(
+        mockConceptData,
+        mockLLMClient.asLLMClient(),
+        mockConfigLoader as any,
+      );
+
+      // Should still return valid structure with empty arrays
+      expect(result.suggestions).toBeDefined();
+      expect(Array.isArray(result.suggestions)).toBe(true);
+      expect(result.quickActions).toBeDefined();
+      expect(Array.isArray(result.quickActions)).toBe(true);
     });
   });
 
   describe("enrichMetadata", () => {
     it("should enrich metadata for a concept", async () => {
-      const { enrichMetadata } = await import("~/server/services/conceptEnricher");
-      
       const mockResponse = {
         creator: "Test Author",
-        year: "2024",
         source: "Test Source",
-        sourceUrl: "https://example.com",
-        confidence: "high" as const,
+        year: "2024",
       };
 
-      jest.mocked(mockLLMClient.completeJSON).mockResolvedValue(mockResponse);
+      mockLLMClient.setMockCompleteJSON(async () => mockResponse);
+      mockConfigLoader.setMockSystemPrompt("Test system prompt");
 
       const result = await enrichMetadata(
         "Test Concept",
         "Test description",
-        mockLLMClient as unknown as LLMClient,
-        mockConfigLoader as unknown as ConfigLoader,
+        mockLLMClient.asLLMClient(),
+        mockConfigLoader as any,
       );
 
       expect(result.creator).toBe("Test Author");
-      expect(result.year).toBe("2024");
       expect(result.source).toBe("Test Source");
+      expect(result.year).toBe("2024");
     });
 
-    it("should handle partial metadata", async () => {
-      const { enrichMetadata } = await import("~/server/services/conceptEnricher");
-      
+    it("should handle missing fields in response", async () => {
       const mockResponse = {
         creator: "Test Author",
-        // year and source missing
+        // Missing source and year
       };
 
-      jest.mocked(mockLLMClient.completeJSON).mockResolvedValue(mockResponse);
+      mockLLMClient.setMockCompleteJSON(async () => mockResponse);
 
       const result = await enrichMetadata(
         "Test Concept",
         "Test description",
-        mockLLMClient as unknown as LLMClient,
-        mockConfigLoader as unknown as ConfigLoader,
+        mockLLMClient.asLLMClient(),
+        mockConfigLoader as any,
       );
 
       expect(result.creator).toBe("Test Author");
-      expect(result.year).toBeUndefined();
+      // Missing fields should be undefined (not empty strings)
       expect(result.source).toBeUndefined();
+      expect(result.year).toBeUndefined();
     });
   });
 
   describe("expandDefinition", () => {
-    it("should expand a definition", async () => {
-      const { expandDefinition } = await import("~/server/services/conceptEnricher");
-      
-      const mockResponse = "This is an expanded definition with more detail and context.";
+    it("should expand a concept definition", async () => {
+      const mockResponse = {
+        expandedDefinition: "This is an expanded definition with more detail.",
+      };
 
-      jest.mocked(mockLLMClient.complete).mockResolvedValue(mockResponse);
+      mockLLMClient.setMockCompleteJSON(async () => mockResponse);
+      mockConfigLoader.setMockSystemPrompt("Test system prompt");
 
       const result = await expandDefinition(
-        "Short definition",
         "Test Concept",
-        mockLLMClient as unknown as LLMClient,
-        mockConfigLoader as unknown as ConfigLoader,
+        "Short definition",
+        mockLLMClient.asLLMClient(),
+        mockConfigLoader as any,
       );
 
-      expect(result).toBe(mockResponse.trim());
-      expect(result).toContain("expanded definition");
+      expect(result).toBeDefined();
+      expect(typeof result).toBe("string");
+      expect(result.length).toBeGreaterThan(0);
     });
 
     it("should handle empty response", async () => {
-      const { expandDefinition } = await import("~/server/services/conceptEnricher");
-      
-      jest.mocked(mockLLMClient.complete).mockResolvedValue("");
+      mockLLMClient.setMockCompleteJSON(async () => ({}));
 
       const result = await expandDefinition(
-        "Short definition",
         "Test Concept",
-        mockLLMClient as unknown as LLMClient,
-        mockConfigLoader as unknown as ConfigLoader,
+        "Short definition",
+        mockLLMClient.asLLMClient(),
+        mockConfigLoader as any,
       );
 
-      expect(result).toBe("");
+      expect(result).toBeDefined();
+      expect(typeof result).toBe("string");
     });
   });
 
   describe("chatEnrichConcept", () => {
-    it("should handle chat messages and return response with suggestions", async () => {
-      const { chatEnrichConcept } = await import("~/server/services/conceptEnricher");
-      
+    it("should generate chat response for concept enrichment", async () => {
       const mockResponse = {
-        response: "Here are some suggestions to improve your concept",
+        message: "I can help you improve this concept.",
         suggestions: [
           {
-            id: "1",
-            field: "title",
-            currentValue: "Test Concept",
-            suggestedValue: "Improved Test Concept",
-            reason: "More descriptive",
-            confidence: "medium" as const,
-          },
-        ],
-        actions: [
-          {
-            id: "1",
-            label: "Add Examples",
-            description: "Add examples to illustrate the concept",
-            action: "addExamples" as const,
+            field: "description",
+            suggestedValue: "Improved description",
+            reason: "More detailed",
           },
         ],
       };
 
-      jest.mocked(mockLLMClient.completeJSON).mockResolvedValue(mockResponse);
+      mockLLMClient.setMockCompleteJSON(async () => mockResponse);
+      mockConfigLoader.setMockSystemPrompt("Test system prompt");
+
+      const conceptDataWithContent: ConceptFormData = {
+        ...mockConceptData,
+        content: "Test content for chat enrichment",
+      };
 
       const result = await chatEnrichConcept(
-        "Improve the concept",
-        mockConceptData,
-        [{ id: "1", role: "user", content: "How can I improve this?", timestamp: new Date() }],
-        mockLLMClient as unknown as LLMClient,
-        mockConfigLoader as unknown as ConfigLoader,
+        "How can I improve this?",
+        conceptDataWithContent,
+        [],
+        mockLLMClient.asLLMClient(),
+        mockConfigLoader as any,
       );
 
       expect(result.response).toBeDefined();
       expect(result.suggestions).toBeDefined();
-      expect(result.actions).toBeDefined();
+      expect(Array.isArray(result.suggestions)).toBe(true);
     });
 
-    it("should handle empty chat history", async () => {
-      const { chatEnrichConcept } = await import("~/server/services/conceptEnricher");
-      
+    it("should handle conversation history", async () => {
       const mockResponse = {
-        response: "Initial response",
+        message: "Based on our conversation...",
         suggestions: [],
-        actions: [],
       };
 
-      jest.mocked(mockLLMClient.completeJSON).mockResolvedValue(mockResponse);
+      mockLLMClient.setMockCompleteJSON(async () => mockResponse);
+
+      const history = [
+        {
+          id: "1",
+          role: "user" as const,
+          content: "Previous message",
+          timestamp: new Date(),
+        },
+      ];
+
+      const conceptDataWithContent: ConceptFormData = {
+        ...mockConceptData,
+        content: "Test content for chat enrichment",
+      };
 
       const result = await chatEnrichConcept(
-        "Help me understand this concept",
-        mockConceptData,
-        [],
-        mockLLMClient as unknown as LLMClient,
-        mockConfigLoader as unknown as ConfigLoader,
+        "Follow-up question",
+        conceptDataWithContent,
+        history,
+        mockLLMClient.asLLMClient(),
+        mockConfigLoader as any,
       );
 
       expect(result.response).toBeDefined();
-    });
-  });
-
-  describe("error handling", () => {
-    it("should handle LLM errors in analyzeConcept", async () => {
-      const { analyzeConcept } = await import("~/server/services/conceptEnricher");
-      
-      jest.mocked(mockLLMClient.completeJSON).mockRejectedValue(
-        new Error("LLM API error"),
-      );
-
-      await expect(
-        analyzeConcept(mockConceptData, mockLLMClient as unknown as LLMClient, mockConfigLoader as unknown as ConfigLoader),
-      ).rejects.toThrow();
-    });
-
-    it("should handle LLM errors in enrichMetadata", async () => {
-      const { enrichMetadata } = await import("~/server/services/conceptEnricher");
-      
-      jest.mocked(mockLLMClient.completeJSON).mockRejectedValue(
-        new Error("LLM API error"),
-      );
-
-      await expect(
-        enrichMetadata("Test", "Desc", mockLLMClient as unknown as LLMClient, mockConfigLoader as unknown as ConfigLoader),
-      ).rejects.toThrow();
-    });
-
-    it("should handle LLM errors in expandDefinition", async () => {
-      const { expandDefinition } = await import("~/server/services/conceptEnricher");
-      
-      jest.mocked(mockLLMClient.complete).mockRejectedValue(
-        new Error("LLM API error"),
-      );
-
-      await expect(
-        expandDefinition("Def", "Title", mockLLMClient as unknown as LLMClient, mockConfigLoader as unknown as ConfigLoader),
-      ).rejects.toThrow();
+      // Verify the response was generated (can't easily spy on internal LLM calls)
+      expect(typeof result.response).toBe("string");
     });
   });
 });

@@ -21,6 +21,8 @@ const mockConfigLoader = {
   getCredo: jest.fn(() => ({})),
   getConstraints: jest.fn(() => ({})),
   reloadConfigs: jest.fn(),
+  validateConfigForContentGeneration: jest.fn(),
+  getPrompt: jest.fn((key: string, defaultValue?: string) => defaultValue || `Mock prompt for ${key}`),
 };
 
 jest.mock("~/server/services/llm/client", () => ({

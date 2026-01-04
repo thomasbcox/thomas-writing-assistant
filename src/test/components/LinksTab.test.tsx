@@ -35,6 +35,13 @@ const mockDeleteMutate = jest.fn();
 const mockCreateMutate = jest.fn();
 
 // Mock the hooks module
+const mockUseUtils = jest.fn(() => ({
+  link: {
+    getByConcept: { invalidate: jest.fn() },
+    getAll: { invalidate: jest.fn() },
+  },
+}));
+
 jest.unstable_mockModule("../../hooks/useIPC", () => ({
   api: {
     concept: {
@@ -73,6 +80,12 @@ jest.unstable_mockModule("../../hooks/useIPC", () => ({
           isLoading: false,
         }),
       },
+      update: {
+        useMutation: (options?: any) => ({
+          mutate: jest.fn(),
+          isLoading: false,
+        }),
+      },
     },
     linkName: {
       getAll: {
@@ -83,13 +96,9 @@ jest.unstable_mockModule("../../hooks/useIPC", () => ({
         }),
       },
     },
+    useUtils: mockUseUtils,
   },
-  useUtils: () => ({
-    link: {
-      getByConcept: { invalidate: jest.fn() },
-      getAll: { invalidate: jest.fn() },
-    },
-  }),
+  useUtils: mockUseUtils,
 }));
 
 // Mock Toast

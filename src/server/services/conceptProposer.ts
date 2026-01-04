@@ -6,76 +6,9 @@ import type { ConfigLoader } from "./config";
 import { getCurrentDb } from "~/server/db";
 import { concept } from "~/server/schema";
 import { eq } from "drizzle-orm";
-
-/**
- * Sliding window chunking function that processes the entire document
- * Uses overlapping windows to ensure 100% coverage without information loss
- * 
- * @param text The full text to chunk
- * @param chunkSize Target size for each chunk in characters (default: 30000)
- * @param overlap Overlap between chunks in characters (default: 5000)
- * @returns Array of text chunks covering the entire document
- */
-function slidingWindowChunk(text: string, chunkSize: number = 30000, overlap: number = 5000): string[] {
-  if (text.length <= chunkSize) {
-    // Document fits in one chunk
-    return [text];
-  }
-
-  const chunks: string[] = [];
-  let start = 0;
-
-  while (start < text.length) {
-    let end = start + chunkSize;
-
-    // If this isn't the last chunk, try to end at a sentence boundary
-    if (end < text.length) {
-      // Look for sentence boundary within the last 20% of the chunk
-      const searchStart = Math.max(start, end - chunkSize * 0.2);
-      const searchEnd = Math.min(text.length, end + 1000); // Allow some flexibility
-      const searchText = text.slice(searchStart, searchEnd);
-      
-      // Find last sentence boundary (period, exclamation, question mark followed by space/newline)
-      const sentenceMatch = searchText.match(/[.!?][\s\n]+/g);
-      if (sentenceMatch && sentenceMatch.length > 0) {
-        const lastMatch = sentenceMatch[sentenceMatch.length - 1];
-        const matchIndex = searchText.lastIndexOf(lastMatch);
-        if (matchIndex !== -1) {
-          end = searchStart + matchIndex + lastMatch.length;
-        }
-      } else {
-        // Fall back to paragraph boundary (double newline)
-        const paraMatch = searchText.match(/\n\s*\n/g);
-        if (paraMatch && paraMatch.length > 0) {
-          const lastMatch = paraMatch[paraMatch.length - 1];
-          const matchIndex = searchText.lastIndexOf(lastMatch);
-          if (matchIndex !== -1) {
-            end = searchStart + matchIndex + lastMatch.length;
-          }
-        }
-      }
-    } else {
-      // Last chunk - include everything to the end
-      end = text.length;
-    }
-
-    const chunk = text.slice(start, end);
-    if (chunk.trim().length > 0) {
-      chunks.push(chunk);
-    }
-
-    // Move start position forward with overlap
-    start = end - overlap;
-    
-    // Ensure we make progress (handle edge case where overlap is too large)
-    const previousStart = chunks.length > 0 ? (start - overlap) : 0;
-    if (start <= previousStart) {
-      start = end;
-    }
-  }
-
-  return chunks;
-}
+import { slidingWindowChunk } from "~/lib/text-processing";
+import { escapeTemplateContent } from "./promptUtils";
+import { findSimilarConcepts } from "./vectorSearch";
 
 export interface ConceptCandidate {
   title: string;
@@ -189,8 +122,7 @@ Extract the content directly from the source text when possible. Only generate c
       chunkLength: chunk.length,
     }, `Processing chunk ${chunkNumber} of ${chunks.length}`);
 
-    // Import prompt utilities for escaping user content
-    const { escapeTemplateContent } = await import("./promptUtils");
+    // Escape user content to prevent prompt injection (using static import)
 
     // Replace template variables (escape user content to prevent prompt injection)
     const prompt = promptTemplate
@@ -315,7 +247,7 @@ Extract the content directly from the source text when possible. Only generate c
   }
 
   // Filter out duplicates using vector search
-  const { findSimilarConcepts } = await import("./vectorSearch");
+  // Use static import for findSimilarConcepts
   const db = getCurrentDb();
   const filteredConcepts: ConceptCandidate[] = [];
   const duplicateThreshold = 0.85; // High similarity threshold for duplicates

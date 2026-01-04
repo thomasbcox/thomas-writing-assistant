@@ -7,6 +7,7 @@
  */
 
 import { getCurrentDb } from "~/server/db";
+import type { DatabaseInstance } from "~/server/db";
 import { conceptEmbedding } from "~/server/schema";
 import { logger } from "~/lib/logger";
 
@@ -27,14 +28,14 @@ class VectorIndex {
   /**
    * Initialize the index from the database
    */
-  async initialize(): Promise<void> {
-    const db = getCurrentDb();
-    const embeddings = await db
-      .select({
-        conceptId: conceptEmbedding.conceptId,
-        embedding: conceptEmbedding.embedding,
-      })
-      .from(conceptEmbedding);
+  async initialize(db?: DatabaseInstance): Promise<void> {
+    const dbInstance = db ?? getCurrentDb();
+    const embeddings = await dbInstance
+            .select({
+              conceptId: conceptEmbedding.conceptId,
+              embedding: conceptEmbedding.embedding,
+            })
+            .from(conceptEmbedding);
 
     this.entries = [];
 

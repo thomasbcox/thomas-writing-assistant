@@ -8,9 +8,11 @@ import { getConfigLoader } from "./config";
 import { logServiceError, logger } from "~/lib/logger";
 import type { LLMClient } from "./llm/client";
 import type { ConfigLoader } from "./config";
-import type { getCurrentDb } from "~/server/db";
+import { getCurrentDb } from "~/server/db";
 import { eq, and, not, notInArray, inArray } from "drizzle-orm";
 import { concept, link, linkName } from "~/server/schema";
+import { findSimilarConcepts, getOrCreateEmbedding } from "./vectorSearch";
+import { escapeTemplateContent } from "./promptUtils";
 
 type Database = ReturnType<typeof getCurrentDb>;
 
@@ -30,8 +32,7 @@ export async function proposeLinksForConcept(
   llmClient?: LLMClient,
   configLoader?: ConfigLoader,
 ): Promise<LinkProposal[]> {
-  const { db } = await import("../db.js");
-  const dbInstance = database ?? db;
+  const dbInstance = database ?? getCurrentDb();
   const client = llmClient ?? getLLMClient();
   const config = configLoader ?? getConfigLoader();
 
@@ -126,11 +127,9 @@ export async function proposeLinksForConcept(
   const sourceConceptData = sourceConcept[0];
   const textToEmbed = `${sourceConceptData.title}\n${sourceConceptData.description || ""}\n${sourceConceptData.content}`;
 
-  // Use vector search to find similar concepts
-  const { findSimilarConcepts, getOrCreateEmbedding } = await import("./vectorSearch");
-  
   // Ensure source concept has an embedding
-  await getOrCreateEmbedding(conceptId, textToEmbed);
+  const model = (await import("./llm/client")).getLLMClient().getProvider() === "openai" ? "text-embedding-3-small" : "text-embedding-004";
+  await getOrCreateEmbedding(conceptId, textToEmbed, model);
 
   // Find similar concepts using vector search (exclude already linked concepts)
   const similarConcepts = await findSimilarConcepts(
@@ -317,8 +316,7 @@ Response format (structured output will ensure valid JSON):
 Only include proposals with confidence >= 0.5. Limit to {{maxProposals}} proposals.`
   );
 
-  // Import prompt utilities for escaping user content
-  const { escapeTemplateContent } = await import("./promptUtils");
+  // Escape user content to prevent prompt injection
 
   // Replace template variables (escape user content to prevent prompt injection)
   const prompt = promptTemplate

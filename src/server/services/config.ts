@@ -215,9 +215,10 @@ export class ConfigLoader {
 
   /**
    * Validate that configs are loaded before content generation
-   * Throws an error if critical configs failed to load
+   * Throws an error if critical configs failed to load or are missing
    */
   validateConfigForContentGeneration(): void {
+    // Check for parse errors first
     if (this.configErrors.size > 0) {
       const errorMessages = Array.from(this.configErrors.entries())
         .map(([file, err]) => `${file}: ${err.message}`)
@@ -225,6 +226,19 @@ export class ConfigLoader {
       throw new Error(
         `Cannot generate content: Critical config files failed to load. ${errorMessages}. ` +
         `Please fix the config files in the Config tab before generating content.`
+      );
+    }
+
+    // Check if required config files exist and are loaded
+    const configDir = path.join(process.cwd(), "config");
+    const styleGuidePath = path.join(configDir, "style_guide.yaml");
+    const styleGuideExists = this.fsModule.existsSync(styleGuidePath);
+    const styleGuideLoaded = styleGuideExists && Object.keys(this.styleGuide).length > 0;
+
+    if (!styleGuideLoaded) {
+      throw new Error(
+        `Cannot generate content: Style guide is missing or empty. ` +
+        `Please create or fix the style_guide.yaml file in the Config tab before generating content.`
       );
     }
   }

@@ -64,3 +64,12 @@ jest.mock("pdf-parse", () => {
 // Mock better-sqlite3 globally to avoid native module issues in tests
 // The mock is defined in src/test/__mocks__/better-sqlite3.ts
 // Jest will automatically use it when better-sqlite3 is imported
+
+// Global test timeout to prevent hanging
+jest.setTimeout(10000); // 10 seconds per test
+
+// Cleanup after all tests to prevent hanging
+afterAll(async () => {
+  // Give any pending async operations time to complete
+  await new Promise((resolve) => setTimeout(resolve, 100));
+});

@@ -10,7 +10,11 @@
  * @param content User-provided content that may contain template markers
  * @returns Escaped content safe for template replacement
  */
-export function escapeTemplateContent(content: string): string {
+export function escapeTemplateContent(content: string | null | undefined): string {
+  // Handle null/undefined
+  if (!content) {
+    return "";
+  }
   // Replace {{ with a safe alternative that won't be interpreted
   // Using a placeholder that's unlikely to appear in user content
   return content

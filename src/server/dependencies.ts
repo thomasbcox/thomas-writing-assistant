@@ -21,6 +21,12 @@ export interface AppDependencies {
   db: DatabaseInstance;
 }
 
+export interface ServiceContext {
+  db: DatabaseInstance;
+  llm: LLMClient;
+  config: ConfigLoader;
+}
+
 let dependencies: AppDependencies | null = null;
 
 /**

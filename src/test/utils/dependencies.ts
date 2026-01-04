@@ -5,7 +5,7 @@
  * Allows tests to inject mocks while maintaining type safety.
  */
 
-import type { AppDependencies } from "~/server/dependencies";
+import type { AppDependencies, ServiceContext } from "~/server/dependencies";
 import type { LLMClient } from "~/server/services/llm/client";
 import type { ConfigLoader } from "~/server/services/config";
 import type { DatabaseInstance } from "~/server/db";
@@ -102,6 +102,29 @@ export function createTestDependenciesSync(
     llmClient: overrides?.llmClient ?? createMockLLMClientForDeps(),
     configLoader: overrides?.configLoader ?? createMockConfigLoaderForDeps(),
     db: overrides?.db ?? testDb,
+  };
+}
+
+/**
+ * Create a test ServiceContext
+ * This function sets up an in-memory database and mock services,
+ * then returns them wrapped in a ServiceContext object.
+ *
+ * @param overrides - Optional partial overrides for any context dependency.
+ * @returns A promise that resolves to a ServiceContext object.
+ */
+export async function createTestContext(overrides?: Partial<ServiceContext>): Promise<ServiceContext> {
+  const db = overrides?.db || createTestDb();
+  if (!overrides?.db) {
+    await migrateTestDb(db);
+  }
+  const llm = overrides?.llm || createMockLLMClientForDeps();
+  const config = overrides?.config || createMockConfigLoaderForDeps();
+
+  return {
+    db,
+    llm,
+    config,
   };
 }
 

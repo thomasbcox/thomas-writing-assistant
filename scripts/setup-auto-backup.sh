@@ -52,3 +52,4 @@ echo "  cd $PROJECT_DIR && npm run db:backup:auto"
 
 
 
+
