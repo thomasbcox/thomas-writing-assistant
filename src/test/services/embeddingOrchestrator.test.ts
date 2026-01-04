@@ -228,6 +228,53 @@ describe("embeddingOrchestrator", () => {
       const index = getVectorIndex();
       expect(index.size()).toBeGreaterThan(0);
     });
+
+    it("should handle LLM errors when generating embedding", async () => {
+      const testConcept = createTestConcept();
+      await testDb.insert(concept).values(testConcept);
+
+      // Make embed fail
+      const embedSpy = jest.fn<() => Promise<number[]>>().mockRejectedValue(new Error("LLM API error"));
+      mockLLMClient.setMockEmbed(embedSpy);
+
+      await expect(generateEmbeddingForConcept(testConcept.id!, testDb)).rejects.toThrow(
+        "LLM API error",
+      );
+
+      // Verify no embedding was stored
+      const embeddings = await testDb
+        .select()
+        .from(conceptEmbedding)
+        .where(eq(conceptEmbedding.conceptId, testConcept.id!));
+      expect(embeddings.length).toBe(0);
+    });
+  });
+
+  describe("error handling", () => {
+    it("should handle errors gracefully in checkAndGenerateMissing", async () => {
+      const concept1 = createTestConcept();
+      const concept2 = createTestConcept();
+      await testDb.insert(concept).values(concept1);
+      await testDb.insert(concept).values(concept2);
+
+      // Make embed fail for some concepts
+      let callCount = 0;
+      const embedSpy = jest.fn().mockImplementation(async () => {
+        callCount++;
+        if (callCount === 1) {
+          throw new Error("LLM API error");
+        }
+        return Array.from(new Float32Array(createDeterministicEmbedding("test").buffer));
+      }) as any;
+      mockLLMClient.setMockEmbed(embedSpy);
+
+      // Should not throw, but continue processing
+      await checkAndGenerateMissing(1);
+
+      // Verify at least one embedding was created (the second one)
+      const embeddings = await testDb.select().from(conceptEmbedding);
+      expect(embeddings.length).toBeGreaterThanOrEqual(1);
+    });
   });
 });
 

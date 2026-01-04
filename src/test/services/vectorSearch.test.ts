@@ -353,6 +353,32 @@ describe("vectorSearch", () => {
 
       expect(callCount).toBeLessThanOrEqual(5);
     });
+
+    it("should handle errors gracefully when generating embeddings fails", async () => {
+      const concept1 = createTestConcept({ id: "concept-err-1", content: "test content 1" });
+      const concept2 = createTestConcept({ id: "concept-err-2", content: "test content 2" });
+      
+      await testDb.insert(concept).values(concept1);
+      await testDb.insert(concept).values(concept2);
+
+      // Make embed always fail - getOrCreateEmbeddingWithContext uses getLLMClient() directly
+      const embedSpy = jest.fn<() => Promise<number[]>>().mockRejectedValue(new Error("LLM API error"));
+      mockLLMClient.setMockEmbed(embedSpy);
+      // Ensure the mock is returned by getLLMClient
+      mockGetLLMClient.mockReturnValue(mockLLMClient.asLLMClient());
+
+      // Should not throw, but log errors and continue (errors are caught in generateMissingEmbeddingsWithContext)
+      await generateMissingEmbeddingsWithContext(testDb, 5);
+
+      // Verify errors were caught (embed was called but failed)
+      expect(embedSpy).toHaveBeenCalled();
+      // Verify no embeddings were created (errors are caught and logged, not stored)
+      const allEmbeddings = await testDb.select().from(conceptEmbedding);
+      expect(allEmbeddings.length).toBe(0);
+    });
+
+    // Note: Corrupted embedding parsing is already tested by
+    // "should regenerate embedding if parsing existing one fails" test above
   });
 });
 
