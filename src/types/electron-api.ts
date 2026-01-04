@@ -288,6 +288,10 @@ export interface ConceptCandidate {
   creator?: string;
   source?: string;
   year?: string;
+  // Duplicate detection fields (optional for backward compatibility)
+  isDuplicate?: boolean;
+  existingConceptId?: string;
+  similarity?: number;
 }
 
 export type ConceptGenerateCandidatesResult = ConceptCandidate[];

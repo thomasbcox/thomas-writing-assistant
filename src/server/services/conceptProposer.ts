@@ -11,6 +11,10 @@ export interface ConceptCandidate {
   content: string;
   summary: string;
   description?: string;
+  // Duplicate detection fields (optional for backward compatibility)
+  isDuplicate?: boolean;
+  existingConceptId?: string;
+  similarity?: number;
 }
 
 export async function generateConceptCandidates(
@@ -262,7 +266,7 @@ Extract the content directly from the source text when possible. Only generate c
     );
 
     if (similarConcepts.length > 0) {
-      // Found a duplicate - log it but don't add to results
+      // Found a potential duplicate - return it with flags so user can decide
       const existingConcept = await db
         .select()
         .from(concept)
@@ -277,23 +281,32 @@ Extract the content directly from the source text when possible. Only generate c
           existingConceptId: existingConcept[0].id,
           existingConceptTitle: existingConcept[0].title,
           similarity: similarConcepts[0].similarity,
-        }, "Filtered out duplicate concept candidate");
-        continue; // Skip this candidate
+        }, "Found potential duplicate concept candidate - returning with flag for user decision");
+        
+        // Return candidate with duplicate flags instead of filtering it out
+        filteredConcepts.push({
+          ...candidate,
+          isDuplicate: true,
+          existingConceptId: existingConcept[0].id,
+          similarity: similarConcepts[0].similarity,
+        });
+        continue; // Skip adding it again as a regular candidate
       }
     }
 
-    // No duplicate found, add to results
+    // No duplicate found, add to results as regular candidate
     filteredConcepts.push(candidate);
   }
 
   const totalDuration = Date.now() - startTime;
+  const duplicatesFound = filteredConcepts.filter((c) => c.isDuplicate === true).length;
   logger.info({
     service: "conceptProposer",
     operation: "generateConceptCandidates",
     totalDuration,
     conceptsGenerated: validConcepts.length,
-    conceptsAfterDeduplication: filteredConcepts.length,
-    duplicatesFiltered: validConcepts.length - filteredConcepts.length,
+    conceptsReturned: filteredConcepts.length,
+    duplicatesFound,
     conceptsTitles: filteredConcepts.map((c) => c.title),
   }, "Successfully generated concept candidates with duplicate detection");
 

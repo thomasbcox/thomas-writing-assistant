@@ -10,6 +10,10 @@ interface ConceptCandidate {
   content: string;
   summary: string;
   description?: string;
+  // Duplicate detection fields (optional for backward compatibility)
+  isDuplicate?: boolean;
+  existingConceptId?: string;
+  similarity?: number;
 }
 
 interface ConceptCandidateListProps {

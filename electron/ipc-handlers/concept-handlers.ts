@@ -164,10 +164,14 @@ export function registerConceptHandlers() {
 
     logger.info({ operation: "concept:create", conceptId: newConcept.id, title: parsed.title, identifier }, "Concept created successfully");
     
-    // Generate embedding immediately to update VectorIndex (fire and forget for UX, but synchronous for index)
-    generateEmbeddingForConcept(newConcept.id, db as DatabaseInstance).catch((error) => {
+    // Generate embedding immediately to update VectorIndex - await to ensure index is updated before returning
+    // This ensures the concept is immediately searchable without requiring an app restart
+    try {
+      await generateEmbeddingForConcept(newConcept.id, db as DatabaseInstance);
+    } catch (error) {
       logger.error({ conceptId: newConcept.id, error }, "Failed to generate embedding for new concept");
-    });
+      // Don't throw - concept was created successfully, embedding failure is logged but doesn't block creation
+    }
     
     return serializeConcept(newConcept);
   });
@@ -192,10 +196,14 @@ export function registerConceptHandlers() {
       throw new Error("Concept not found");
     }
 
-    // Re-generate embedding for updated concept to keep VectorIndex fresh
-    generateEmbeddingForConcept(updatedConcept.id, db as DatabaseInstance).catch((error) => {
+    // Re-generate embedding for updated concept to keep VectorIndex fresh - await to ensure index is updated before returning
+    // This ensures the updated concept is immediately searchable with its new content
+    try {
+      await generateEmbeddingForConcept(updatedConcept.id, db as DatabaseInstance);
+    } catch (error) {
       logger.error({ conceptId: updatedConcept.id, error }, "Failed to re-generate embedding for updated concept");
-    });
+      // Don't throw - concept was updated successfully, embedding failure is logged but doesn't block update
+    }
 
     logger.info({ operation: "concept:update", conceptId: id, title: updatedConcept.title }, "Concept updated successfully");
     return serializeConcept(updatedConcept);

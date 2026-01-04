@@ -197,5 +197,3 @@ The prompt should:
 5. Test applying edits to existing concepts
 
 ## Migration Notes
-
-- Existing code expects `ConceptCandidate[]` - need to update all consumers
