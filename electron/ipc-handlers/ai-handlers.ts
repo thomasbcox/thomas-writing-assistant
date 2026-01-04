@@ -1,6 +1,5 @@
 import { ipcMain } from "electron";
 import { z } from "zod";
-import { appendFileSync } from "fs";
 import { getLLMClient } from "../../src/server/services/llm/client.js";
 import { env } from "../../src/env.js";
 import { getEmbeddingStatus, checkAndGenerateMissing } from "../../src/server/services/embeddingOrchestrator.js";
@@ -10,10 +9,6 @@ export function registerAiHandlers() {
   ipcMain.handle("ai:getSettings", async () => {
     const hasOpenAI = !!env.OPENAI_API_KEY;
     const hasGemini = !!env.GOOGLE_API_KEY;
-    
-    // #region agent log
-    appendFileSync('/Users/thomasbcox/Projects/thomas-writing-assistant/.cursor/debug.log', JSON.stringify({location:'ai-handlers.ts:13',message:'ai:getSettings called',data:{hasOpenAI,hasGemini,envOpenAI:env.OPENAI_API_KEY?'SET':'UNSET',envGoogle:env.GOOGLE_API_KEY?'SET':'UNSET',processEnvOpenAI:process.env.OPENAI_API_KEY?'SET':'UNSET',processEnvGoogle:process.env.GOOGLE_API_KEY?'SET':'UNSET'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'}) + '\n');
-    // #endregion
     
     // If no API keys are available, return default settings
     if (!hasOpenAI && !hasGemini) {

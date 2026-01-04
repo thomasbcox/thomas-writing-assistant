@@ -319,7 +319,7 @@ Only include proposals with confidence >= 0.5. Limit to {{maxProposals}} proposa
   const prompt = promptTemplate
     .replace(/\{\{sourceTitle\}\}/g, escapeTemplateContent(sourceConcept.title))
     .replace(/\{\{sourceDescription\}\}/g, escapeTemplateContent(sourceConcept.description ?? "None"))
-    .replace(/\{\{sourceContentPreview\}\}/g, escapeTemplateContent(sourceConcept.content.slice(0, 500)))
+    .replace(/\{\{sourceContentPreview\}\}/g, escapeTemplateContent((sourceConcept.content ?? "").slice(0, 500)))
     .replace(/\{\{candidateList\}\}/g, candidateList) // Already formatted, safe
     .replace(/\{\{linkNames\}\}/g, allLinkNames) // Already formatted, safe
     .replace(/\{\{maxProposals\}\}/g, String(maxProposals));
