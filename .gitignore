@@ -64,3 +64,4 @@ nohup.out
 .pytest_cache/
 .coverage
 htmlcov/
+coverage/

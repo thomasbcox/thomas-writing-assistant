@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, jest } from "@jest/globals";
-import { logger, logTRPCError, logServiceError, createChildLogger } from "~/lib/logger";
+import { logger, logServiceError, createChildLogger } from "~/lib/logger";
 import pino from "pino";
 
 // Mock pino to capture log calls
@@ -67,74 +67,6 @@ describe("Logger", () => {
     });
   });
 
-  describe("logTRPCError", () => {
-    test("should log Error objects with full context", () => {
-      const error = new Error("Test error message");
-      error.stack = "Error: Test error message\n    at test.ts:1:1";
-
-      logTRPCError(error, {
-        path: "/api/trpc/concept.create",
-        type: "mutation",
-        input: { title: "Test Concept" },
-        requestId: "req-123",
-      });
-
-      // Verify the function doesn't throw
-      expect(true).toBe(true);
-    });
-
-    test("should handle non-Error objects", () => {
-      const error = "String error";
-
-      logTRPCError(error, {
-        path: "/api/trpc/concept.list",
-        type: "query",
-      });
-
-      expect(true).toBe(true);
-    });
-
-    test("should include all context fields", () => {
-      const error = new Error("Test error");
-      const context = {
-        path: "/api/trpc/link.create",
-        type: "mutation",
-        input: { sourceId: "1", targetId: "2" },
-        requestId: "req-456",
-      };
-
-      logTRPCError(error, context);
-
-      expect(true).toBe(true);
-    });
-
-    test("should handle missing optional fields", () => {
-      const error = new Error("Test error");
-
-      logTRPCError(error, {});
-
-      expect(true).toBe(true);
-    });
-
-    test("should include error metadata", () => {
-      class CustomError extends Error {
-        constructor(message: string) {
-          super(message);
-          this.name = "CustomError";
-        }
-      }
-
-      const error = new CustomError("Custom error message");
-      error.stack = "CustomError: Custom error message\n    at test.ts:1:1";
-
-      logTRPCError(error, {
-        path: "/api/trpc/test",
-      });
-
-      expect(true).toBe(true);
-    });
-  });
-
   describe("logServiceError", () => {
     test("should log service errors with context", () => {
       const error = new Error("Service error");
@@ -196,17 +128,6 @@ describe("Logger", () => {
   });
 
   describe("error serialization", () => {
-    test("should serialize Error objects correctly", () => {
-      const error = new Error("Serialization test");
-      error.stack = "Error: Serialization test\n    at test.ts:1:1";
-
-      logTRPCError(error, {
-        path: "/api/trpc/test",
-      });
-
-      expect(true).toBe(true);
-    });
-
     test("should handle errors without stack traces", () => {
       const error = new Error("No stack");
       delete (error as { stack?: string }).stack;

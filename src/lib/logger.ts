@@ -117,37 +117,6 @@ export function createChildLogger(context: Record<string, unknown>) {
 }
 
 /**
- * Helper to log tRPC errors with full context
- */
-export function logTRPCError(
-  error: unknown,
-  context: {
-    path?: string;
-    type?: string;
-    input?: unknown;
-    requestId?: string;
-  },
-) {
-  const errorObj = error instanceof Error ? error : new Error(String(error));
-
-  logger.error(
-    {
-      err: errorObj,
-      path: context.path,
-      type: context.type,
-      input: context.input,
-      requestId: context.requestId,
-      // Include full stack trace
-      stack: errorObj.stack,
-      // Error metadata
-      errorType: errorObj.constructor.name,
-      errorMessage: errorObj.message,
-    },
-    `tRPC error on ${context.path ?? "<no-path>"}`,
-  );
-}
-
-/**
  * Helper to log service errors with full context
  * Enhanced for AI-first diagnosis with comprehensive error information
  */
