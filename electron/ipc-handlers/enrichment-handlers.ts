@@ -51,7 +51,6 @@ export function registerEnrichmentHandlers() {
     logger.info({ operation: "enrichment:analyze", title: parsed.title }, "Analyzing concept for enrichment suggestions");
 
     try {
-      const { analyzeConcept } = await import("../../src/server/services/conceptEnricher.js");
       const llmClient = getLLMClient();
       const configLoader = getConfigLoader();
 

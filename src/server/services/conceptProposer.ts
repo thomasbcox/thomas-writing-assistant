@@ -4,7 +4,7 @@ import { concept } from "~/server/schema";
 import { eq } from "drizzle-orm";
 import { slidingWindowChunk } from "~/lib/text-processing";
 import { escapeTemplateContent } from "./promptUtils";
-import { findSimilarConcepts } from "./vectorSearch";
+import { getVectorIndex } from "./vectorIndex";
 
 export interface ConceptCandidate {
   title: string;
@@ -256,13 +256,13 @@ Extract the content directly from the source text when possible. Only generate c
     // Generate embedding for candidate to use in search
     const candidateEmbedding = await client.embed(candidateText);
     
-    // Find similar existing concepts using vector search
-    const similarConcepts = await findSimilarConcepts(
-      candidateText,
+    // Find similar existing concepts using VectorIndex directly (fast in-memory search)
+    const index = getVectorIndex();
+    const similarConcepts = index.search(
+      candidateEmbedding,
       10, // Check top 10 most similar
       duplicateThreshold, // Only consider high similarity matches
       [], // Don't exclude any concepts
-      candidateEmbedding, // Pass pre-computed embedding
     );
 
     if (similarConcepts.length > 0) {

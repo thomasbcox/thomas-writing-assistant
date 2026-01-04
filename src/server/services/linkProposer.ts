@@ -8,7 +8,8 @@ import type { LLMClient } from "./llm/client";
 import type { ConfigLoader } from "./config";
 import { eq, and, not, notInArray, inArray } from "drizzle-orm";
 import { concept, link, linkName } from "~/server/schema";
-import { findSimilarConcepts, getOrCreateEmbeddingWithContext } from "./vectorSearch";
+import { getOrCreateEmbeddingWithContext } from "./embeddingOrchestrator";
+import { getVectorIndex } from "./vectorIndex";
 import { escapeTemplateContent } from "./promptUtils";
 import type { ServiceContext } from "~/server/dependencies";
 
@@ -124,13 +125,14 @@ export async function proposeLinksForConcept(
   const sourceConceptData = sourceConcept[0];
   const textToEmbed = `${sourceConceptData.title}\n${sourceConceptData.description || ""}\n${sourceConceptData.content}`;
 
-  // Ensure source concept has an embedding
+  // Ensure source concept has an embedding and get it for search
   const model = client.getProvider() === "openai" ? "text-embedding-3-small" : "text-embedding-004";
-  await getOrCreateEmbeddingWithContext(conceptId, textToEmbed, dbInstance, model);
+  const sourceEmbedding = await getOrCreateEmbeddingWithContext(conceptId, textToEmbed, dbInstance, model);
 
-  // Find similar concepts using vector search (exclude already linked concepts)
-  const similarConcepts = await findSimilarConcepts(
-    textToEmbed,
+  // Use VectorIndex directly for fast in-memory search (exclude already linked concepts)
+  const index = getVectorIndex();
+  const similarConcepts = index.search(
+    sourceEmbedding,
     100, // Limit to 100 most similar (increased from 20 for better recall with <1000 concepts)
     0.0, // No minimum similarity threshold (we'll let LLM decide)
     [conceptId, ...allLinkedIds], // Exclude source and already linked

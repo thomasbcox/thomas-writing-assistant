@@ -1,9 +1,10 @@
 import { ipcMain } from "electron";
 import { getConfigLoader } from "../../src/server/services/config.js";
 import { app } from "electron";
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import yaml from "js-yaml";
+import { z } from "zod";
 
 export function registerConfigHandlers() {
   // Get style guide
@@ -75,9 +76,7 @@ export function registerConfigHandlers() {
 
   // Update style guide
   ipcMain.handle("config:updateStyleGuide", async (_event, input: unknown) => {
-    const { z } = await import("zod");
     const parsed = z.object({ content: z.string() }).parse(input);
-    const { writeFileSync, mkdirSync, existsSync } = await import("fs");
     
     const configDir = join(app.getPath("userData"), "config");
     if (!existsSync(configDir)) {
@@ -92,9 +91,7 @@ export function registerConfigHandlers() {
 
   // Update credo
   ipcMain.handle("config:updateCredo", async (_event, input: unknown) => {
-    const { z } = await import("zod");
     const parsed = z.object({ content: z.string() }).parse(input);
-    const { writeFileSync, mkdirSync, existsSync } = await import("fs");
     
     const configDir = join(app.getPath("userData"), "config");
     if (!existsSync(configDir)) {
@@ -109,9 +106,7 @@ export function registerConfigHandlers() {
 
   // Update constraints
   ipcMain.handle("config:updateConstraints", async (_event, input: unknown) => {
-    const { z } = await import("zod");
     const parsed = z.object({ content: z.string() }).parse(input);
-    const { writeFileSync, mkdirSync, existsSync } = await import("fs");
     
     const configDir = join(app.getPath("userData"), "config");
     if (!existsSync(configDir)) {
@@ -126,7 +121,6 @@ export function registerConfigHandlers() {
 
   // Get config status
   ipcMain.handle("config:getStatus", async () => {
-    const { existsSync } = await import("fs");
     const configDir = join(app.getPath("userData"), "config");
     
     return {

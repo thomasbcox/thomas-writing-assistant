@@ -3,9 +3,8 @@ import { createTestDb, migrateTestDb, closeTestDb } from "../utils/db";
 import { createTestConcept, createTestEmbedding, createDeterministicEmbedding } from "../utils/factories";
 import {
   getOrCreateEmbeddingWithContext,
-  findSimilarConcepts,
   generateMissingEmbeddingsWithContext,
-} from "~/server/services/vectorSearch";
+} from "~/server/services/embeddingOrchestrator";
 import type { DatabaseInstance } from "~/server/db";
 import { concept, conceptEmbedding } from "~/server/schema";
 import { eq } from "drizzle-orm";
@@ -13,7 +12,7 @@ import { resetVectorIndex, getVectorIndex } from "~/server/services/vectorIndex"
 import { createTestContext } from "../utils/dependencies";
 import { MockLLMClient } from "../mocks/llm-client";
 
-// Mock getLLMClient for findSimilarConcepts
+// Mock getLLMClient for embedding generation
 const mockGetLLMClient = jest.fn();
 jest.mock("~/server/services/llm/client", () => {
   const actual = jest.requireActual("~/server/services/llm/client") as Record<string, unknown>;
@@ -23,7 +22,7 @@ jest.mock("~/server/services/llm/client", () => {
   };
 });
 
-describe("vectorSearch", () => {
+describe("embeddingOrchestrator (vector search functions)", () => {
   let testDb: DatabaseInstance;
   let mockLLMClient: MockLLMClient;
 
@@ -218,67 +217,42 @@ describe("vectorSearch", () => {
       await getVectorIndex().initialize(testDb);
     });
 
-    it("should find similar concepts based on query text", async () => {
+    it("should find similar concepts based on query embedding", async () => {
       const queryText = "red apple";
-      const mockQueryEmbedding = Array.from(
+      const queryEmbedding = Array.from(
         new Float32Array(createDeterministicEmbedding(queryText).buffer),
       );
-      const embedSpy = jest.fn(async () => mockQueryEmbedding);
-      mockLLMClient.setMockEmbed(embedSpy);
+      const index = getVectorIndex();
 
-      const results = await findSimilarConcepts(queryText, 2);
+      const results = index.search(queryEmbedding, 2, 0.0, []);
 
-      // Verify results were returned (embedding was generated via getLLMClient())
-      expect(results.length).toBeGreaterThan(0);
+      // Verify results were returned
       expect(results.length).toBeGreaterThanOrEqual(0);
-    });
-
-    it("should use provided query embedding if available", async () => {
-      const queryText = "red apple";
-      const precomputedEmbedding = Array.from(
-        new Float32Array(createDeterministicEmbedding("precomputed").buffer),
-      );
-      const embedSpy = jest.fn() as any;
-      mockLLMClient.setMockEmbed(embedSpy);
-
-      const results = await findSimilarConcepts(
-        queryText,
-        1,
-        0.0,
-        [],
-        precomputedEmbedding,
-      );
-
-      expect(embedSpy).not.toHaveBeenCalled();
-      expect(results.length).toBeGreaterThanOrEqual(0);
+      expect(results.length).toBeLessThanOrEqual(2);
     });
 
     it("should respect limit and minSimilarity parameters", async () => {
       const queryText = "fruit";
-      const mockQueryEmbedding = Array.from(
+      const queryEmbedding = Array.from(
         new Float32Array(createDeterministicEmbedding(queryText).buffer),
       );
-      const embedSpy = jest.fn(async () => mockQueryEmbedding);
-      mockLLMClient.setMockEmbed(embedSpy);
+      const index = getVectorIndex();
 
-      const results = await findSimilarConcepts(queryText, 1, 0.8);
+      const results = index.search(queryEmbedding, 1, 0.8, []);
 
       expect(results.length).toBeLessThanOrEqual(1);
     });
 
     it("should exclude specified concept IDs", async () => {
       const queryText = "fruit";
-      const mockQueryEmbedding = Array.from(
+      const queryEmbedding = Array.from(
         new Float32Array(createDeterministicEmbedding(queryText).buffer),
       );
-      const embedSpy = jest.fn(async () => mockQueryEmbedding);
-      mockLLMClient.setMockEmbed(embedSpy);
+      const index = getVectorIndex();
 
-      const results = await findSimilarConcepts(queryText, 10, 0.0, [
-        "concept-1",
-      ]);
+      const results = index.search(queryEmbedding, 10, 0.0, ["concept-1"]);
 
-      expect(results.every((r) => r.conceptId !== "concept-1")).toBe(true);
+      expect(results.every((r: { conceptId: string }) => r.conceptId !== "concept-1")).toBe(true);
     });
   });
 

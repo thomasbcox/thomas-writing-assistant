@@ -5,7 +5,7 @@ import { MockLLMClient } from "../mocks/llm-client";
 import { MockConfigLoader } from "../mocks/config-loader";
 import { createTestConcept, createTestLink, createTestLinkName } from "../utils/factories";
 import { concept, link, linkName } from "~/server/schema";
-import { getOrCreateEmbeddingWithContext } from "~/server/services/vectorSearch";
+import { getOrCreateEmbeddingWithContext } from "~/server/services/embeddingOrchestrator";
 import { getVectorIndex, resetVectorIndex } from "~/server/services/vectorIndex";
 import { closeTestDb } from "../utils/db";
 

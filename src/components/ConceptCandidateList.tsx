@@ -95,10 +95,27 @@ export function ConceptCandidateList({
 
       <div className="space-y-4">
         {candidates.map((candidate, index) => (
-          <div key={index} className="border rounded-lg p-4">
+          <div key={index} className={`border rounded-lg p-4 ${candidate.isDuplicate ? "border-yellow-400 bg-yellow-50" : ""}`}>
             <div className="flex justify-between items-start mb-5">
-              <div>
-                <h3 className="font-semibold text-lg">{candidate.title}</h3>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-lg">{candidate.title}</h3>
+                  {candidate.isDuplicate && (
+                    <span className="px-2 py-1 text-xs font-semibold bg-yellow-400 text-yellow-900 rounded">
+                      Potential Duplicate
+                    </span>
+                  )}
+                </div>
+                {candidate.isDuplicate && candidate.similarity !== undefined && (
+                  <p className="text-sm text-yellow-700 mt-1">
+                    Similarity: {Math.round(candidate.similarity * 100)}% match with existing concept
+                  </p>
+                )}
+                {candidate.isDuplicate && candidate.existingConceptId && (
+                  <p className="text-sm text-yellow-700 mt-1">
+                    Existing concept ID: <code className="bg-yellow-100 px-1 rounded">{candidate.existingConceptId}</code>
+                  </p>
+                )}
                 {candidate.description && (
                   <p className="text-sm text-gray-600 italic mt-1">
                     {candidate.description}
@@ -217,12 +234,36 @@ export function ConceptCandidateList({
                 >
                   View Full
                 </button>
-                <button
-                  onClick={() => handleUseCandidate(candidate, index)}
-                  className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
-                >
-                  Use This
-                </button>
+                {candidate.isDuplicate ? (
+                  <>
+                    <button
+                      onClick={() => handleUseCandidate(candidate, index)}
+                      className="px-3 py-1 text-sm bg-yellow-600 text-white rounded hover:bg-yellow-700"
+                      title="Save anyway (creates new concept despite similarity)"
+                    >
+                      Save Anyway
+                    </button>
+                    {candidate.existingConceptId && (
+                      <button
+                        onClick={() => {
+                          // TODO: Implement merge functionality - navigate to existing concept
+                          addToast(`Navigate to existing concept: ${candidate.existingConceptId}`, "info");
+                        }}
+                        className="px-3 py-1 text-sm bg-gray-600 text-white rounded hover:bg-gray-700"
+                        title="View existing concept"
+                      >
+                        View Existing
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <button
+                    onClick={() => handleUseCandidate(candidate, index)}
+                    className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
+                  >
+                    Use This
+                  </button>
+                )}
               </div>
             )}
           </div>

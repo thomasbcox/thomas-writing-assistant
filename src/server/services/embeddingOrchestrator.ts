@@ -6,8 +6,7 @@
 import { getCurrentDb } from "~/server/db";
 import type { DatabaseInstance } from "~/server/db";
 import { concept, conceptEmbedding } from "~/server/schema";
-import { isNull, eq } from "drizzle-orm";
-import { generateMissingEmbeddings, getOrCreateEmbedding } from "./vectorSearch";
+import { isNull, eq, and } from "drizzle-orm";
 import { getVectorIndex } from "./vectorIndex";
 import { logger } from "~/lib/logger";
 import { getLLMClient } from "./llm/client";
@@ -126,7 +125,7 @@ export async function checkAndGenerateMissing(
 
     // Use retry logic with exponential backoff
     const result = await retryWithBackoff(async () => {
-      await generateMissingEmbeddings(batchSize);
+      await generateMissingEmbeddingsWithContext(getCurrentDb(), batchSize);
       return true;
     });
 
@@ -245,6 +244,152 @@ export async function checkAndGenerateMissing(
 }
 
 /**
+ * Get or create embedding for a concept with context
+ * This is the primary function for embedding management
+ */
+export async function getOrCreateEmbeddingWithContext(
+  conceptId: string,
+  text: string,
+  db: DatabaseInstance,
+  model: string = "text-embedding-3-small",
+): Promise<number[]> {
+  // Check if embedding already exists
+  const existing = await db
+    .select()
+    .from(conceptEmbedding)
+    .where(and(eq(conceptEmbedding.conceptId, conceptId), eq(conceptEmbedding.model, model)))
+    .limit(1);
+
+  if (existing.length > 0) {
+    try {
+      const embeddingData = existing[0].embedding;
+      
+      // Handle both binary (Buffer) and legacy JSON text formats
+      if (Buffer.isBuffer(embeddingData)) {
+        // Binary format: Convert blob to Float32Array, then to number[]
+        const floatArray = new Float32Array(embeddingData.buffer, embeddingData.byteOffset, embeddingData.byteLength / 4);
+        return Array.from(floatArray);
+      } else if (typeof embeddingData === "string") {
+        // Legacy JSON format: Parse and convert to binary, then return
+        const parsed = JSON.parse(embeddingData) as number[];
+        // Convert to binary and update the database
+        const floatArray = new Float32Array(parsed);
+        const buffer = Buffer.from(floatArray.buffer);
+        await db
+          .update(conceptEmbedding)
+          .set({ embedding: buffer, updatedAt: new Date() })
+          .where(eq(conceptEmbedding.conceptId, conceptId));
+        return parsed;
+      } else {
+        throw new Error("Unknown embedding format");
+      }
+    } catch (error) {
+      logger.warn({ conceptId, error }, "Failed to parse existing embedding, regenerating");
+      // Fall through to regenerate
+    }
+  }
+
+  // Generate new embedding
+  const llmClient = getLLMClient();
+  let embedding: number[];
+  try {
+    embedding = await llmClient.embed(text);
+  } catch (error) {
+    // If embedding generation fails, don't store anything
+    logger.error({ conceptId, error }, "Failed to generate embedding");
+    throw error;
+  }
+
+  // Convert number[] to binary Buffer (Float32Array)
+  const floatArray = new Float32Array(embedding);
+  const buffer = Buffer.from(floatArray.buffer);
+
+  // Store embedding as binary
+  await db
+    .insert(conceptEmbedding)
+    .values({
+      conceptId,
+      embedding: buffer,
+      model,
+    })
+    .onConflictDoUpdate({
+      target: conceptEmbedding.conceptId,
+      set: {
+        embedding: buffer,
+        updatedAt: new Date(),
+      },
+    });
+
+  // Update in-memory index
+  const index = getVectorIndex();
+  index.addEmbedding(conceptId, embedding);
+
+  return embedding;
+}
+
+/**
+ * Legacy wrapper for getOrCreateEmbeddingWithContext
+ * @deprecated Use getOrCreateEmbeddingWithContext instead
+ */
+export async function getOrCreateEmbedding(
+  conceptId: string,
+  text: string,
+  model: string = "text-embedding-3-small",
+): Promise<number[]> {
+  const db = getCurrentDb();
+  return getOrCreateEmbeddingWithContext(conceptId, text, db, model);
+}
+
+/**
+ * Batch generate embeddings for concepts that don't have them
+ * @param db Database instance
+ * @param batchSize Number of concepts to process at once
+ */
+export async function generateMissingEmbeddingsWithContext(
+  db: DatabaseInstance,
+  batchSize: number = 10,
+): Promise<void> {
+  const llmClient = getLLMClient();
+  const model = llmClient.getProvider() === "openai" ? "text-embedding-3-small" : "text-embedding-004";
+
+  // Find concepts without embeddings
+  const conceptsWithoutEmbeddings = await db
+    .select({
+      id: concept.id,
+      title: concept.title,
+      description: concept.description,
+      content: concept.content,
+    })
+    .from(concept)
+    .leftJoin(conceptEmbedding, eq(concept.id, conceptEmbedding.conceptId))
+    .where(isNull(conceptEmbedding.id))
+    .limit(batchSize);
+
+  logger.info({ count: conceptsWithoutEmbeddings.length }, "Generating embeddings for concepts");
+
+  for (const conceptData of conceptsWithoutEmbeddings) {
+    try {
+      // Create text representation for embedding (title + description + content)
+      const textToEmbed = `${conceptData.title}\n${conceptData.description || ""}\n${conceptData.content}`;
+
+      await getOrCreateEmbeddingWithContext(conceptData.id, textToEmbed, db, model);
+    } catch (error) {
+      logger.error({ conceptId: conceptData.id, error }, "Failed to generate embedding for concept");
+    }
+  }
+}
+
+/**
+ * Generate missing embeddings (backward compatible wrapper)
+ * @deprecated Use generateMissingEmbeddingsWithContext instead
+ */
+export async function generateMissingEmbeddings(
+  batchSize: number = 10,
+): Promise<void> {
+  return generateMissingEmbeddingsWithContext(getCurrentDb(), batchSize);
+}
+
+/**
  * Generate embeddings for a specific concept
  * Useful for immediate embedding after concept creation
  */
@@ -265,11 +410,7 @@ export async function generateEmbeddingForConcept(conceptId: string, db?: Databa
   const llmClient = getLLMClient();
   const model = llmClient.getProvider() === "openai" ? "text-embedding-3-small" : "text-embedding-004";
   
-  await getOrCreateEmbedding(conceptId, textToEmbed, model);
-
-  // Update vector index
-  const index = getVectorIndex();
-  const embedding = await getOrCreateEmbedding(conceptId, textToEmbed, model);
-  index.addEmbedding(conceptId, embedding);
+  // Generate and store embedding, which also updates the VectorIndex
+  await getOrCreateEmbeddingWithContext(conceptId, textToEmbed, dbInstance, model);
 }
 

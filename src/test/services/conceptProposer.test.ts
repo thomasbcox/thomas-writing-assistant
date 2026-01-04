@@ -6,7 +6,7 @@ import { MockConfigLoader } from "../mocks/config-loader";
 import { createTestConcept } from "../utils/factories";
 import { concept, conceptEmbedding } from "~/server/schema";
 import { getVectorIndex, resetVectorIndex } from "~/server/services/vectorIndex";
-import { getOrCreateEmbeddingWithContext } from "~/server/services/vectorSearch";
+import { getOrCreateEmbeddingWithContext } from "~/server/services/embeddingOrchestrator";
 import { closeTestDb } from "../utils/db";
 
 describe("conceptProposer", () => {

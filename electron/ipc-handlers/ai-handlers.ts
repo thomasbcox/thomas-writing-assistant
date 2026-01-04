@@ -200,13 +200,10 @@ export function registerAiHandlers() {
       batchSize: z.number().min(1).max(100).optional(),
     }).parse(input);
 
-    const { checkAndGenerateMissing } = await import("../../src/server/services/embeddingOrchestrator.js");
-    
     // This will automatically retry concepts without embeddings
     await checkAndGenerateMissing(parsed.batchSize ?? 10);
     
     // Return updated status
-    const { getEmbeddingStatus } = await import("../../src/server/services/embeddingOrchestrator.js");
     return await getEmbeddingStatus();
   });
 }

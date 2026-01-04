@@ -315,9 +315,6 @@ export function registerConceptHandlers() {
     logger.info({ operation: "concept:generateCandidates", textLength: parsed.text?.length ?? 0, maxCandidates: parsed.maxCandidates }, "Generating concept candidates from text");
 
     try {
-      const { generateConceptCandidates } = await import(
-        "../../src/server/services/conceptProposer.js"
-      );
       const db = getDb();
       const llmClient = getLLMClient();
       const configLoader = getConfigLoader();
