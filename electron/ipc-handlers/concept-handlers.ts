@@ -7,6 +7,11 @@ import { getDb } from "../db.js";
 import { getLLMClient } from "../../src/server/services/llm/client.js";
 import { getConfigLoader } from "../../src/server/services/config.js";
 import { logger, logServiceError } from "../../src/lib/logger.js";
+import { proposeLinksForConcept } from "../../src/server/services/linkProposer.js";
+import { generateConceptCandidates } from "../../src/server/services/conceptProposer.js";
+import { serializeConcept } from "../../src/lib/serializers.js";
+import { generateEmbeddingForConcept } from "../../src/server/services/embeddingOrchestrator.js";
+import type { DatabaseInstance } from "../../src/server/db.js";
 
 // Input schemas
 const listInputSchema = z.object({
@@ -67,7 +72,7 @@ export function registerConceptHandlers() {
   ipcMain.handle("concept:list", async (_event, input: unknown) => {
     const parsed = listInputSchema.parse(input);
     const db = getDb();
-    const sqlite = (db as any).session?.client;
+    // Removed unused sqlite variable - was not being used
 
     logger.info({ operation: "concept:list", includeTrash: parsed.includeTrash, search: parsed.search }, "Fetching concepts");
 
@@ -78,12 +83,14 @@ export function registerConceptHandlers() {
     }
 
     if (parsed.search) {
-      conditions.push(
-        or(
-          like(concept.title, `%${parsed.search}%`),
-          like(concept.description, `%${parsed.search}%`),
-        )!,
-      );
+      const searchConditions = [
+        like(concept.title, `%${parsed.search}%`),
+        like(concept.description, `%${parsed.search}%`),
+      ].filter(Boolean);
+      
+      if (searchConditions.length > 0) {
+        conditions.push(or(...searchConditions));
+      }
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -95,7 +102,7 @@ export function registerConceptHandlers() {
       .orderBy(desc(concept.createdAt));
 
     logger.info({ operation: "concept:list", count: concepts.length }, "Concepts fetched successfully");
-    return concepts;
+    return concepts.map(serializeConcept);
   });
 
   // Get concept by ID
@@ -129,7 +136,7 @@ export function registerConceptHandlers() {
     }
 
     logger.info({ operation: "concept:getById", conceptId: parsed.id, title: foundConcept.title }, "Concept fetched successfully");
-    return foundConcept;
+    return serializeConcept(foundConcept);
   });
 
   // Create concept
@@ -156,7 +163,13 @@ export function registerConceptHandlers() {
       .returning();
 
     logger.info({ operation: "concept:create", conceptId: newConcept.id, title: parsed.title, identifier }, "Concept created successfully");
-    return newConcept;
+    
+    // Generate embedding immediately to update VectorIndex (fire and forget for UX, but synchronous for index)
+    generateEmbeddingForConcept(newConcept.id, db as DatabaseInstance).catch((error) => {
+      logger.error({ conceptId: newConcept.id, error }, "Failed to generate embedding for new concept");
+    });
+    
+    return serializeConcept(newConcept);
   });
 
   // Update concept
@@ -179,8 +192,13 @@ export function registerConceptHandlers() {
       throw new Error("Concept not found");
     }
 
+    // Re-generate embedding for updated concept to keep VectorIndex fresh
+    generateEmbeddingForConcept(updatedConcept.id, db as DatabaseInstance).catch((error) => {
+      logger.error({ conceptId: updatedConcept.id, error }, "Failed to re-generate embedding for updated concept");
+    });
+
     logger.info({ operation: "concept:update", conceptId: id, title: updatedConcept.title }, "Concept updated successfully");
-    return updatedConcept;
+    return serializeConcept(updatedConcept);
   });
 
   // Delete concept (soft delete)
@@ -205,7 +223,7 @@ export function registerConceptHandlers() {
     }
 
     logger.info({ operation: "concept:delete", conceptId: parsed.id, title: deletedConcept.title }, "Concept soft-deleted successfully");
-    return deletedConcept;
+    return serializeConcept(deletedConcept);
   });
 
   // Restore concept
@@ -230,7 +248,7 @@ export function registerConceptHandlers() {
     }
 
     logger.info({ operation: "concept:restore", conceptId: parsed.id, title: restoredConcept.title }, "Concept restored successfully");
-    return restoredConcept;
+    return serializeConcept(restoredConcept);
   });
 
   // Purge trash
@@ -264,18 +282,14 @@ export function registerConceptHandlers() {
     logger.info({ operation: "concept:proposeLinks", conceptId: parsed.conceptId, maxProposals: parsed.maxProposals }, "Proposing links for concept");
 
     try {
-      const { proposeLinksForConcept } = await import(
-        "../../src/server/services/linkProposer.js"
-      );
       const llmClient = getLLMClient();
       const configLoader = getConfigLoader();
+      const context = { db: db as DatabaseInstance, llm: llmClient, config: configLoader };
 
       const result = await proposeLinksForConcept(
         parsed.conceptId,
         parsed.maxProposals,
-        db as any,
-        llmClient,
-        configLoader,
+        context,
       );
 
       logger.info({ operation: "concept:proposeLinks", conceptId: parsed.conceptId, proposalCount: result?.length ?? 0 }, "Link proposals generated successfully");
@@ -296,17 +310,18 @@ export function registerConceptHandlers() {
       const { generateConceptCandidates } = await import(
         "../../src/server/services/conceptProposer.js"
       );
+      const db = getDb();
       const llmClient = getLLMClient();
       const configLoader = getConfigLoader();
+      const context = { db: db as DatabaseInstance, llm: llmClient, config: configLoader };
 
       const result = await generateConceptCandidates(
         parsed.text,
         parsed.instructions,
         parsed.maxCandidates,
+        context,
         parsed.defaultCreator,
         parsed.defaultYear,
-        llmClient,
-        configLoader,
       );
 
       logger.info({ operation: "concept:generateCandidates", candidateCount: result?.length ?? 0 }, "Concept candidates generated successfully");

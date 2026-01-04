@@ -1,9 +1,10 @@
 import { ipcMain } from "electron";
 import { z } from "zod";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, isNull } from "drizzle-orm";
 import { offer, capsule } from "../../src/server/schema.js";
 import { getDb } from "../db.js";
 import { logger, logServiceError } from "../../src/lib/logger.js";
+import { serializeOffer, serializeCapsule, serializeOfferWithCapsules } from "../../src/lib/serializers.js";
 
 // Input schemas
 const createOfferSchema = z.object({
@@ -84,7 +85,7 @@ export function registerOfferHandlers() {
       }
 
       logger.info({ operation: "offer:getById", offerId: parsed.id, capsuleCount: foundOffer.capsules?.length ?? 0 }, "Offer fetched successfully");
-      return foundOffer;
+      return serializeOfferWithCapsules(foundOffer);
     } catch (error) {
       logServiceError(error, "offer.getById", { offerId: parsed.id });
       throw error;
@@ -108,7 +109,7 @@ export function registerOfferHandlers() {
         .returning();
 
       logger.info({ operation: "offer:create", offerId: newOffer.id, name: parsed.name }, "Offer created successfully");
-      return newOffer;
+      return serializeOffer(newOffer);
     } catch (error) {
       logServiceError(error, "offer.create", { name: parsed.name });
       throw error;
@@ -137,7 +138,7 @@ export function registerOfferHandlers() {
       }
 
       logger.info({ operation: "offer:update", offerId: id }, "Offer updated successfully");
-      return updatedOffer;
+      return serializeOffer(updatedOffer);
     } catch (error) {
       logServiceError(error, "offer.update", { offerId: parsed.id });
       throw error;
@@ -213,7 +214,7 @@ export function registerOfferHandlers() {
       }
 
       logger.info({ operation: "offer:assignCapsule", capsuleId: parsed.capsuleId, offerId: parsed.offerId }, "Capsule assigned successfully");
-      return updatedCapsule;
+      return serializeCapsule(updatedCapsule);
     } catch (error) {
       logServiceError(error, "offer.assignCapsule", { capsuleId: parsed.capsuleId, offerId: parsed.offerId });
       throw error;
@@ -230,11 +231,11 @@ export function registerOfferHandlers() {
       const unassignedCapsules = await db
         .select()
         .from(capsule)
-        .where(eq(capsule.offerId, null as any)) // SQLite null comparison
+        .where(isNull(capsule.offerId)) // SQLite null comparison
         .orderBy(desc(capsule.createdAt));
 
       logger.info({ operation: "offer:getUnassignedCapsules", count: unassignedCapsules.length }, "Unassigned capsules fetched successfully");
-      return unassignedCapsules;
+      return unassignedCapsules.map(serializeCapsule);
     } catch (error) {
       logServiceError(error, "offer.getUnassignedCapsules");
       throw error;

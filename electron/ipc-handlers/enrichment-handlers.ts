@@ -3,6 +3,7 @@ import { z } from "zod";
 import { logger, logServiceError } from "../../src/lib/logger.js";
 import { getLLMClient } from "../../src/server/services/llm/client.js";
 import { getConfigLoader } from "../../src/server/services/config.js";
+import { analyzeConcept, enrichMetadata, chatEnrichConcept, expandDefinition } from "../../src/server/services/conceptEnricher.js";
 
 // Input schemas
 const analyzeConceptInputSchema = z.object({
@@ -77,7 +78,6 @@ export function registerEnrichmentHandlers() {
     logger.info({ operation: "enrichment:enrichMetadata", title: parsed.title }, "Enriching concept metadata");
 
     try {
-      const { enrichMetadata } = await import("../../src/server/services/conceptEnricher.js");
       const llmClient = getLLMClient();
       const configLoader = getConfigLoader();
 
@@ -110,7 +110,6 @@ export function registerEnrichmentHandlers() {
     }, "Processing enrichment chat message");
 
     try {
-      const { chatEnrichConcept } = await import("../../src/server/services/conceptEnricher.js");
       const llmClient = getLLMClient();
       const configLoader = getConfigLoader();
 
@@ -149,7 +148,6 @@ export function registerEnrichmentHandlers() {
     logger.info({ operation: "enrichment:expandDefinition", title: parsed.conceptTitle }, "Expanding concept definition");
 
     try {
-      const { expandDefinition } = await import("../../src/server/services/conceptEnricher.js");
       const llmClient = getLLMClient();
       const configLoader = getConfigLoader();
 

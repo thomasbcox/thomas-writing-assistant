@@ -1,6 +1,6 @@
 /**
  * IPC Client - Type-safe wrapper around Electron IPC
- * Replaces tRPC client for Electron app
+ * IPC client for Electron app
  */
 
 // Check if we're in Electron
@@ -29,7 +29,7 @@ const getWindowRuntime = () => {
   return undefined;
 };
 
-// Type-safe IPC client that mimics tRPC API structure
+// Type-safe IPC client with a consistent API structure
 export const ipc = {
   concept: {
     list: (input: { includeTrash?: boolean; search?: string }) => {

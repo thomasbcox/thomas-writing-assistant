@@ -3,6 +3,7 @@ import { z } from "zod";
 import { appendFileSync } from "fs";
 import { getLLMClient } from "../../src/server/services/llm/client.js";
 import { env } from "../../src/env.js";
+import { getEmbeddingStatus, checkAndGenerateMissing } from "../../src/server/services/embeddingOrchestrator.js";
 
 export function registerAiHandlers() {
   // Get AI settings
@@ -183,7 +184,6 @@ export function registerAiHandlers() {
 
   // Get embedding status
   ipcMain.handle("ai:getEmbeddingStatus", async () => {
-    const { getEmbeddingStatus } = await import("../../src/server/services/embeddingOrchestrator.js");
     return await getEmbeddingStatus();
   });
 
@@ -193,11 +193,9 @@ export function registerAiHandlers() {
       batchSize: z.number().min(1).max(100).optional(),
     }).parse(input);
 
-    const { checkAndGenerateMissing } = await import("../../src/server/services/embeddingOrchestrator.js");
     await checkAndGenerateMissing(parsed.batchSize ?? 10);
     
     // Return updated status
-    const { getEmbeddingStatus } = await import("../../src/server/services/embeddingOrchestrator.js");
     return await getEmbeddingStatus();
   });
 

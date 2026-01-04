@@ -3,18 +3,17 @@
  * Uses Drizzle ORM for database access
  */
 
-import { getLLMClient } from "./llm/client";
-import { getConfigLoader } from "./config";
 import { logServiceError, logger } from "~/lib/logger";
 import type { LLMClient } from "./llm/client";
 import type { ConfigLoader } from "./config";
-import { getCurrentDb } from "~/server/db";
 import { eq, and, not, notInArray, inArray } from "drizzle-orm";
 import { concept, link, linkName } from "~/server/schema";
-import { findSimilarConcepts, getOrCreateEmbedding } from "./vectorSearch";
+import { findSimilarConcepts, getOrCreateEmbeddingWithContext } from "./vectorSearch";
 import { escapeTemplateContent } from "./promptUtils";
+import type { ServiceContext } from "~/server/dependencies";
 
-type Database = ReturnType<typeof getCurrentDb>;
+import type { DatabaseInstance } from "~/server/db";
+type Database = DatabaseInstance;
 
 export interface LinkProposal {
   source: string;
@@ -28,13 +27,11 @@ export interface LinkProposal {
 export async function proposeLinksForConcept(
   conceptId: string,
   maxProposals: number = 5,
-  database?: Database,
-  llmClient?: LLMClient,
-  configLoader?: ConfigLoader,
+  context: ServiceContext,
 ): Promise<LinkProposal[]> {
-  const dbInstance = database ?? getCurrentDb();
-  const client = llmClient ?? getLLMClient();
-  const config = configLoader ?? getConfigLoader();
+  const dbInstance = context.db;
+  const client = context.llm;
+  const config = context.config;
 
   // Validate config before generating content
   try {
@@ -128,8 +125,8 @@ export async function proposeLinksForConcept(
   const textToEmbed = `${sourceConceptData.title}\n${sourceConceptData.description || ""}\n${sourceConceptData.content}`;
 
   // Ensure source concept has an embedding
-  const model = (await import("./llm/client")).getLLMClient().getProvider() === "openai" ? "text-embedding-3-small" : "text-embedding-004";
-  await getOrCreateEmbedding(conceptId, textToEmbed, model);
+  const model = client.getProvider() === "openai" ? "text-embedding-3-small" : "text-embedding-004";
+  await getOrCreateEmbeddingWithContext(conceptId, textToEmbed, dbInstance, model);
 
   // Find similar concepts using vector search (exclude already linked concepts)
   const similarConcepts = await findSimilarConcepts(

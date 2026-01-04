@@ -4,6 +4,7 @@ import { eq, and, desc, inArray } from "drizzle-orm";
 import { link, linkName, concept } from "../../src/server/schema.js";
 import { getDb } from "../db.js";
 import { logger, logServiceError } from "../../src/lib/logger.js";
+import { serializeLink, serializeLinkName, serializeConcept, serializeLinkWithRelations } from "../../src/lib/serializers.js";
 
 // Helper to check if error is a Drizzle relation error
 function isDrizzleRelationError(error: unknown): boolean {
@@ -81,7 +82,7 @@ export function registerLinkHandlers() {
       const targetMap = new Map(allTargets.map(c => [c.id, c] as [string, typeof c]));
       const linkNameMap = new Map(allLinkNames.map(ln => [ln.id, ln] as [string, typeof ln]));
 
-      return linksData.map(l => ({
+      return linksData.map(l => serializeLinkWithRelations({
         ...l,
         source: sourceMap.get(l.sourceId) || null,
         target: targetMap.get(l.targetId) || null,
@@ -117,7 +118,10 @@ export function registerLinkHandlers() {
       });
 
       logger.info({ operation: "link:getByConcept", conceptId: parsed.conceptId, outgoing: outgoing.length, incoming: incoming.length }, "Links for concept fetched successfully");
-      return { outgoing, incoming };
+      return { 
+        outgoing: outgoing.map(serializeLinkWithRelations), 
+        incoming: incoming.map(serializeLinkWithRelations) 
+      };
     } catch (error: unknown) {
       if (!isDrizzleRelationError(error)) {
         logServiceError(error, "link.getByConcept", { conceptId: parsed.conceptId });
@@ -154,7 +158,7 @@ export function registerLinkHandlers() {
       const targetMap = new Map(allTargets.map(c => [c.id, c] as [string, typeof c]));
       const linkNameMap = new Map(allLinkNames.map(ln => [ln.id, ln] as [string, typeof ln]));
 
-      const mapLink = (l: typeof outgoingData[0]) => ({
+      const mapLink = (l: typeof outgoingData[0]) => serializeLinkWithRelations({
         ...l,
         source: sourceMap.get(l.sourceId) || null,
         target: targetMap.get(l.targetId) || null,
@@ -221,7 +225,7 @@ export function registerLinkHandlers() {
             linkName: true,
           },
         });
-        return fullLink!;
+        return serializeLinkWithRelations(fullLink!);
       } catch {
         const [sourceResult, targetResult, linkNameResult] = await Promise.all([
           db.select().from(concept).where(eq(concept.id, updatedLink.sourceId)).limit(1),
@@ -259,7 +263,7 @@ export function registerLinkHandlers() {
           linkName: true,
         },
       });
-      return fullLink!;
+      return serializeLinkWithRelations(fullLink!);
     } catch (error) {
       logServiceError(error, "link.create.fetchRelations", { linkId: newLink.id });
       const [sourceResult, targetResult, linkNameResult] = await Promise.all([
@@ -268,12 +272,12 @@ export function registerLinkHandlers() {
         db.select().from(linkName).where(eq(linkName.id, newLink.linkNameId)).limit(1),
       ]);
 
-      return {
+      return serializeLinkWithRelations({
         ...newLink,
         source: sourceResult[0] || null,
         target: targetResult[0] || null,
         linkName: linkNameResult[0] || null,
-      };
+      });
     }
   });
 
@@ -324,7 +328,7 @@ export function registerLinkHandlers() {
           linkName: true,
         },
       });
-      return fullLink!;
+      return serializeLinkWithRelations(fullLink!);
     } catch {
       const [sourceResult, targetResult, linkNameResult] = await Promise.all([
         db.select().from(concept).where(eq(concept.id, updatedLink.sourceId)).limit(1),
@@ -332,12 +336,12 @@ export function registerLinkHandlers() {
         db.select().from(linkName).where(eq(linkName.id, updatedLink.linkNameId)).limit(1),
       ]);
 
-      return {
+      return serializeLinkWithRelations({
         ...updatedLink,
         source: sourceResult[0] || null,
         target: targetResult[0] || null,
         linkName: linkNameResult[0] || null,
-      };
+      });
     }
   });
 

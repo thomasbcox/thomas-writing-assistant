@@ -1,9 +1,5 @@
-import { getLLMClient } from "./llm/client";
-import { getConfigLoader } from "./config";
 import { logServiceError, logger } from "~/lib/logger";
-import type { LLMClient } from "./llm/client";
-import type { ConfigLoader } from "./config";
-import { getCurrentDb } from "~/server/db";
+import type { ServiceContext } from "~/server/dependencies";
 import { concept } from "~/server/schema";
 import { eq } from "drizzle-orm";
 import { slidingWindowChunk } from "~/lib/text-processing";
@@ -21,15 +17,13 @@ export async function generateConceptCandidates(
   text: string,
   instructions: string | undefined,
   maxCandidates: number,
+  context: ServiceContext,
   defaultCreator?: string,
   defaultYear?: string,
-  llmClient?: LLMClient,
-  configLoader?: ConfigLoader,
 ): Promise<ConceptCandidate[]> {
   const startTime = Date.now();
-  // Use provided instances or fall back to singletons for backward compatibility
-  const client = llmClient ?? getLLMClient();
-  const config = configLoader ?? getConfigLoader();
+  const client = context.llm;
+  const config = context.config;
 
   // Validate config before generating content
   try {
@@ -248,7 +242,7 @@ Extract the content directly from the source text when possible. Only generate c
 
   // Filter out duplicates using vector search
   // Use static import for findSimilarConcepts
-  const db = getCurrentDb();
+  const db = context.db;
   const filteredConcepts: ConceptCandidate[] = [];
   const duplicateThreshold = 0.85; // High similarity threshold for duplicates
 

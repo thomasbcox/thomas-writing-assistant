@@ -48,10 +48,9 @@ describe("conceptProposer", () => {
         "Test text input",
         undefined,
         5,
+        context,
         undefined,
         undefined,
-        mockLLMClient.asLLMClient(),
-        mockConfigLoader as any,
       );
 
       expect(result).toHaveLength(1);
@@ -73,10 +72,9 @@ describe("conceptProposer", () => {
         "Test text",
         undefined,
         5,
+        context,
         undefined,
         undefined,
-        mockLLMClient.asLLMClient(),
-        mockConfigLoader as any,
       );
 
       expect(result).toHaveLength(0);
@@ -115,10 +113,9 @@ describe("conceptProposer", () => {
         "Test text",
         undefined,
         5,
+        context,
         undefined,
         undefined,
-        mockLLMClient.asLLMClient(),
-        mockConfigLoader as any,
       );
 
       expect(result.length).toBeGreaterThanOrEqual(1);
@@ -142,10 +139,9 @@ describe("conceptProposer", () => {
         "Test text",
         undefined,
         5,
+        context,
         undefined,
         undefined,
-        mockLLMClient.asLLMClient(),
-        mockConfigLoader as any,
       );
 
       expect(result).toHaveLength(0);
@@ -177,10 +173,9 @@ describe("conceptProposer", () => {
         largeText,
         undefined,
         5,
+        context,
         undefined,
         undefined,
-        mockLLMClient.asLLMClient(),
-        mockConfigLoader as any,
       );
 
       expect(result).toHaveLength(1);
@@ -214,10 +209,9 @@ describe("conceptProposer", () => {
         "Test text",
         "Focus on technical concepts",
         5,
+        context,
         undefined,
         undefined,
-        mockLLMClient.asLLMClient(),
-        mockConfigLoader as any,
       );
 
       expect(capturedPrompt).toContain("Focus on technical concepts");
@@ -263,10 +257,9 @@ describe("conceptProposer", () => {
         "Text about machine learning",
         undefined,
         5,
+        context,
         undefined,
         undefined,
-        mockLLMClient.asLLMClient(),
-        mockConfigLoader as any,
       );
 
       // Should filter out duplicate if similarity is high
@@ -288,10 +281,9 @@ describe("conceptProposer", () => {
           "Test text",
           undefined,
           5,
+          context,
           undefined,
           undefined,
-          mockLLMClient.asLLMClient(),
-          mockConfigLoader as any,
         ),
       ).rejects.toThrow("Config validation failed");
     });
@@ -325,10 +317,9 @@ describe("conceptProposer", () => {
         largeText,
         undefined,
         5,
+        context,
         undefined,
         undefined,
-        mockLLMClient.asLLMClient(),
-        mockConfigLoader as any,
       );
 
       // Should deduplicate by title (case-insensitive)
@@ -358,10 +349,9 @@ describe("conceptProposer", () => {
         "Test text",
         undefined,
         5, // maxCandidates = 5
+        context,
         undefined,
         undefined,
-        mockLLMClient.asLLMClient(),
-        mockConfigLoader as any,
       );
 
       expect(result.length).toBeLessThanOrEqual(5);

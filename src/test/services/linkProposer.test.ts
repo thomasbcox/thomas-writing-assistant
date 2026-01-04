@@ -83,9 +83,7 @@ describe("linkProposer", () => {
       const proposals = await proposeLinksForConcept(
         sourceConcept.id!,
         5,
-        context.db,
-        mockLLMClient.asLLMClient(),
-        mockConfigLoader as any,
+        context,
       );
 
       expect(proposals.length).toBeGreaterThanOrEqual(0);
@@ -100,9 +98,7 @@ describe("linkProposer", () => {
       const proposals = await proposeLinksForConcept(
         "non-existent-id",
         5,
-        context.db,
-        mockLLMClient.asLLMClient(),
-        mockConfigLoader as any,
+        context,
       );
 
       expect(proposals).toEqual([]);
@@ -136,9 +132,7 @@ describe("linkProposer", () => {
       const proposals = await proposeLinksForConcept(
         sourceConcept.id!,
         5,
-        context.db,
-        mockLLMClient.asLLMClient(),
-        mockConfigLoader as any,
+        context,
       );
 
       expect(proposals.every((p) => p.target !== targetConcept.id!)).toBe(true);
@@ -161,9 +155,7 @@ describe("linkProposer", () => {
         proposeLinksForConcept(
           sourceConcept.id!,
           5,
-          context.db,
-          mockLLMClient.asLLMClient(),
-          mockConfigLoader as any,
+          context,
         )
       ).rejects.toThrow("Config validation failed");
     });
@@ -202,9 +194,7 @@ describe("linkProposer", () => {
       const proposals = await proposeLinksForConcept(
         sourceConcept.id!,
         5,
-        context.db,
-        mockLLMClient.asLLMClient(),
-        mockConfigLoader as any,
+        context,
       );
 
       expect(proposals.length).toBeLessThanOrEqual(5);

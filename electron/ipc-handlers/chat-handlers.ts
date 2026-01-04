@@ -4,6 +4,7 @@ import { eq, desc } from "drizzle-orm";
 import { chatSession, chatMessage } from "../../src/server/schema.js";
 import { getDb } from "../db.js";
 import { logger, logServiceError } from "../../src/lib/logger.js";
+import { serializeChatSession, serializeChatMessage, serializeChatSessionWithMessages } from "../../src/lib/serializers.js";
 
 // Input schemas
 const createSessionSchema = z.object({
@@ -49,7 +50,7 @@ export function registerChatHandlers() {
         .returning();
 
       logger.info({ operation: "chat:createSession", sessionId: newSession.id, conceptId: parsed.conceptId }, "Chat session created successfully");
-      return newSession;
+      return serializeChatSession(newSession);
     } catch (error) {
       logServiceError(error, "chat.createSession", { conceptId: parsed.conceptId });
       throw error;
@@ -76,7 +77,7 @@ export function registerChatHandlers() {
       });
 
       logger.info({ operation: "chat:getSessionsByConceptId", conceptId: parsed.conceptId, count: sessions.length }, "Chat sessions fetched successfully");
-      return sessions;
+      return sessions.map(serializeChatSessionWithMessages);
     } catch (error) {
       logServiceError(error, "chat.getSessionsByConceptId", { conceptId: parsed.conceptId });
       throw error;
@@ -106,7 +107,7 @@ export function registerChatHandlers() {
       }
 
       logger.info({ operation: "chat:getSessionById", sessionId: parsed.id, messageCount: session.messages?.length ?? 0 }, "Chat session fetched successfully");
-      return session;
+      return serializeChatSessionWithMessages(session);
     } catch (error) {
       logServiceError(error, "chat.getSessionById", { sessionId: parsed.id });
       throw error;
@@ -186,7 +187,7 @@ export function registerChatHandlers() {
 
       if (existingSession) {
         logger.info({ operation: "chat:getOrCreateSession", sessionId: existingSession.id, found: true }, "Existing session found");
-        return existingSession;
+        return serializeChatSessionWithMessages(existingSession);
       }
 
       // Create new session
@@ -199,7 +200,7 @@ export function registerChatHandlers() {
         .returning();
 
       logger.info({ operation: "chat:getOrCreateSession", sessionId: newSession.id, created: true }, "New session created");
-      return { ...newSession, messages: [] };
+      return serializeChatSessionWithMessages({ ...newSession, messages: [] });
     } catch (error) {
       logServiceError(error, "chat.getOrCreateSession", { conceptId: parsed.conceptId });
       throw error;

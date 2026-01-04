@@ -7,9 +7,10 @@ import { getCurrentDb } from "~/server/db";
 import type { DatabaseInstance } from "~/server/db";
 import { concept, conceptEmbedding } from "~/server/schema";
 import { isNull, eq } from "drizzle-orm";
-import { generateMissingEmbeddings } from "./vectorSearch";
+import { generateMissingEmbeddings, getOrCreateEmbedding } from "./vectorSearch";
 import { getVectorIndex } from "./vectorIndex";
 import { logger } from "~/lib/logger";
+import { getLLMClient } from "./llm/client";
 
 /**
  * Retry helper function with exponential backoff
@@ -261,11 +262,9 @@ export async function generateEmbeddingForConcept(conceptId: string, db?: Databa
 
   const textToEmbed = `${conceptData[0].title}\n${conceptData[0].description || ""}\n${conceptData[0].content}`;
   
-  const { getLLMClient } = await import("./llm/client");
   const llmClient = getLLMClient();
   const model = llmClient.getProvider() === "openai" ? "text-embedding-3-small" : "text-embedding-004";
   
-  const { getOrCreateEmbedding } = await import("./vectorSearch");
   await getOrCreateEmbedding(conceptId, textToEmbed, model);
 
   // Update vector index

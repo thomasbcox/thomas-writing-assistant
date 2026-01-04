@@ -3,6 +3,7 @@ import { z } from "zod";
 import { eq, desc } from "drizzle-orm";
 import { linkName, link } from "../../src/server/schema.js";
 import { getDb } from "../db.js";
+import { serializeLinkName } from "../../src/lib/serializers.js";
 
 export function registerLinkNameHandlers() {
   // Get all link names
@@ -15,7 +16,7 @@ export function registerLinkNameHandlers() {
       .where(eq(linkName.isDeleted, false))
       .orderBy(desc(linkName.createdAt));
 
-    return linkNames;
+    return linkNames.map(serializeLinkName);
   });
 
   // Create link name
@@ -50,7 +51,7 @@ export function registerLinkNameHandlers() {
       })
       .returning();
 
-    return newLinkName;
+    return serializeLinkName(newLinkName);
   });
 
   // Update link name
@@ -80,7 +81,7 @@ export function registerLinkNameHandlers() {
       throw new Error("Link name not found");
     }
 
-    return updatedLinkName;
+    return serializeLinkName(updatedLinkName);
   });
 
   // Delete link name
@@ -111,7 +112,7 @@ export function registerLinkNameHandlers() {
       throw new Error("Link name not found");
     }
 
-    return deletedLinkName;
+    return serializeLinkName(deletedLinkName);
   });
 
   // Get usage count for a link name

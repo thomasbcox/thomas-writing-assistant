@@ -1,6 +1,6 @@
 /**
  * React hooks for IPC calls
- * Mimics React Query API for easier migration from tRPC
+ * Provides React Query-like API for Electron IPC communication
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -269,7 +269,7 @@ export function useUtils() {
   };
 }
 
-// Convenience hooks that match tRPC API structure
+// Convenience hooks that provide a consistent API structure
 export const api = {
   useUtils,
   concept: {

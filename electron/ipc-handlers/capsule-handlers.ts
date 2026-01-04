@@ -9,6 +9,7 @@ import { getLLMClient } from "../../src/server/services/llm/client.js";
 import { getConfigLoader } from "../../src/server/services/config.js";
 import { logger, logServiceError } from "../../src/lib/logger.js";
 import { safeJsonParseArray } from "../../src/lib/json-utils.js";
+import { serializeCapsule, serializeAnchor, serializeRepurposedContent, serializeCapsuleWithAnchors } from "../../src/lib/serializers.js";
 
 export function registerCapsuleHandlers() {
   // List capsules
@@ -30,7 +31,7 @@ export function registerCapsuleHandlers() {
         orderBy: [desc(capsule.createdAt)],
       });
       logger.info({ operation: "capsule:list", count: capsules.length, summary: true }, "Capsules fetched successfully");
-      return capsules;
+      return capsules.map(serializeCapsule);
     }
 
     const capsules = await db.query.capsule.findMany({
@@ -45,7 +46,7 @@ export function registerCapsuleHandlers() {
     });
 
     logger.info({ operation: "capsule:list", count: capsules.length }, "Capsules fetched successfully");
-    return capsules;
+    return capsules.map(serializeCapsuleWithAnchors);
   });
 
   // Get capsule by ID
@@ -72,7 +73,7 @@ export function registerCapsuleHandlers() {
     }
 
     logger.info({ operation: "capsule:getById", capsuleId: parsed.id, anchorsCount: foundCapsule.anchors?.length ?? 0 }, "Capsule fetched successfully");
-    return foundCapsule;
+    return serializeCapsuleWithAnchors(foundCapsule);
   });
 
   // Create capsule
@@ -99,7 +100,7 @@ export function registerCapsuleHandlers() {
       .returning();
 
     logger.info({ operation: "capsule:create", capsuleId: newCapsule.id, title: parsed.title }, "Capsule created successfully");
-    return newCapsule;
+    return serializeCapsule(newCapsule);
   });
 
   // Create anchor from PDF
@@ -200,9 +201,15 @@ export function registerCapsuleHandlers() {
 
       logger.info({ operation: "capsule:createAnchorFromPDF", anchorId: newAnchor.id, capsuleId: parsed.capsuleId, repurposedCount: savedRepurposed.length }, "Anchor created from PDF successfully");
       return {
-        anchor: newAnchor,
-        repurposedContent: savedRepurposed,
-        metadata,
+        anchor: serializeAnchor(newAnchor),
+        repurposedContent: savedRepurposed.map((rc) => ({
+          id: "", // Not saved to DB yet, empty ID
+          anchorId: newAnchor.id,
+          type: rc.type,
+          content: rc.content,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        })),
       };
     } catch (error) {
       logServiceError(error, "capsule.createAnchorFromPDF", {
