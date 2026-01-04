@@ -215,5 +215,91 @@ describe("repurposer", () => {
 
     expect(result.length).toBeGreaterThan(0);
   });
+
+  it("should handle empty anchor title", async () => {
+    const mockResponse = {
+      social_posts: ["Post 1"],
+      email: "Email content",
+    };
+
+    mockLLMClient.setMockCompleteJSON(async () => mockResponse);
+    mockConfigLoader.setMockSystemPrompt("Test system prompt");
+
+    const result = await repurposeAnchorContent(
+      "", // Empty title
+      "Test content",
+      null,
+      null,
+      mockLLMClient as unknown as LLMClient,
+      mockConfigLoader as unknown as ConfigLoader,
+    );
+
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  it("should handle empty anchor content", async () => {
+    const mockResponse = {
+      social_posts: ["Post 1"],
+      email: "Email content",
+    };
+
+    mockLLMClient.setMockCompleteJSON(async () => mockResponse);
+    mockConfigLoader.setMockSystemPrompt("Test system prompt");
+
+    const result = await repurposeAnchorContent(
+      "Test Title",
+      "", // Empty content
+      null,
+      null,
+      mockLLMClient as unknown as LLMClient,
+      mockConfigLoader as unknown as ConfigLoader,
+    );
+
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  it("should handle very short content (< 2000 chars)", async () => {
+    const shortContent = "Short content";
+    const mockResponse = {
+      social_posts: ["Post 1"],
+      email: "Email content",
+    };
+
+    mockLLMClient.setMockCompleteJSON(async () => mockResponse);
+    mockConfigLoader.setMockSystemPrompt("Test system prompt");
+
+    const result = await repurposeAnchorContent(
+      "Test Title",
+      shortContent,
+      null,
+      null,
+      mockLLMClient as unknown as LLMClient,
+      mockConfigLoader as unknown as ConfigLoader,
+    );
+
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  it("should handle response with only some content types", async () => {
+    const mockResponse = {
+      social_posts: ["Post 1", "Post 2"],
+      // Missing email, lead_magnet, pinterest_pins
+    };
+
+    mockLLMClient.setMockCompleteJSON(async () => mockResponse);
+    mockConfigLoader.setMockSystemPrompt("Test system prompt");
+
+    const result = await repurposeAnchorContent(
+      "Test Title",
+      "Test content",
+      null,
+      null,
+      mockLLMClient as unknown as LLMClient,
+      mockConfigLoader as unknown as ConfigLoader,
+    );
+
+    expect(result.length).toBe(2);
+    expect(result.filter((r) => r.type === "social_post")).toHaveLength(2);
+  });
 });
 
