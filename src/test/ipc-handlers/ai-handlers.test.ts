@@ -27,9 +27,14 @@ const originalEnv = process.env;
 
 // Mock LLM client
 const mockGetLLMClient = jest.fn();
-jest.mock("~/server/services/llm/client", () => ({
-  getLLMClient: () => mockGetLLMClient(),
-}));
+jest.mock("~/server/services/llm/client", () => {
+  const actual = jest.requireActual("~/server/services/llm/client") as Record<string, unknown>;
+  return {
+    ...actual,
+    getLLMClient: jest.fn(() => mockGetLLMClient()),
+    resetLLMClient: jest.fn(),
+  };
+});
 
 // Mock embeddingOrchestrator using unstable_mockModule for ES modules
 const mockGetEmbeddingStatus = jest.fn() as jest.MockedFunction<() => Promise<{ totalConcepts: number; conceptsWithEmbeddings: number; conceptsWithoutEmbeddings: number; isIndexing: boolean; lastIndexedAt: string | null }>>;
@@ -65,8 +70,13 @@ describe("AI IPC Handlers", () => {
 
     // Create a fresh mock client for each test
     mockLLMClient = new MockLLMClient();
-    mockLLMClient.setProvider("openai"); // Default provider
-    mockGetLLMClient.mockReturnValue(mockLLMClient.asLLMClient());
+    // Set default state - must be done before setting mock return value
+    mockLLMClient.setProvider("openai");
+    mockLLMClient.setModel("gpt-4o-mini");
+    mockLLMClient.setTemperature(0.7);
+    // Ensure mock returns the client with correct state
+    // Use mockImplementation to always return the current mock instance
+    mockGetLLMClient.mockImplementation(() => mockLLMClient.asLLMClient());
 
     // Register handlers
     registerAiHandlers();
@@ -75,7 +85,8 @@ describe("AI IPC Handlers", () => {
     mockGetEmbeddingStatus.mockClear();
     mockCheckAndGenerateMissing.mockClear();
     // Re-set the LLM client mock after clearing (jest.clearAllMocks clears it)
-    mockGetLLMClient.mockReturnValue(mockLLMClient.asLLMClient());
+    // Important: Always return the same mock instance so state changes are tracked
+    mockGetLLMClient.mockImplementation(() => mockLLMClient.asLLMClient());
   });
 
   afterEach(async () => {
@@ -126,12 +137,14 @@ describe("AI IPC Handlers", () => {
       mockLLMClient.setProvider("openai");
       mockLLMClient.setModel("gpt-4o");
       mockLLMClient.setTemperature(0.8);
-      // Ensure mock returns the updated client (getLLMClient is a singleton)
-      mockGetLLMClient.mockReturnValue(mockLLMClient.asLLMClient());
+      // CRITICAL: Use mockImplementation to ensure we always return the current mock state
+      mockGetLLMClient.mockImplementation(() => mockLLMClient.asLLMClient());
 
       const result = await invokeHandler<undefined, { provider: string; model: string; temperature: number; availableProviders: { openai: boolean; gemini: boolean } }>("ai:getSettings", undefined);
 
       // Verify the result matches what we set
+      // The handler calls getLLMClient() which returns our mock, then calls getProvider/getModel/getTemperature
+      expect(mockGetLLMClient).toHaveBeenCalled();
       expect(result.provider).toBe("openai");
       expect(result.model).toBe("gpt-4o");
       expect(result.temperature).toBe(0.8);
@@ -160,13 +173,14 @@ describe("AI IPC Handlers", () => {
     it("should update provider", async () => {
       // Use the existing mock client and ensure it starts with openai
       mockLLMClient.setProvider("openai");
-      mockGetLLMClient.mockReturnValue(mockLLMClient.asLLMClient());
+      mockGetLLMClient.mockImplementation(() => mockLLMClient.asLLMClient());
 
       const result = await invokeHandler<{ provider: "gemini" }, { provider: string; model: string; temperature: number }>("ai:updateSettings", {
         provider: "gemini",
       });
 
-      // The handler should return the updated provider
+      // The handler calls setProvider on the client, which updates the mock's internal state
+      // Verify the result matches what the handler returns (which calls getProvider() after setProvider)
       expect(result.provider).toBe("gemini");
       // Verify the mock client was updated (handler calls setProvider on it)
       expect(mockLLMClient.getProvider()).toBe("gemini");
@@ -248,11 +262,14 @@ describe("AI IPC Handlers", () => {
 
     it("should return Gemini models when Gemini is selected", async () => {
       // Update the existing mock client to use Gemini
+      // Important: setProvider must be called before setting mock implementation
       mockLLMClient.setProvider("gemini");
-      mockGetLLMClient.mockReturnValue(mockLLMClient.asLLMClient());
+      // Ensure the mock returns the client with updated state
+      mockGetLLMClient.mockImplementation(() => mockLLMClient.asLLMClient());
 
       const result = await invokeHandler<undefined, { provider: string; models: Array<{ value: string; label: string }> }>("ai:getAvailableModels", undefined);
 
+      // The handler calls getLLMClient() which returns our mock, then calls getProvider() on it
       expect(result.provider).toBe("gemini");
       expect(result.models).toEqual(
         expect.arrayContaining([

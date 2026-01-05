@@ -62,26 +62,7 @@ export class MockLLMClient implements ILLMProvider {
     this.mockEmbed = fn;
   }
 
-  /**
-   * Set the provider type (for getProvider() method)
-   */
-  setProvider(provider: LLMProvider) {
-    this.mockProvider = provider;
-  }
-
-  /**
-   * Set the model (for getModel() method)
-   */
-  setModel(model: string) {
-    this.mockModel = model;
-  }
-
-  /**
-   * Set the temperature (for getTemperature() method)
-   */
-  setTemperature(temperature: number) {
-    this.mockTemperature = temperature;
-  }
+  // Note: setProvider, setModel, and setTemperature are defined later to match LLMClient interface
 
   /**
    * Configure the mock to throw an error on next call
@@ -185,6 +166,36 @@ export class MockLLMClient implements ILLMProvider {
 
   getTemperature(): number {
     return this.mockTemperature;
+  }
+
+  /**
+   * Set provider (matches LLMClient interface)
+   * This method is called by handlers to change the provider
+   */
+  setProvider(provider: LLMProvider): void {
+    this.mockProvider = provider;
+    // When switching providers, also update the model to a default for that provider
+    if (provider === "gemini") {
+      this.mockModel = "gemini-3-pro-preview";
+    } else {
+      this.mockModel = "gpt-4o-mini";
+    }
+  }
+
+  /**
+   * Set model (matches LLMClient interface)
+   * This method is called by handlers to change the model
+   */
+  setModel(model: string): void {
+    this.mockModel = model;
+  }
+
+  /**
+   * Set temperature (matches LLMClient interface)
+   * This method is called by handlers to change the temperature
+   */
+  setTemperature(temperature: number): void {
+    this.mockTemperature = temperature;
   }
 
   /**

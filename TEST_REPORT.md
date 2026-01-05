@@ -1,26 +1,26 @@
 # Comprehensive Test Report
-**Generated:** January 4, 2025  
-**Test Run Duration:** 22.828 seconds
+**Generated:** January 5, 2026  
+**Test Run Duration:** ~9 seconds
 
 ## Executive Summary
 
 ### Overall Status
-- ✅ **41 test suites passed** (87.2%)
-- ❌ **6 test suites failed** (12.8%)
-- ✅ **480 tests passed** (93.4%)
-- ❌ **32 tests failed** (6.2%)
+- ✅ **50 test suites passed** (98.0%)
+- ❌ **1 test suite failed** (2.0%)
+- ✅ **524 tests passed** (98.9%)
+- ❌ **3 tests failed** (0.6%)
 - ⏭️ **2 tests skipped** (0.4%)
-- **Total:** 514 tests across 47 test suites
+- **Total:** 529 tests across 51 test suites
 
-### Health Score: **87.2%** 🟢
+### Health Score: **98.0%** 🟢
 
-The test suite is in **good health** with the majority of tests passing. The failures are concentrated in LLM provider mocking and a few edge cases in service error handling.
+The test suite is in **excellent health** with the vast majority of tests passing. The failures are limited to 3 tests in the AI IPC handlers related to LLM client mocking.
 
 ---
 
 ## Test Suite Breakdown
 
-### ✅ Passing Test Suites (41)
+### ✅ Passing Test Suites (50)
 
 #### Core Services (All Passing)
 - ✅ `config.test.ts` - Configuration loader tests
@@ -33,10 +33,16 @@ The test suite is in **good health** with the majority of tests passing. The fai
 - ✅ `services/repurposer-prod.test.ts` - Production repurposer scenarios
 - ✅ `services/db.test.ts` - Database utilities
 - ✅ `services/pdfExtractor.test.ts` - PDF extraction
+- ✅ `services/dependencies.test.ts` - Dependency injection
+
+#### LLM Providers (All Passing)
+- ✅ `services/llm/providers/gemini.test.ts` - Gemini provider (29 tests)
+- ✅ `services/llm/providers/openai.test.ts` - OpenAI provider (25 tests)
 
 #### Vector Search & Embeddings (All Passing)
 - ✅ `services/vectorIndex.test.ts` - In-memory vector index
-- ✅ `services/vectorSearch.test.ts` - Vector search functionality (partial - see failures)
+- ✅ `services/vectorSearch.test.ts` - Vector search functionality
+- ✅ `services/embeddingOrchestrator.test.ts` - Embedding orchestration
 
 #### Utilities & Libraries (All Passing)
 - ✅ `lib/text-processing.test.ts` - Text chunking algorithms
@@ -46,308 +52,152 @@ The test suite is in **good health** with the majority of tests passing. The fai
 - ✅ `lib/error-messages.test.ts` - Error message handling
 - ✅ `lib/logger.test.ts` - Logging functionality
 
-#### IPC Handlers (All Passing)
+#### IPC Handlers (Mostly Passing)
 - ✅ `ipc-handlers/enrichment-handlers.test.ts` - Concept enrichment handlers
-- ✅ `ipc-handlers/concept-handlers.test.ts` - Concept CRUD handlers
+- ✅ `ipc-handlers/link-handlers.test.ts` - Link CRUD operations
+- ✅ `ipc-handlers/config-handlers.test.ts` - Configuration handlers
+- ⚠️ `ipc-handlers/ai-handlers.test.ts` - AI settings handlers (3 failures)
 
 #### Components (All Passing)
-- ✅ `components/HealthStatusCard.test.tsx` - Health status UI component
-- ✅ `components/ConfirmDialog.test.tsx` - Confirmation dialog
 - ✅ `components/LinksTab.test.tsx` - Links tab component
+- ✅ `components/ConceptCandidateList.test.tsx` - Concept candidate list
 
-#### Build & Integration (All Passing)
-- ✅ `build/electron-build.test.ts` - Electron build verification
-- ✅ `build/build-script.test.ts` - Build script tests
+### ❌ Failing Test Suites (1)
 
-#### Other (All Passing)
-- ✅ `tailwind.test.ts` - Tailwind CSS configuration
-- ✅ `llm.test.ts` - LLM client structure tests
+#### IPC Handlers
+- ❌ `ipc-handlers/ai-handlers.test.ts` - 3 failures
+  - `should return current LLM client settings` - Mock not intercepting getLLMClient()
+  - `should update provider` - Mock state not being tracked correctly
+  - `should return Gemini models when Gemini is selected` - Mock not intercepting getLLMClient()
 
-### ❌ Failing Test Suites (6)
+**Root Cause:** The handler imports `getLLMClient` at module load time, and the Jest mock is not intercepting it correctly when the handler module is dynamically imported in `beforeAll`. The handler is using the real `getLLMClient()` which defaults to Gemini when both API keys are available.
 
-#### 1. `services/llm/client.test.ts` - 8 failures
-**Issues:**
-- Provider method delegation not working (`setModel`, `setTemperature`)
-- Provider switching not updating default models correctly
-- Real API calls being made instead of using mocks
+**Impact:** Low - These are edge cases in test mocking, not production bugs.
 
-**Failures:**
-- `setModel` for Gemini provider
-- `setModel` for OpenAI provider
-- `setTemperature` for Gemini provider
-- `setTemperature` for OpenAI provider
-- Provider switching (Gemini → OpenAI)
-- Provider switching (OpenAI → Gemini)
-- Method delegation (`complete`, `completeJSON`, `embed`)
-
-**Root Cause:** Mock providers not properly intercepting method calls. The `LLMClient` is calling real provider instances instead of mocked ones.
+**Recommendation:** 
+- Use `jest.resetModules()` before importing handlers
+- Or mock the `env` module to control provider selection
+- Or adjust test expectations to match actual behavior (Gemini default when both keys available)
 
 ---
 
-#### 2. `services/llm/providers/openai.test.ts` - 13 failures
-**Issues:**
-- All tests making real API calls to OpenAI
-- Mock not intercepting `OpenAI` constructor
-- API key validation errors (expected, but mocks should prevent this)
+## Coverage Analysis
 
-**Failures:**
-- Initialization test
-- `complete` method (5 tests)
-- `completeJSON` method (6 tests)
-- `embed` method (2 tests)
+### Current Coverage Metrics
 
-**Root Cause:** `jest.mock('openai')` not properly mocking the SDK. The real OpenAI client is being instantiated.
+| Metric | Coverage | Target | Gap |
+|--------|----------|--------|-----|
+| **Statements** | 44.05% | 80% | -35.95% |
+| **Branches** | 35.28% | 80% | -44.72% |
+| **Functions** | 30.59% | 80% | -49.41% |
+| **Lines** | 44.16% | 80% | -35.84% |
 
----
+**Overall Status:** 🟡 **44% coverage** - Good progress, but still below target
 
-#### 3. `services/llm/providers/gemini.test.ts` - 5 failures + 1 timeout
-**Issues:**
-- Mock `getGenerativeModel` not working correctly
-- `complete` returning empty string instead of expected text
-- `completeJSON` tests timing out (5000ms)
-- Async operations not properly awaited in mocks
+### Coverage by Area
 
-**Failures:**
-- `complete` returning empty text (2 tests)
-- `completeJSON` timeout (4 tests)
+#### ✅ Well-Covered Areas (>70%)
+- **LLM Providers** (93.71%): Excellent coverage with manual mocks
+  - `gemini.ts`: 93.63% statements, 77.92% branches, 94.44% functions
+  - `openai.ts`: 93.87% statements, 86.11% branches, 90% functions
+- **Server Services** (75.72%): Core business logic is well-tested
+  - `repurposer.ts`: 95.55%
+  - `blogPostGenerator.ts`: 91.66%
+  - `conceptEnricher.ts`: 89.33%
+  - `conceptProposer.ts`: 88.57%
+  - `anchorExtractor.ts`: 88.23%
+  - `vectorIndex.ts`: 88.33%
 
-**Root Cause:** Mock setup for `@google/generative-ai` not correctly handling async responses. The `result.response` promise chain is not being mocked properly.
+#### ⚠️ Partially Covered (40-70%)
+- **Server Services** (continued):
+  - `config.ts`: 66.97% - Missing edge cases
+  - `embeddingOrchestrator.ts`: 67.08% - Missing batch processing edge cases
+  - `linkProposer.ts`: 63.51% - Missing error handling paths
 
----
-
-#### 4. `services/linkProposer.test.ts` - 1 failure
-**Issue:**
-- `TypeError: Cannot read properties of undefined (reading 'slice')`
-- `sourceConcept.content` is `undefined` when calling `proposeLinksWithLLM`
-
-**Failure:**
-- `should propose links for a concept`
-
-**Root Cause:** Test data factory `createTestConcept` may not be setting `content` field, or the concept query is not returning the full object.
-
-**Location:** `src/server/services/linkProposer.ts:322`
-
----
-
-#### 5. `services/embeddingOrchestrator.test.ts` - 1 failure
-**Issue:**
-- Error handling test expects promise rejection but receives resolution
-- `generateEmbeddingForConcept` should throw when LLM fails, but it's catching and swallowing the error
-
-**Failure:**
-- `should handle LLM errors when generating embedding`
-
-**Root Cause:** Error handling in `generateEmbeddingForConcept` may be catching errors and logging them instead of propagating.
-
-**Location:** `src/server/services/embeddingOrchestrator.ts`
+#### ❌ Critical Gaps (0-40%)
+- **Components** (0-52.7%):
+  - Most React components have minimal or no test coverage
+  - UI interaction tests are missing
+- **IPC Client** (6.11%):
+  - `ipc-client.ts` has very low coverage
+- **Dependencies** (0%):
+  - `dependencies.ts` - Dependency injection not tested
 
 ---
 
-#### 6. `services/vectorSearch.test.ts` - 1 failure
-**Issue:**
-- Error handling test expects `embed` to be called, but it's not being called
-- Mock LLM client error not triggering the expected code path
+## Test Quality Assessment
 
-**Failure:**
-- `should handle errors gracefully when generating embeddings fails`
+### Strengths ✅
+1. **Comprehensive LLM Provider Testing**: Manual mocks provide excellent coverage
+2. **Service Layer Coverage**: Core business logic is well-tested
+3. **IPC Handler Testing**: Most handlers have good test coverage
+4. **Test Isolation**: Tests use in-memory databases and proper mocking
+5. **Fast Execution**: Tests run in ~9 seconds
 
-**Root Cause:** Error handling in `generateMissingEmbeddingsWithContext` may be short-circuiting before calling `embed`, or the mock setup is incorrect.
-
-**Location:** `src/server/services/vectorSearch.ts`
-
----
-
-## Test Coverage Analysis
-
-### Well-Tested Areas ✅
-
-1. **Configuration Management**
-   - Config loading, validation, error handling
-   - Style guide, credo, constraints, prompts
-   - File system mocking and edge cases
-
-2. **Concept Management**
-   - Concept generation with various inputs
-   - Concept enrichment and metadata extraction
-   - Duplicate detection and filtering
-   - Vector search integration
-
-3. **Text Processing**
-   - Sliding window chunking algorithm
-   - Prompt templating and escaping
-   - JSON parsing and validation
-   - Data validation utilities
-
-4. **Database Operations**
-   - Database initialization and reconnection
-   - Error handling and recovery
-   - Test database setup and teardown
-
-5. **IPC Handlers**
-   - Concept CRUD operations
-   - Enrichment workflows
-   - Error propagation
-
-6. **Build System**
-   - Electron build verification
-   - Import path transformation
-   - Module resolution
-
-### Areas Needing Attention ⚠️
-
-1. **LLM Provider Mocking** (Critical)
-   - OpenAI SDK mocking not working
-   - Gemini SDK mocking incomplete
-   - Provider method delegation broken
-   - Real API calls in tests (security/performance risk)
-
-2. **Error Handling** (Medium)
-   - Some services catching errors instead of propagating
-   - Error handling tests not matching actual behavior
-   - Need clearer error propagation patterns
-
-3. **Test Data Factories** (Low)
-   - Some factories may not set all required fields
-   - Need validation of factory output
+### Areas for Improvement ⚠️
+1. **Component Testing**: React components need more coverage
+2. **Error Handling**: More edge case and error path testing needed
+3. **Integration Tests**: Add end-to-end tests for critical flows
+4. **Mock Patterns**: Some IPC handler mocks need refinement (AI handlers)
 
 ---
 
-## Detailed Failure Analysis
+## Recent Improvements
 
-### LLM Client & Provider Failures (26 tests)
+### LLM Provider Test Coverage (January 5, 2026)
+- ✅ Created centralized mock factories for `@google/generative-ai` and `openai` SDKs
+- ✅ Added comprehensive test suites for Gemini and OpenAI providers (54 tests total)
+- ✅ Achieved 93.71% overall coverage for LLM providers
+- ✅ All provider tests passing
 
-**Pattern:** All failures related to mocking external SDKs (`openai`, `@google/generative-ai`)
-
-**Impact:** High - These are core functionality tests that verify LLM integration works correctly.
-
-**Recommended Fix:**
-1. Review `jest.mock()` setup for both SDKs
-2. Ensure mocks are hoisted correctly
-3. Mock at the module level, not instance level
-4. Verify mock implementations match SDK interfaces
-
-### Service Error Handling (3 tests)
-
-**Pattern:** Tests expect errors to propagate, but services are catching and logging them.
-
-**Impact:** Medium - Error handling is important for debugging, but tests need to verify the correct behavior.
-
-**Recommended Fix:**
-1. Review error handling in:
-   - `embeddingOrchestrator.ts`
-   - `vectorSearch.ts`
-2. Decide on error propagation strategy (throw vs. log)
-3. Update tests or code to match intended behavior
-
-### Test Data Issues (1 test)
-
-**Pattern:** Test data missing required fields.
-
-**Impact:** Low - Easy to fix, just need to ensure test factories set all fields.
-
-**Recommended Fix:**
-1. Review `createTestConcept` factory
-2. Ensure `content` field is always set
-3. Add validation to factories if needed
-
----
-
-## Performance Metrics
-
-- **Total Test Execution Time:** 22.828 seconds
-- **Average Time per Test:** ~44ms
-- **Slowest Test Suite:** `gemini.test.ts` (20.9s) - due to timeouts
-- **Fastest Test Suites:** Most utility tests (< 1s)
-
-### Timeout Issues
-- 4 tests in `gemini.test.ts` exceeded 5000ms timeout
-- Likely due to async operations in mocks not resolving
+### Test Infrastructure
+- ✅ Manual mocks pattern for SDKs
+- ✅ Jest fake timers for exponential backoff testing
+- ✅ Proper TypeScript type annotations for mocks
 
 ---
 
 ## Recommendations
 
 ### Immediate Actions (High Priority)
+1. **Fix AI Handler Tests**: Resolve the 3 failing tests in `ai-handlers.test.ts`
+   - Use `jest.resetModules()` or mock `env` module
+   - Or adjust expectations to match actual behavior
 
-1. **Fix LLM Provider Mocking** 🔴
-   - Priority: Critical
-   - Impact: 26 failing tests
-   - Effort: Medium (2-4 hours)
-   - Action: Review and fix `jest.mock()` setup for OpenAI and Gemini SDKs
+### Short-term (1-2 weeks)
+1. **Increase Component Coverage**: Add tests for React components
+2. **Add Error Handling Tests**: Test error paths and edge cases
+3. **Improve Branch Coverage**: Add tests for conditional branches
 
-2. **Fix Error Handling Tests** 🟡
-   - Priority: Medium
-   - Impact: 3 failing tests
-   - Effort: Low (1-2 hours)
-   - Action: Align error handling behavior with test expectations
-
-3. **Fix Test Data Factory** 🟢
-   - Priority: Low
-   - Impact: 1 failing test
-   - Effort: Low (15-30 minutes)
-   - Action: Ensure `createTestConcept` sets `content` field
-
-### Short-Term Improvements
-
-1. **Increase Test Coverage**
-   - Current coverage appears good, but verify with `--coverage` flag
-   - Focus on edge cases in error handling
-
-2. **Improve Mock Reliability**
-   - Standardize mock patterns across test files
-   - Create shared mock utilities for common scenarios
-
-3. **Add Integration Tests**
-   - Test full workflows end-to-end
-   - Verify IPC handler → service → database flow
-
-### Long-Term Improvements
-
-1. **Test Performance**
-   - Optimize slow tests (especially Gemini provider tests)
-   - Consider parallel test execution optimization
-
-2. **Test Documentation**
-   - Document mock patterns and best practices
-   - Create test setup guides for new contributors
-
-3. **CI/CD Integration**
-   - Ensure all tests pass in CI environment
-   - Add test coverage reporting to PRs
+### Long-term (1-3 months)
+1. **Reach 80% Coverage**: Focus on critical paths and error handling
+2. **Add Integration Tests**: Test critical user flows end-to-end
+3. **Performance Testing**: Add tests for performance-critical paths
 
 ---
 
-## Test Statistics Summary
+## Test Commands
 
-| Metric | Value | Percentage |
-|--------|-------|------------|
-| **Total Tests** | 514 | 100% |
-| **Passed** | 480 | 93.4% |
-| **Failed** | 32 | 6.2% |
-| **Skipped** | 2 | 0.4% |
-| **Test Suites** | 47 | 100% |
-| **Passing Suites** | 41 | 87.2% |
-| **Failing Suites** | 6 | 12.8% |
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run with coverage
+npm test -- --coverage
+
+# Run specific test file
+npm test -- path/to/test.ts
+```
 
 ---
 
 ## Conclusion
 
-The test suite is in **good overall health** with 93.4% of tests passing. The failures are primarily concentrated in:
+**Current Status**: ✅ **Excellent** (98.0% pass rate)
 
-1. **LLM Provider Mocking** (26 tests) - Technical issue with Jest mocking
-2. **Error Handling** (3 tests) - Behavioral mismatch between code and tests
-3. **Test Data** (1 test) - Missing field in test factory
+The test suite is in excellent health with only 3 failing tests out of 529 total tests. The failures are related to mocking edge cases in IPC handlers, not production bugs. Coverage is at 44%, which is good progress but still below the 80% target.
 
-**Next Steps:**
-1. Fix LLM provider mocking (highest impact)
-2. Align error handling with test expectations
-3. Fix test data factory
-4. Re-run full test suite to verify fixes
-
-**Estimated Time to Green:** 4-6 hours of focused work
-
----
-
-*Report generated from Jest test output on January 4, 2025*
-
+**Priority**: Fix the 3 failing AI handler tests, then focus on increasing component and error handling coverage.
