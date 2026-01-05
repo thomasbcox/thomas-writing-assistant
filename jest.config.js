@@ -74,6 +74,9 @@ const config = {
         '^electron$': '<rootDir>/src/test/__mocks__/electron.ts',
         // Map better-sqlite3 to mock for tests (avoids native module issues)
         '^better-sqlite3$': '<rootDir>/src/test/__mocks__/better-sqlite3.ts',
+        // Map SDK mocks for LLM providers
+        '^@google/generative-ai$': '<rootDir>/src/test/__mocks__/@google/generative-ai.ts',
+        '^openai$': '<rootDir>/src/test/__mocks__/openai.ts',
       },
       transformIgnorePatterns: [
         'node_modules/(?!(@prisma|.prisma)/)',
