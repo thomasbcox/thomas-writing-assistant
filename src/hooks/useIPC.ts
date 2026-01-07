@@ -15,6 +15,7 @@ import type {
   AISettings,
   AISettingsUpdateResult,
   AIAvailableModelsResult,
+  EmbeddingStatusResult,
   ConfigRawResult,
   ConfigStatusResult,
   LinksByConceptResult,
@@ -32,6 +33,7 @@ export type {
   AISettings,
   AISettingsUpdateResult,
   AIAvailableModelsResult,
+  EmbeddingStatusResult,
   ConfigRawResult,
   ConfigStatusResult,
   LinksByConceptResult,
@@ -97,8 +99,13 @@ export function useIPCQuery<T>(
   const inputsKey = options?.inputs ? JSON.stringify(options.inputs) : null;
   const prevInputsKeyRef = useRef<string | null>(inputsKey);
 
-  const fetchData = useCallback(async (): Promise<{ data: T | null; error: Error | null }> => {
-    if (!enabled) {
+  const fetchData = useCallback(async (force: boolean = false): Promise<{ data: T | null; error: Error | null }> => {
+    // #region agent log
+    console.log("[DEBUG] useIPCQuery fetchData", { queryKey: options?.queryKey, enabled, force });
+    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useIPC.ts:100',message:'fetchData entry',data:{queryKey:options?.queryKey,enabled,force},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch((e)=>{console.error("[DEBUG] Log fetch failed:",e);});
+    // #endregion
+    // Allow forced execution even when disabled (for refetch)
+    if (!enabled && !force) {
       setIsLoading(false);
       return { data: null, error: null };
     }
@@ -107,11 +114,23 @@ export function useIPCQuery<T>(
     setError(null);
 
     try {
+      // #region agent log
+      console.log("[DEBUG] useIPCQuery calling queryFn", { queryKey: options?.queryKey });
+      fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useIPC.ts:110',message:'Before queryFn call',data:{queryKey:options?.queryKey},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch((e)=>{console.error("[DEBUG] Log fetch failed:",e);});
+      // #endregion
       const result = await queryFnRef.current();
+      // #region agent log
+      console.log("[DEBUG] useIPCQuery result received", { queryKey: options?.queryKey, hasResult: !!result });
+      fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useIPC.ts:112',message:'After queryFn call',data:{queryKey:options?.queryKey,hasResult:!!result,resultType:typeof result,isArray:Array.isArray(result),arrayLength:Array.isArray(result)?result.length:'not-array'},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch((e)=>{console.error("[DEBUG] Log fetch failed:",e);});
+      // #endregion
       setData(result);
       return { data: result, error: null };
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
+      // #region agent log
+      console.error("[DEBUG] useIPCQuery error caught", { queryKey: options?.queryKey, error: error.message });
+      fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useIPC.ts:114',message:'Error in queryFn',data:{queryKey:options?.queryKey,errorMessage:error.message,errorName:error.name,errorStack:error.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch((e)=>{console.error("[DEBUG] Log fetch failed:",e);});
+      // #endregion
       // Log client-side errors for debugging
       console.error("[useIPCQuery] Error in query:", {
         queryKey: options?.queryKey,
@@ -126,13 +145,19 @@ export function useIPCQuery<T>(
   }, [enabled, options?.queryKey]); // Removed queryFn from deps to prevent loops
 
   const refetch = useCallback(async () => {
-    if (enabled) {
-      // Call fetchData and return its result directly
-      const result = await fetchData();
-      return result;
-    }
-    return { data, error };
-  }, [fetchData, enabled, data, error]);
+    // #region agent log
+    console.log("[DEBUG] refetch called", { queryKey: options?.queryKey, enabled });
+    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useIPC.ts:128',message:'refetch entry',data:{queryKey:options?.queryKey,enabled},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch((e)=>{console.error("[DEBUG] Log fetch failed:",e);});
+    // #endregion
+    // Always call fetchData with force=true when refetch is explicitly called, regardless of enabled state
+    // This allows manual triggering of disabled queries
+    const result = await fetchData(true);
+    // #region agent log
+    console.log("[DEBUG] refetch result", { queryKey: options?.queryKey, hasData: !!result.data, hasError: !!result.error });
+    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useIPC.ts:135',message:'refetch result',data:{queryKey:options?.queryKey,hasData:!!result.data,hasError:!!result.error},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch((e)=>{console.error("[DEBUG] Log fetch failed:",e);});
+    // #endregion
+    return result;
+  }, [fetchData, options?.queryKey]);
 
   // Register refetch function for useUtils
   useEffect(() => {
@@ -875,6 +900,28 @@ export const api = {
         useIPCQuery<AIGetAvailableModelsResult>(
           () => ipc.ai.getAvailableModels() as Promise<AIGetAvailableModelsResult>,
           { queryKey: "ai:getAvailableModels", inputs: [] },
+        ),
+    },
+    getEmbeddingStatus: {
+      useQuery: () =>
+        useIPCQuery<EmbeddingStatusResult>(
+          () => ipc.ai.getEmbeddingStatus() as Promise<EmbeddingStatusResult>,
+          { queryKey: "ai:getEmbeddingStatus", inputs: [] },
+        ),
+    },
+    generateMissingEmbeddings: {
+      useMutation: (
+        options?: {
+          onSuccess?: (data: EmbeddingStatusResult) => void;
+          onError?: (error: Error) => void;
+        },
+      ) =>
+        useIPCMutation<EmbeddingStatusResult, Parameters<typeof ipc.ai.generateMissingEmbeddings>[0]>(
+          ipc.ai.generateMissingEmbeddings as (input?: Parameters<typeof ipc.ai.generateMissingEmbeddings>[0]) => Promise<EmbeddingStatusResult>,
+          {
+            onSuccess: options?.onSuccess,
+            onError: options?.onError,
+          },
         ),
     },
   },

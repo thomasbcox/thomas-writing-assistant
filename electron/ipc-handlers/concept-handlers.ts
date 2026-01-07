@@ -284,25 +284,45 @@ export function registerConceptHandlers() {
 
   // Propose links
   ipcMain.handle("concept:proposeLinks", async (_event, input: unknown) => {
+    // #region agent log
+    console.log("[DEBUG] concept:proposeLinks handler called", input);
+    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'concept-handlers.ts:286',message:'IPC handler entry',data:{input},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch((e)=>{console.error("[DEBUG] Log fetch failed:",e);});
+    // #endregion
     const parsed = proposeLinksInputSchema.parse(input);
     const db = getDb();
 
     logger.info({ operation: "concept:proposeLinks", conceptId: parsed.conceptId, maxProposals: parsed.maxProposals }, "Proposing links for concept");
 
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'concept-handlers.ts:293',message:'Getting LLM client and config',data:{conceptId:parsed.conceptId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       const llmClient = getLLMClient();
       const configLoader = getConfigLoader();
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'concept-handlers.ts:295',message:'Context created',data:{hasLLM:!!llmClient,hasConfig:!!configLoader,hasDb:!!db},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       const context = { db: db as DatabaseInstance, llm: llmClient, config: configLoader };
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'concept-handlers.ts:297',message:'Calling proposeLinksForConcept',data:{conceptId:parsed.conceptId,maxProposals:parsed.maxProposals},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       const result = await proposeLinksForConcept(
         parsed.conceptId,
         parsed.maxProposals,
         context,
       );
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'concept-handlers.ts:303',message:'IPC handler success',data:{resultLength:result?.length??0,hasResult:!!result},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       logger.info({ operation: "concept:proposeLinks", conceptId: parsed.conceptId, proposalCount: result?.length ?? 0 }, "Link proposals generated successfully");
       return result;
     } catch (error) {
+      // #region agent log
+      console.error("[DEBUG] concept:proposeLinks error:", error);
+      fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'concept-handlers.ts:306',message:'IPC handler error',data:{errorMessage:error instanceof Error?error.message:String(error),errorName:error instanceof Error?error.name:'unknown',stack:error instanceof Error?error.stack:undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch((e)=>{console.error("[DEBUG] Log fetch failed:",e);});
+      // #endregion
       logServiceError(error, "concept.proposeLinks", { conceptId: parsed.conceptId, maxProposals: parsed.maxProposals });
       throw error;
     }

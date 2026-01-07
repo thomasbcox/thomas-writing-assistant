@@ -15,6 +15,13 @@
       "when": 1767248391113,
       "tag": "0001_unknown_bill_hollister",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1767652351464,
+      "tag": "0002_steady_killraven",
+      "breakpoints": true
     }
   ]
 }

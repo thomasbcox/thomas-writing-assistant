@@ -14,9 +14,19 @@ interface Toast {
 export function SettingsTab() {
   const { data: settings, isLoading, refetch } = api.ai.getSettings.useQuery();
   const { data: availableModels } = api.ai.getAvailableModels.useQuery();
+  const { data: embeddingStatus, refetch: refetchEmbeddingStatus } = api.ai.getEmbeddingStatus.useQuery();
   const updateMutation = api.ai.updateSettings.useMutation({
     onSuccess: () => {
       refetch();
+    },
+  });
+  const generateEmbeddingsMutation = api.ai.generateMissingEmbeddings.useMutation({
+    onSuccess: () => {
+      refetchEmbeddingStatus();
+      addToast("Embedding generation started. Check status below.", "success");
+    },
+    onError: (error) => {
+      addToast(`Failed to start embedding generation: ${error.message}`, "error");
     },
   });
 
@@ -179,6 +189,64 @@ export function SettingsTab() {
             </div>
           </div>
         )}
+
+        {/* Embedding Status Section */}
+        <div className="mt-8 pt-6 border-t border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Embedding Status</h3>
+          
+          {embeddingStatus && (
+            <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+              <div className="text-sm text-gray-700 space-y-2">
+                <div className="flex justify-between">
+                  <span>Total Concepts:</span>
+                  <strong>{embeddingStatus.totalConcepts}</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span>With Embeddings:</span>
+                  <strong className="text-green-600">{embeddingStatus.conceptsWithEmbeddings}</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span>Without Embeddings:</span>
+                  <strong className={embeddingStatus.conceptsWithoutEmbeddings > 0 ? "text-orange-600" : "text-green-600"}>
+                    {embeddingStatus.conceptsWithoutEmbeddings}
+                  </strong>
+                </div>
+                {embeddingStatus.isIndexing && (
+                  <div className="mt-2 text-xs text-blue-600">
+                    ⏳ Embedding generation in progress...
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <button
+              onClick={() => {
+                generateEmbeddingsMutation.mutate({ batchSize: 10 });
+              }}
+              disabled={generateEmbeddingsMutation.isLoading || (embeddingStatus?.conceptsWithoutEmbeddings ?? 0) === 0}
+              className="w-full px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+            >
+              {generateEmbeddingsMutation.isLoading && <LoadingSpinner size="sm" />}
+              {generateEmbeddingsMutation.isLoading 
+                ? "Generating..." 
+                : `Generate Missing Embeddings${embeddingStatus?.conceptsWithoutEmbeddings ? ` (${embeddingStatus.conceptsWithoutEmbeddings} remaining)` : ""}`}
+            </button>
+            
+            <button
+              onClick={() => refetchEmbeddingStatus()}
+              className="w-full px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm"
+            >
+              Refresh Status
+            </button>
+          </div>
+
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
+            <strong>What are embeddings?</strong> They're numerical "fingerprints" that help the app find similar concepts. 
+            New and updated concepts get embeddings automatically. This button generates them for existing concepts.
+          </div>
+        </div>
         </div>
       </div>
     </>

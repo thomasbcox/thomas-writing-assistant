@@ -34,11 +34,33 @@ export function getCurrentDb(): DatabaseInstance {
   if ((globalThis as any).__TEST_DB__) {
     return (globalThis as any).__TEST_DB__;
   }
-  // Priority 2: Check if we have a global instance (updated by reconnectDatabase)
+  
+  // Priority 2: In Electron context, use Electron's database (which has the correct path)
+  // This ensures services use the same database as IPC handlers
+  // Check if Electron database is available via global (set by electron/db.ts)
+  if ((globalThis as any).__ELECTRON_DB__) {
+    return (globalThis as any).__ELECTRON_DB__ as DatabaseInstance;
+  }
+  
+  // Try require (works in CommonJS/compiled JS)
+  try {
+    const electronDb = require("../../electron/db.js");
+    if (electronDb && electronDb.getDb) {
+      try {
+        return electronDb.getDb() as DatabaseInstance;
+      } catch (error) {
+        // Electron DB not initialized yet, fall through to next priority
+      }
+    }
+  } catch (error) {
+    // Not in Electron context or electron/db not available, fall through
+  }
+  
+  // Priority 3: Check if we have a global instance (updated by reconnectDatabase)
   if (globalForDb.db) {
     return globalForDb.db;
   }
-  // Priority 3: Fall back to module-level export
+  // Priority 4: Fall back to module-level export
   return db;
 }
 

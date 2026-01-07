@@ -52,9 +52,27 @@ export function setDatabasePreference(preference: DatabasePreference): void {
 
 /**
  * Get the database file path based on preference
+ * In Electron context, uses app.getPath("userData") to match Electron's database location
  */
 export function getDatabasePath(preference?: DatabasePreference): string {
   const pref = preference ?? getDatabasePreference();
+  
+  // Check if we're running in Electron (has app module)
+  try {
+    // Dynamic import to avoid errors in non-Electron contexts
+    const { app } = require("electron");
+    if (app && app.getPath) {
+      // Use Electron's userData directory to match electron/db.ts
+      const userDataPath = app.getPath("userData");
+      const dbFile = pref === "prod" ? "prod.db" : "dev.db";
+      const { join } = require("path");
+      return join(userDataPath, dbFile);
+    }
+  } catch (error) {
+    // Not in Electron context, use relative path
+  }
+  
+  // Fallback to relative path (for tests, CLI scripts, etc.)
   return pref === "prod" ? "./prod.db" : "./dev.db";
 }
 

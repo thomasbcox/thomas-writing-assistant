@@ -28,18 +28,25 @@ function createWindow() {
     },
   });
 
-  // Suppress harmless DevTools protocol warnings (Autofill, etc.)
-  mainWindow.webContents.on("console-message", (event, level, message, line, sourceId) => {
-    // Filter out harmless DevTools protocol errors
+  // Note: You may see harmless DevTools protocol warnings in the terminal like:
+  // "Request Autofill.enable failed" or "Request Autofill.setAddresses failed"
+  // These are logged directly to stderr by Electron's internal DevTools protocol client
+  // and cannot be suppressed via console-message handlers. They occur because Electron's
+  // DevTools tries to enable browser autofill features that don't exist in Electron.
+  // These warnings are completely harmless and can be safely ignored.
+  
+  // Attempt to suppress renderer console messages (though Autofill errors come from Electron internals)
+  mainWindow.webContents.on("console-message" as any, (event: any, level: number, message: string) => {
+    // Filter out any renderer console messages about Autofill (if any)
     if (
-      message.includes("Autofill.enable") ||
-      message.includes("Autofill.setAddresses") ||
-      message.includes("wasn't found")
+      message?.includes("Autofill.enable") ||
+      message?.includes("Autofill.setAddresses") ||
+      message?.includes("Request Autofill") ||
+      message?.includes("wasn't found")
     ) {
       // Suppress these harmless warnings
       return;
     }
-    // Allow other console messages through
   });
 
   // Load the app

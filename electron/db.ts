@@ -70,6 +70,9 @@ export function initDb(): BetterSQLite3Database<typeof schema> {
   // Create Drizzle instance
   db = drizzle(sqlite, { schema });
 
+  // Expose database globally so src/server/db.ts can access it
+  (globalThis as any).__ELECTRON_DB__ = db;
+
   console.log(`📊 Database initialized: ${dbPath}`);
   
   return db;

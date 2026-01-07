@@ -12,7 +12,7 @@
     "strict": false,
     "noImplicitAny": false,
     "noEmitOnError": false,
-    "outDir": "../dist-electron/electron",
+    "outDir": "../dist-electron",
     "sourceMap": true,
     "types": ["node"],
     "baseUrl": "..",

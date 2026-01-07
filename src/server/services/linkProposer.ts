@@ -30,14 +30,26 @@ export async function proposeLinksForConcept(
   maxProposals: number = 5,
   context: ServiceContext,
 ): Promise<LinkProposal[]> {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'linkProposer.ts:28',message:'Function entry',data:{conceptId,maxProposals},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   const dbInstance = context.db;
   const client = context.llm;
   const config = context.config;
 
   // Validate config before generating content
   try {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'linkProposer.ts:39',message:'Validating config',data:{conceptId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     config.validateConfigForContentGeneration();
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'linkProposer.ts:40',message:'Config validation passed',data:{conceptId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
   } catch (error) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'linkProposer.ts:41',message:'Config validation failed',data:{errorMessage:error instanceof Error?error.message:String(error),conceptId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     logServiceError(error, "linkProposer", {
       conceptId,
       maxProposals,
@@ -55,11 +67,17 @@ export async function proposeLinksForConcept(
     "Starting link proposal generation",
   );
 
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'linkProposer.ts:58',message:'Querying target concept',data:{conceptId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+  // #endregion
   const targetConcept = await dbInstance.query.concept.findFirst({
     where: eq(concept.id, conceptId),
   });
 
   if (!targetConcept) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'linkProposer.ts:62',message:'Target concept not found',data:{conceptId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     logger.warn(
       {
         service: "linkProposer",
@@ -126,17 +144,32 @@ export async function proposeLinksForConcept(
   const textToEmbed = `${sourceConceptData.title}\n${sourceConceptData.description || ""}\n${sourceConceptData.content}`;
 
   // Ensure source concept has an embedding and get it for search
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'linkProposer.ts:129',message:'Getting embedding',data:{conceptId,provider:client.getProvider()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+  // #endregion
   const model = client.getProvider() === "openai" ? "text-embedding-3-small" : "text-embedding-004";
   const sourceEmbedding = await getOrCreateEmbeddingWithContext(conceptId, textToEmbed, dbInstance, model);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'linkProposer.ts:131',message:'Embedding obtained',data:{conceptId,embeddingLength:sourceEmbedding?.length??0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+  // #endregion
 
   // Use VectorIndex directly for fast in-memory search (exclude already linked concepts)
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'linkProposer.ts:133',message:'Getting VectorIndex',data:{conceptId,excludeCount:allLinkedIds.length+1},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
   const index = getVectorIndex();
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'linkProposer.ts:134',message:'VectorIndex obtained',data:{conceptId,indexSize:index?.size()??0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
   const similarConcepts = index.search(
     sourceEmbedding,
     100, // Limit to 100 most similar (increased from 20 for better recall with <1000 concepts)
     0.0, // No minimum similarity threshold (we'll let LLM decide)
     [conceptId, ...allLinkedIds], // Exclude source and already linked
   );
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'linkProposer.ts:140',message:'Vector search completed',data:{conceptId,similarCount:similarConcepts.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
 
   if (similarConcepts.length === 0) {
     logger.info(
@@ -185,6 +218,9 @@ export async function proposeLinksForConcept(
   }
 
   // Use LLM to propose links
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'linkProposer.ts:188',message:'Calling LLM for proposals',data:{conceptId,candidateCount:candidates.length,maxProposals,provider:client.getProvider()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+  // #endregion
   const proposals = await proposeLinksWithLLM(
     targetConcept,
     candidates,
@@ -193,6 +229,9 @@ export async function proposeLinksForConcept(
     config,
     dbInstance,
   );
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'linkProposer.ts:195',message:'LLM proposals received',data:{conceptId,proposalCount:proposals.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+  // #endregion
   logger.info(
     {
       service: "linkProposer",
@@ -343,8 +382,14 @@ Only include proposals with confidence >= 0.5. Limit to {{maxProposals}} proposa
     );
 
     const llmStartTime = Date.now();
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'linkProposer.ts:346',message:'Calling LLM completeJSON',data:{sourceConceptId:sourceConcept.id,provider:llmClient.getProvider(),model:llmClient.getModel(),promptLength:prompt.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     const response = await llmClient.completeJSON(prompt, systemPrompt);
     const llmDuration = Date.now() - llmStartTime;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'linkProposer.ts:348',message:'LLM response received',data:{sourceConceptId:sourceConcept.id,llmDuration,responseKeys:Object.keys(response??{}),hasProposals:!!(response as any)?.proposals},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
 
     logger.debug(
       {
@@ -356,12 +401,18 @@ Only include proposals with confidence >= 0.5. Limit to {{maxProposals}} proposa
       "LLM response received",
     );
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'linkProposer.ts:359',message:'Parsing LLM response',data:{sourceConceptId:sourceConcept.id,hasProposals:!!(response as any)?.proposals,proposalsType:typeof (response as any)?.proposals},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+    // #endregion
     const proposals = (response.proposals as Array<{
       target_id: string;
       forward_name: string;
       confidence: number;
       reasoning: string;
     }>) ?? [];
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'linkProposer.ts:365',message:'Proposals parsed',data:{sourceConceptId:sourceConcept.id,proposalCount:proposals.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+    // #endregion
 
     logger.debug(
       {
@@ -402,6 +453,9 @@ Only include proposals with confidence >= 0.5. Limit to {{maxProposals}} proposa
 
     return enrichedProposals.sort((a, b) => b.confidence - a.confidence);
   } catch (error) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'linkProposer.ts:404',message:'LLM error caught',data:{sourceConceptId:sourceConcept.id,errorMessage:error instanceof Error?error.message:String(error),errorName:error instanceof Error?error.name:'unknown'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     logger.error(
       {
         service: "linkProposer",
