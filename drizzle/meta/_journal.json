@@ -22,6 +22,13 @@
       "when": 1767652351464,
       "tag": "0002_steady_killraven",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1767795905426,
+      "tag": "0003_quick_captain_flint",
+      "breakpoints": true
     }
   ]
 }

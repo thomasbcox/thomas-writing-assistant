@@ -205,7 +205,7 @@ describe("GeminiProvider", () => {
         response: { text: jest.fn(() => '{"valid": true}') },
       });
 
-      const result = await provider.completeJSON("test", undefined, 3);
+      const result = await provider.completeJSON("test", undefined, undefined, 3);
 
       expect(mockGenerateContent).toHaveBeenCalledTimes(2);
       expect(result).toEqual({ valid: true });
@@ -218,7 +218,7 @@ describe("GeminiProvider", () => {
         response: { text: jest.fn(() => "null") },
       });
 
-      await expect(provider.completeJSON("test", undefined, 1)).rejects.toThrow(/Failed to parse JSON response/);
+      await expect(provider.completeJSON("test", undefined, undefined, 1)).rejects.toThrow(/Failed to parse JSON response/);
       jest.useFakeTimers(); // Restore fake timers
     }, 30000); // Increase timeout for real timers
 
@@ -228,7 +228,7 @@ describe("GeminiProvider", () => {
         response: { text: jest.fn(() => "[1, 2, 3]") },
       });
 
-      await expect(provider.completeJSON("test", undefined, 1)).rejects.toThrow(/Failed to parse JSON response/);
+      await expect(provider.completeJSON("test", undefined, undefined, 1)).rejects.toThrow(/Failed to parse JSON response/);
       jest.useFakeTimers(); // Restore fake timers
     }, 30000); // Increase timeout for real timers
 
@@ -252,7 +252,7 @@ describe("GeminiProvider", () => {
         response: { text: jest.fn(() => "not json") },
       });
 
-      await expect(provider.completeJSON("test", undefined, 1)).rejects.toThrow(/Failed to parse JSON response after 1 attempts/);
+      await expect(provider.completeJSON("test", undefined, undefined, 1)).rejects.toThrow(/Failed to parse JSON response after 1 attempts/);
       jest.useFakeTimers(); // Restore fake timers
     }, 30000); // Increase timeout for real timers
   });

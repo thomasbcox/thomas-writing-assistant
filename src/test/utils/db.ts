@@ -196,6 +196,45 @@ export async function migrateTestDb(db: DatabaseInstance): Promise<void> {
     
     CREATE UNIQUE INDEX IF NOT EXISTS "ConceptEmbedding_conceptId_unique" ON "ConceptEmbedding" ("conceptId");
     CREATE INDEX IF NOT EXISTS "ConceptEmbedding_model_idx" ON "ConceptEmbedding" ("model");
+    
+    CREATE TABLE IF NOT EXISTS "LLMCache" (
+      "id" TEXT PRIMARY KEY NOT NULL,
+      "queryEmbedding" BLOB NOT NULL,
+      "queryText" TEXT NOT NULL,
+      "response" TEXT NOT NULL,
+      "provider" TEXT NOT NULL,
+      "model" TEXT NOT NULL,
+      "createdAt" INTEGER NOT NULL DEFAULT (unixepoch()),
+      "lastUsedAt" INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    
+    CREATE TABLE IF NOT EXISTS "ContextSession" (
+      "id" TEXT PRIMARY KEY NOT NULL,
+      "sessionKey" TEXT NOT NULL UNIQUE,
+      "provider" TEXT NOT NULL,
+      "model" TEXT NOT NULL,
+      "contextMessages" TEXT NOT NULL,
+      "conceptIds" TEXT,
+      "expiresAt" INTEGER NOT NULL,
+      "createdAt" INTEGER NOT NULL DEFAULT (unixepoch()),
+      "updatedAt" INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    
+    CREATE UNIQUE INDEX IF NOT EXISTS "ContextSession_sessionKey_unique" ON "ContextSession" ("sessionKey");
+    CREATE INDEX IF NOT EXISTS "ContextSession_expiresAt_idx" ON "ContextSession" ("expiresAt");
+    
+    CREATE TABLE IF NOT EXISTS "ConceptSummary" (
+      "id" TEXT PRIMARY KEY NOT NULL,
+      "conceptId" TEXT NOT NULL UNIQUE REFERENCES "Concept"("id") ON DELETE CASCADE,
+      "summary" TEXT NOT NULL,
+      "keyPoints" TEXT,
+      "contentHash" TEXT NOT NULL,
+      "createdAt" INTEGER NOT NULL DEFAULT (unixepoch()),
+      "updatedAt" INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    
+    CREATE UNIQUE INDEX IF NOT EXISTS "ConceptSummary_conceptId_unique" ON "ConceptSummary" ("conceptId");
+    CREATE INDEX IF NOT EXISTS "ConceptSummary_contentHash_idx" ON "ConceptSummary" ("contentHash");
   `;
 
   // Split by semicolon and execute each statement

@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { ILLMProvider } from "../types";
+import { ILLMProvider, type ConversationMessage } from "../types";
 
 export class OpenAIProvider implements ILLMProvider {
   private client: OpenAI;
@@ -29,10 +29,22 @@ export class OpenAIProvider implements ILLMProvider {
     systemPrompt?: string,
     maxTokens?: number,
     temperature?: number,
+    conversationHistory?: ConversationMessage[],
   ): Promise<string> {
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
 
-    if (systemPrompt) {
+    // Add conversation history first (if provided)
+    if (conversationHistory) {
+      for (const msg of conversationHistory) {
+        messages.push({
+          role: msg.role,
+          content: msg.content,
+        });
+      }
+    }
+
+    // Add system prompt if not already in history
+    if (systemPrompt && !messages.some((m) => m.role === "system")) {
       messages.push({ role: "system", content: systemPrompt });
     }
 
@@ -51,11 +63,23 @@ export class OpenAIProvider implements ILLMProvider {
   async completeJSON(
     prompt: string,
     systemPrompt?: string,
+    conversationHistory?: ConversationMessage[],
     maxRetries: number = 3,
   ): Promise<Record<string, unknown>> {
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
 
-    if (systemPrompt) {
+    // Add conversation history first (if provided)
+    if (conversationHistory) {
+      for (const msg of conversationHistory) {
+        messages.push({
+          role: msg.role,
+          content: msg.content,
+        });
+      }
+    }
+
+    // Add system prompt if not already in history
+    if (systemPrompt && !messages.some((m) => m.role === "system")) {
       messages.push({ role: "system", content: systemPrompt });
     }
 

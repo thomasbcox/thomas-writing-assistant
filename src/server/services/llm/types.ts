@@ -1,4 +1,12 @@
 /**
+ * Message for conversation history
+ */
+export interface ConversationMessage {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
+
+/**
  * Provider-agnostic LLM interface
  */
 export interface ILLMProvider {
@@ -7,11 +15,13 @@ export interface ILLMProvider {
     systemPrompt?: string,
     maxTokens?: number,
     temperature?: number,
+    conversationHistory?: ConversationMessage[],
   ): Promise<string>;
 
   completeJSON(
     prompt: string,
     systemPrompt?: string,
+    conversationHistory?: ConversationMessage[],
   ): Promise<Record<string, unknown>>;
 
   /**

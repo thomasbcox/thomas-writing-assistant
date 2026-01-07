@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { ILLMProvider } from "../types";
+import { ILLMProvider, type ConversationMessage } from "../types";
 import { logger } from "~/lib/logger";
 
 export class GeminiProvider implements ILLMProvider {
@@ -112,11 +112,33 @@ export class GeminiProvider implements ILLMProvider {
     systemPrompt?: string,
     maxTokens?: number,
     temperature?: number,
+    conversationHistory?: ConversationMessage[],
   ): Promise<string> {
-    // Combine system prompt and user prompt
-    const fullPrompt = systemPrompt
-      ? `${systemPrompt}\n\n${prompt}`
-      : prompt;
+    // Build prompt from conversation history if provided
+    let fullPrompt = "";
+    
+    if (conversationHistory && conversationHistory.length > 0) {
+      // Combine conversation history into a single prompt
+      // Gemini doesn't support multi-turn conversations natively, so we format it as a conversation
+      const historyText = conversationHistory
+        .map((msg) => {
+          if (msg.role === "system") {
+            return `[System]: ${msg.content}`;
+          } else if (msg.role === "user") {
+            return `[User]: ${msg.content}`;
+          } else {
+            return `[Assistant]: ${msg.content}`;
+          }
+        })
+        .join("\n\n");
+      
+      fullPrompt = historyText + (systemPrompt ? `\n\n[System]: ${systemPrompt}` : "") + `\n\n[User]: ${prompt}`;
+    } else {
+      // Fallback to original behavior
+      fullPrompt = systemPrompt
+        ? `${systemPrompt}\n\n${prompt}`
+        : prompt;
+    }
 
     // Fallback models to try in order (prioritize most capable licensed models first)
     // Order rationale:
@@ -184,12 +206,34 @@ export class GeminiProvider implements ILLMProvider {
   async completeJSON(
     prompt: string,
     systemPrompt?: string,
+    conversationHistory?: ConversationMessage[],
     maxRetries: number = 3,
   ): Promise<Record<string, unknown>> {
-    // Combine system prompt and user prompt
-    const fullPrompt = systemPrompt
-      ? `${systemPrompt}\n\n${prompt}`
-      : prompt;
+    // Build prompt from conversation history if provided
+    let fullPrompt = "";
+    
+    if (conversationHistory && conversationHistory.length > 0) {
+      // Combine conversation history into a single prompt
+      // Gemini doesn't support multi-turn conversations natively, so we format it as a conversation
+      const historyText = conversationHistory
+        .map((msg) => {
+          if (msg.role === "system") {
+            return `[System]: ${msg.content}`;
+          } else if (msg.role === "user") {
+            return `[User]: ${msg.content}`;
+          } else {
+            return `[Assistant]: ${msg.content}`;
+          }
+        })
+        .join("\n\n");
+      
+      fullPrompt = historyText + (systemPrompt ? `\n\n[System]: ${systemPrompt}` : "") + `\n\n[User]: ${prompt}`;
+    } else {
+      // Fallback to original behavior
+      fullPrompt = systemPrompt
+        ? `${systemPrompt}\n\n${prompt}`
+        : prompt;
+    }
 
     // Fallback models to try in order (prioritize most capable licensed models first)
     // Order rationale:

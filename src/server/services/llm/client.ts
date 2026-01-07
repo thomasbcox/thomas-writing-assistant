@@ -1,7 +1,10 @@
 import { env } from "~/env";
-import { ILLMProvider, LLMProvider, LLMConfig } from "./types";
+import { ILLMProvider, LLMProvider, LLMConfig, type ConversationMessage } from "./types";
 import { OpenAIProvider } from "./providers/openai";
 import { GeminiProvider } from "./providers/gemini";
+import { getCachedResponse, storeCachedResponse } from "./semanticCache";
+import { getCurrentDb } from "~/server/db";
+import type { DatabaseInstance } from "~/server/db";
 
 /**
  * Unified LLM Client that supports multiple providers
@@ -114,15 +117,87 @@ export class LLMClient {
     systemPrompt?: string,
     maxTokens?: number,
     temperature?: number,
+    conversationHistory?: ConversationMessage[],
+    db?: DatabaseInstance,
+    useCache: boolean = true,
   ): Promise<string> {
-    return this.provider.complete(prompt, systemPrompt, maxTokens, temperature);
+    // Check semantic cache if enabled and database provided
+    if (useCache && db) {
+      const cacheKey = `${systemPrompt || ""}\n${prompt}`;
+      const cached = await getCachedResponse(
+        db,
+        cacheKey,
+        this.providerType,
+        this.model,
+      );
+      if (cached && typeof cached.response === "string") {
+        return cached.response;
+      }
+    }
+
+    const response = await this.provider.complete(
+      prompt,
+      systemPrompt,
+      maxTokens,
+      temperature,
+      conversationHistory,
+    );
+
+    // Store in cache if enabled and database provided
+    if (useCache && db) {
+      const cacheKey = `${systemPrompt || ""}\n${prompt}`;
+      await storeCachedResponse(
+        db,
+        cacheKey,
+        { response },
+        this.providerType,
+        this.model,
+      );
+    }
+
+    return response;
   }
 
   async completeJSON(
     prompt: string,
     systemPrompt?: string,
+    conversationHistory?: ConversationMessage[],
+    db?: DatabaseInstance,
+    useCache: boolean = true,
   ): Promise<Record<string, unknown>> {
-    return this.provider.completeJSON(prompt, systemPrompt);
+    // Check semantic cache if enabled and database provided
+    if (useCache && db) {
+      const cacheKey = `${systemPrompt || ""}\n${prompt}`;
+      const cached = await getCachedResponse(
+        db,
+        cacheKey,
+        this.providerType,
+        this.model,
+      );
+      if (cached) {
+        return cached;
+      }
+    }
+
+    const response = await this.provider.completeJSON(
+      prompt,
+      systemPrompt,
+      conversationHistory,
+    );
+
+    // Store in cache if enabled and database provided
+    if (useCache && db) {
+      const cacheKey = `${systemPrompt || ""}\n${prompt}`;
+      await storeCachedResponse(
+        db,
+        cacheKey,
+        response,
+        this.providerType,
+        this.model,
+      );
+    }
+
+    return response;
   }
 
   async embed(text: string): Promise<number[]> {

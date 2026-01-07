@@ -19,6 +19,7 @@ This is an **Electron desktop application** built with React, TypeScript, and Dr
 - **Zettelkasten knowledge base** - Extract and link core concepts from your existing writings
 - **Capsule content system** - Create evergreen anchor posts and repurpose into multiple formats
 - **AI-powered content generation** with style-aware LLM integration
+- **Context caching & semantic caching** - Optimized LLM usage with multi-turn conversations and response caching
 - **Native desktop experience** - Runs as a standalone application with proper lifecycle management
 
 ## 📋 Project Structure

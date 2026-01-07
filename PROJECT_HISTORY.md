@@ -1079,6 +1079,46 @@ When implementing vector search for local-first applications:
 
 ---
 
-**Last Updated**: January 1, 2026
+**Last Updated**: January 7, 2026
 
 *This document is maintained as an ongoing narrative. Major changes, decisions, and incidents should be added here to preserve institutional memory.*
+
+## Context Caching and LLM Optimization (January 2026)
+
+### Problem
+The link proposer and other LLM-powered features were slow and expensive because:
+- Each LLM call sent full context in every request (no context persistence)
+- Similar queries made redundant API calls
+- Link proposer sent up to 100 candidate concepts in a single prompt
+
+### Solution: Phase 1 Implementation
+Implemented two optimization strategies:
+
+**1. Multi-Turn Conversation Context**
+- Created `contextSession.ts` service to manage concept corpus context sessions
+- Refactored link proposer to load concepts into context once, then reference them in subsequent queries
+- Updated LLM providers (OpenAI and Gemini) to support conversation history
+- Context sessions expire after 1 hour and are invalidated when concepts are updated
+
+**2. Semantic Caching**
+- Created `semanticCache.ts` service to cache LLM responses for semantically similar queries
+- Uses vector embeddings and cosine similarity to find cache hits (threshold: 0.95)
+- Integrated with LLM client for automatic cache checking and storage
+- LRU eviction when cache exceeds 1000 entries
+
+### Database Schema Changes
+Added three new tables:
+- `LLMCache` - Stores query embeddings and responses for semantic caching
+- `ContextSession` - Stores LLM context sessions for multi-turn conversations
+- `ConceptSummary` - Stores compressed summaries for future prompt optimization (Phase 2)
+
+### Impact
+- **Speed**: Faster link proposals when concepts are already in context
+- **Cost**: Reduced API token usage through context reuse and semantic caching
+- **Quality**: Better understanding of relationships over time through persistent context
+
+### Technical Details
+- Context sessions use unique session keys (e.g., "link-proposer:concept-123")
+- Semantic cache uses cosine similarity on query embeddings
+- Both features are transparent to existing services (backward compatible)
+- Migration: `drizzle/0003_quick_captain_flint.sql`

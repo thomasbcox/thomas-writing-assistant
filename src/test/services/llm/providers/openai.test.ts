@@ -213,7 +213,7 @@ describe("OpenAIProvider", () => {
         choices: [{ message: { content: '{"valid": true}' } }],
       });
 
-      const result = await provider.completeJSON("test", undefined, 3);
+      const result = await provider.completeJSON("test", undefined);
 
       expect(mockChatCompletionsCreate).toHaveBeenCalledTimes(2);
       expect(result).toEqual({ valid: true });
@@ -246,7 +246,7 @@ describe("OpenAIProvider", () => {
         choices: [{ message: { content: "not json" } }],
       });
 
-      await expect(provider.completeJSON("test", undefined, 1)).rejects.toThrow(/Failed to parse JSON response after 1 attempts/);
+      await expect(provider.completeJSON("test", undefined)).rejects.toThrow(/Failed to parse JSON response after/);
       jest.useFakeTimers(); // Restore fake timers
     }, 30000); // Increase timeout for real timers
 

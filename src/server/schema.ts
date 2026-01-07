@@ -260,6 +260,69 @@ export const conceptRelationsWithEmbedding = relations(concept, ({ one }) => ({
   }),
 }));
 
+// LLMCache table - stores semantic cache entries for LLM responses
+export const llmCache = sqliteTable("LLMCache", {
+  // @ts-expect-error - Drizzle type inference issue with sqliteTable overloads
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  queryEmbedding: blob("queryEmbedding", { mode: "buffer" }).notNull(), // Binary Float32Array stored as BLOB
+  queryText: text("queryText").notNull(), // Original query text for debugging
+  response: text("response").notNull(), // JSON string of the response
+  provider: text("provider").notNull(), // "openai" or "gemini"
+  model: text("model").notNull(), // Model name used
+  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+  lastUsedAt: integer("lastUsedAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+}, (table) => ({
+  providerModelIdx: { columns: [table.provider, table.model] },
+  lastUsedAtIdx: { columns: [table.lastUsedAt] },
+}));
+
+// ContextSession table - stores LLM context sessions for multi-turn conversations
+export const contextSession = sqliteTable("ContextSession", {
+  // @ts-expect-error - Drizzle type inference issue with sqliteTable overloads
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  sessionKey: text("sessionKey").unique().notNull(), // Unique key for the session (e.g., "link-proposer:concept-123")
+  provider: text("provider").notNull(), // "openai" or "gemini"
+  model: text("model").notNull(), // Model name used
+  contextMessages: text("contextMessages").notNull(), // JSON array of messages for context
+  conceptIds: text("conceptIds"), // JSON array of concept IDs in context
+  expiresAt: integer("expiresAt", { mode: "timestamp" }).notNull(), // When the session expires
+  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).$onUpdate(() => new Date()).notNull(),
+}, (table) => ({
+  sessionKeyIdx: { columns: [table.sessionKey], unique: true },
+  expiresAtIdx: { columns: [table.expiresAt] },
+}));
+
+// ConceptSummary table - stores compressed summaries of concepts for prompt optimization
+export const conceptSummary = sqliteTable("ConceptSummary", {
+  // @ts-expect-error - Drizzle type inference issue with sqliteTable overloads
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  conceptId: text("conceptId").unique().notNull().references(() => concept.id, { onDelete: "cascade" }),
+  summary: text("summary").notNull(), // Compressed summary (title + key points)
+  keyPoints: text("keyPoints"), // JSON array of key points extracted
+  contentHash: text("contentHash").notNull(), // Hash of original content to detect changes
+  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).$onUpdate(() => new Date()).notNull(),
+}, (table) => ({
+  conceptIdIdx: { columns: [table.conceptId], unique: true },
+  contentHashIdx: { columns: [table.contentHash] },
+}));
+
+// Relations - defined after all tables
+export const conceptSummaryRelations = relations(conceptSummary, ({ one }) => ({
+  concept: one(concept, {
+    fields: [conceptSummary.conceptId],
+    references: [concept.id],
+  }),
+}));
+
+export const conceptRelationsWithSummary = relations(concept, ({ one }) => ({
+  summary: one(conceptSummary, {
+    fields: [concept.id],
+    references: [conceptSummary.conceptId],
+  }),
+}));
+
 // Type exports for use in code
 export type Concept = typeof concept.$inferSelect;
 export type NewConcept = typeof concept.$inferInsert;
@@ -283,3 +346,9 @@ export type ChatMessage = typeof chatMessage.$inferSelect;
 export type NewChatMessage = typeof chatMessage.$inferInsert;
 export type ConceptEmbedding = typeof conceptEmbedding.$inferSelect;
 export type NewConceptEmbedding = typeof conceptEmbedding.$inferInsert;
+export type LLMCache = typeof llmCache.$inferSelect;
+export type NewLLMCache = typeof llmCache.$inferInsert;
+export type ContextSession = typeof contextSession.$inferSelect;
+export type NewContextSession = typeof contextSession.$inferInsert;
+export type ConceptSummary = typeof conceptSummary.$inferSelect;
+export type NewConceptSummary = typeof conceptSummary.$inferInsert;

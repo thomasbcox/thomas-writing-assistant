@@ -12,6 +12,11 @@ import { getOrCreateEmbeddingWithContext } from "./embeddingOrchestrator";
 import { getVectorIndex } from "./vectorIndex";
 import { escapeTemplateContent } from "./promptUtils";
 import type { ServiceContext } from "~/server/dependencies";
+import {
+  getOrCreateContextSession,
+  generateSessionKey,
+  type ContextMessage,
+} from "./llm/contextSession";
 
 import type { DatabaseInstance } from "~/server/db";
 type Database = DatabaseInstance;
@@ -269,13 +274,6 @@ async function proposeLinksWithLLM(
   configLoader: ConfigLoader,
   database: Database,
 ): Promise<LinkProposal[]> {
-  // Build candidate descriptions
-  const candidateDescriptions = candidates.map((candidate, i) => ({
-    id: candidate.id,
-    title: candidate.title,
-    content_preview: candidate.content.slice(0, 500),
-  }));
-
   // Get available link names
   const linkNames = await database
     .select()
@@ -310,7 +308,13 @@ async function proposeLinksWithLLM(
     configLoader.getPrompt("linkProposer.systemPrompt", systemPromptDefault)
   );
 
-  // Build user prompt from template or use default
+  // Build candidate descriptions for context
+  const candidateDescriptions = candidates.map((candidate, i) => ({
+    id: candidate.id,
+    title: candidate.title,
+    content_preview: candidate.content.slice(0, 500),
+  }));
+
   const candidateList = candidateDescriptions
     .map(
       (c, i) => `
@@ -320,21 +324,39 @@ ${i + 1}. ID: ${c.id}
     )
     .join("\n");
 
+  // Create or get context session with candidate concepts loaded
+  const sessionKey = generateSessionKey("link-proposer", sourceConcept.id);
+  const contextSession = await getOrCreateContextSession(
+    database,
+    sessionKey,
+    llmClient.getProvider(),
+    llmClient.getModel(),
+    [
+      {
+        role: "user",
+        content: `Here are the candidate concepts in the knowledge graph that you can reference:
+
+${candidateList}
+
+Available link names: ${allLinkNames}
+
+You will be asked to propose links between a source concept and these candidate concepts.`,
+      },
+    ],
+    candidates.map((c) => c.id),
+  );
+
+  // Build the link proposal query (references concepts already in context)
   const promptTemplate = configLoader.getPrompt(
     "linkProposer.userPromptTemplate",
-    `Analyze the relationship between this concept and the candidate concepts below.
+    `Analyze the relationship between this source concept and the candidate concepts that were provided earlier.
 
 SOURCE CONCEPT:
 Title: {{sourceTitle}}
 Description: {{sourceDescription}}
 Content Preview: {{sourceContentPreview}}
 
-CANDIDATE CONCEPTS:
-{{candidateList}}
-
-AVAILABLE LINK NAMES: {{linkNames}}
-
-For each candidate concept, determine:
+For each candidate concept (referenced by their IDs), determine:
 1. If there's a meaningful relationship (confidence 0.0-1.0)
 2. The most appropriate link name from the available list
 3. A brief reasoning
@@ -354,15 +376,11 @@ Response format (structured output will ensure valid JSON):
 Only include proposals with confidence >= 0.5. Limit to {{maxProposals}} proposals.`
   );
 
-  // Escape user content to prevent prompt injection
-
   // Replace template variables (escape user content to prevent prompt injection)
   const prompt = promptTemplate
     .replace(/\{\{sourceTitle\}\}/g, escapeTemplateContent(sourceConcept.title))
     .replace(/\{\{sourceDescription\}\}/g, escapeTemplateContent(sourceConcept.description ?? "None"))
     .replace(/\{\{sourceContentPreview\}\}/g, escapeTemplateContent((sourceConcept.content ?? "").slice(0, 500)))
-    .replace(/\{\{candidateList\}\}/g, candidateList) // Already formatted, safe
-    .replace(/\{\{linkNames\}\}/g, allLinkNames) // Already formatted, safe
     .replace(/\{\{maxProposals\}\}/g, String(maxProposals));
 
   try {
@@ -377,15 +395,30 @@ Only include proposals with confidence >= 0.5. Limit to {{maxProposals}} proposa
         systemPromptLength: systemPrompt.length,
         provider: llmClient.getProvider(),
         model: llmClient.getModel(),
+        sessionId: contextSession.id,
       },
-      "Calling LLM for link proposals",
+      "Calling LLM for link proposals with context session",
     );
 
     const llmStartTime = Date.now();
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'linkProposer.ts:346',message:'Calling LLM completeJSON',data:{sourceConceptId:sourceConcept.id,provider:llmClient.getProvider(),model:llmClient.getModel(),promptLength:prompt.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
     // #endregion
-    const response = await llmClient.completeJSON(prompt, systemPrompt);
+    
+    // Convert context session messages to conversation history format
+    const conversationHistory: Array<{ role: "system" | "user" | "assistant"; content: string }> = 
+      contextSession.messages.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      }));
+
+    const response = await llmClient.completeJSON(
+      prompt,
+      systemPrompt,
+      conversationHistory,
+      database,
+      true, // useCache
+    );
     const llmDuration = Date.now() - llmStartTime;
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'linkProposer.ts:348',message:'LLM response received',data:{sourceConceptId:sourceConcept.id,llmDuration,responseKeys:Object.keys(response??{}),hasProposals:!!(response as any)?.proposals},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});

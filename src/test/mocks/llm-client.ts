@@ -4,7 +4,11 @@
  */
 
 import { jest } from "@jest/globals";
-import type { ILLMProvider, LLMProvider } from "~/server/services/llm/types";
+import type {
+  ILLMProvider,
+  LLMProvider,
+  ConversationMessage,
+} from "~/server/services/llm/types";
 import type { LLMClient } from "~/server/services/llm/client";
 
 // Re-export LLMClient type for convenience in tests
@@ -18,12 +22,14 @@ export class MockLLMClient implements ILLMProvider {
   private mockCompleteJSON?: (
     prompt: string,
     systemPrompt?: string,
+    conversationHistory?: ConversationMessage[],
   ) => Promise<Record<string, unknown>>;
   private mockComplete?: (
     prompt: string,
     systemPrompt?: string,
     maxTokens?: number,
     temperature?: number,
+    conversationHistory?: ConversationMessage[],
   ) => Promise<string>;
   private mockEmbed?: (text: string) => Promise<number[]>;
   private mockProvider: LLMProvider = "openai";
@@ -36,7 +42,11 @@ export class MockLLMClient implements ILLMProvider {
    * Set a custom mock function for completeJSON
    */
   setMockCompleteJSON(
-    fn: (prompt: string, systemPrompt?: string) => Promise<Record<string, unknown>>,
+    fn: (
+      prompt: string,
+      systemPrompt?: string,
+      conversationHistory?: ConversationMessage[],
+    ) => Promise<Record<string, unknown>>,
   ) {
     this.mockCompleteJSON = fn;
   }
@@ -50,6 +60,7 @@ export class MockLLMClient implements ILLMProvider {
       systemPrompt?: string,
       maxTokens?: number,
       temperature?: number,
+      conversationHistory?: ConversationMessage[],
     ) => Promise<string>,
   ) {
     this.mockComplete = fn;
@@ -112,13 +123,14 @@ export class MockLLMClient implements ILLMProvider {
   async completeJSON(
     prompt: string,
     systemPrompt?: string,
+    conversationHistory?: ConversationMessage[],
   ): Promise<Record<string, unknown>> {
     if (this.shouldError) {
       throw new Error(this.errorMessage || "Mock LLM error");
     }
 
     if (this.mockCompleteJSON) {
-      return this.mockCompleteJSON(prompt, systemPrompt);
+      return this.mockCompleteJSON(prompt, systemPrompt, conversationHistory);
     }
 
     // Default mock response
@@ -130,13 +142,20 @@ export class MockLLMClient implements ILLMProvider {
     systemPrompt?: string,
     maxTokens?: number,
     temperature?: number,
+    conversationHistory?: ConversationMessage[],
   ): Promise<string> {
     if (this.shouldError) {
       throw new Error(this.errorMessage || "Mock LLM error");
     }
 
     if (this.mockComplete) {
-      return this.mockComplete(prompt, systemPrompt, maxTokens, temperature);
+      return this.mockComplete(
+        prompt,
+        systemPrompt,
+        maxTokens,
+        temperature,
+        conversationHistory,
+      );
     }
 
     // Default mock response
