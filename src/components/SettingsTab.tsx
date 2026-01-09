@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { api } from "~/hooks/useIPC";
 import { LoadingSpinner } from "./ui/LoadingSpinner";
 import { ToastContainer, type ToastType } from "./ui/Toast";
+import { useTimer } from "~/hooks/useTimer";
 
 interface Toast {
   id: string;
@@ -29,6 +30,8 @@ export function SettingsTab() {
       addToast(`Failed to start embedding generation: ${error.message}`, "error");
     },
   });
+
+  const { formattedTime, showCounter } = useTimer(generateEmbeddingsMutation.isLoading);
 
   const [provider, setProvider] = useState<"openai" | "gemini">("openai");
   const [model, setModel] = useState("");
@@ -230,7 +233,7 @@ export function SettingsTab() {
             >
               {generateEmbeddingsMutation.isLoading && <LoadingSpinner size="sm" />}
               {generateEmbeddingsMutation.isLoading 
-                ? "Generating..." 
+                ? `Generating${showCounter ? ` (${formattedTime})` : "..."}${embeddingStatus?.conceptsWithoutEmbeddings ? ` - ${embeddingStatus.conceptsWithoutEmbeddings} remaining` : ""}`
                 : `Generate Missing Embeddings${embeddingStatus?.conceptsWithoutEmbeddings ? ` (${embeddingStatus.conceptsWithoutEmbeddings} remaining)` : ""}`}
             </button>
             

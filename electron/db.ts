@@ -44,15 +44,24 @@ export function initDb(): BetterSQLite3Database<typeof schema> {
   // Create SQLite connection
   sqlite = new Database(dbPath);
   
-  // Check if database needs schema initialization
+  // Check if database needs schema initialization or migration
   try {
     const tables = sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{ name: string }>;
     const tableNames = tables.map(t => t.name).filter(name => !name.startsWith("_"));
+    
+    // Required tables for the new features
+    const requiredTables = ["LLMCache", "ContextSession", "ConceptSummary"];
+    const missingTables = requiredTables.filter(name => !tableNames.includes(name));
     
     if (tableNames.length === 0) {
       console.log(`📦 Database ${dbPath} is empty. Initializing schema...`);
       initializeSchema(sqlite);
       console.log(`✅ Schema initialized successfully`);
+    } else if (missingTables.length > 0) {
+      console.log(`📦 Database ${dbPath} is missing tables: ${missingTables.join(", ")}. Adding missing tables...`);
+      // Run schema initialization to add missing tables (CREATE TABLE IF NOT EXISTS is safe)
+      initializeSchema(sqlite);
+      console.log(`✅ Missing tables added successfully`);
     } else {
       console.log(`📊 Database ${dbPath} has ${tableNames.length} table(s): ${tableNames.join(", ")}`);
     }
@@ -226,6 +235,48 @@ function initializeSchema(sqlite: DatabaseType): void {
     
     CREATE UNIQUE INDEX IF NOT EXISTS "ConceptEmbedding_conceptId_unique" ON "ConceptEmbedding" ("conceptId");
     CREATE INDEX IF NOT EXISTS "ConceptEmbedding_model_idx" ON "ConceptEmbedding" ("model");
+    
+    CREATE TABLE IF NOT EXISTS "LLMCache" (
+      "id" TEXT PRIMARY KEY NOT NULL,
+      "queryEmbedding" BLOB NOT NULL,
+      "queryText" TEXT NOT NULL,
+      "response" TEXT NOT NULL,
+      "provider" TEXT NOT NULL,
+      "model" TEXT NOT NULL,
+      "createdAt" INTEGER NOT NULL DEFAULT (unixepoch()),
+      "lastUsedAt" INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    
+    CREATE INDEX IF NOT EXISTS "LLMCache_provider_model_idx" ON "LLMCache" ("provider", "model");
+    CREATE INDEX IF NOT EXISTS "LLMCache_lastUsedAt_idx" ON "LLMCache" ("lastUsedAt");
+    
+    CREATE TABLE IF NOT EXISTS "ContextSession" (
+      "id" TEXT PRIMARY KEY NOT NULL,
+      "sessionKey" TEXT NOT NULL UNIQUE,
+      "provider" TEXT NOT NULL,
+      "model" TEXT NOT NULL,
+      "contextMessages" TEXT NOT NULL,
+      "conceptIds" TEXT,
+      "expiresAt" INTEGER NOT NULL,
+      "createdAt" INTEGER NOT NULL DEFAULT (unixepoch()),
+      "updatedAt" INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    
+    CREATE UNIQUE INDEX IF NOT EXISTS "ContextSession_sessionKey_unique" ON "ContextSession" ("sessionKey");
+    CREATE INDEX IF NOT EXISTS "ContextSession_expiresAt_idx" ON "ContextSession" ("expiresAt");
+    
+    CREATE TABLE IF NOT EXISTS "ConceptSummary" (
+      "id" TEXT PRIMARY KEY NOT NULL,
+      "conceptId" TEXT NOT NULL UNIQUE REFERENCES "Concept"("id") ON DELETE CASCADE,
+      "summary" TEXT NOT NULL,
+      "keyPoints" TEXT,
+      "contentHash" TEXT NOT NULL,
+      "createdAt" INTEGER NOT NULL DEFAULT (unixepoch()),
+      "updatedAt" INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    
+    CREATE UNIQUE INDEX IF NOT EXISTS "ConceptSummary_conceptId_unique" ON "ConceptSummary" ("conceptId");
+    CREATE INDEX IF NOT EXISTS "ConceptSummary_contentHash_idx" ON "ConceptSummary" ("contentHash");
   `;
 
   // Split by semicolon and execute each statement

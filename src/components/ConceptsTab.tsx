@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { api } from "~/hooks/useIPC";
 import { ConceptEditor } from "./ConceptEditor";
 import { ConceptViewer } from "./ConceptViewer";
+import { ConceptEnrichmentStudio } from "./enrichment/ConceptEnrichmentStudio";
 import { ToastContainer, type ToastType } from "./ui/Toast";
 import { ContextualHelp } from "./ui/ContextualHelp";
 import type { ConceptListItem } from "~/types/database";
@@ -23,6 +24,7 @@ export function ConceptsTab() {
   const [showTrash, setShowTrash] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewingId, setViewingId] = useState<string | null>(null);
+  const [enrichingId, setEnrichingId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [purgeConfirm, setPurgeConfirm] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -34,6 +36,7 @@ export function ConceptsTab() {
     setShowTrash(false);
     setEditingId(null);
     setViewingId(null);
+    setEnrichingId(null);
     setDeleteConfirm(null);
     setPurgeConfirm(false);
     setShowCreateConceptForm(false);
@@ -193,6 +196,7 @@ export function ConceptsTab() {
             showTrash={showTrash}
             onView={(id) => setViewingId(id)}
             onEdit={(id) => setEditingId(id)}
+            onEnrich={(id) => setEnrichingId(id)}
             onDelete={(id) => setDeleteConfirm(id)}
             onRestore={(id) => restoreMutation.mutate({ id })}
           />
@@ -213,6 +217,18 @@ export function ConceptsTab() {
           <ConceptViewer
             concept={viewingConcept as ConceptListItem}
             onClose={() => setViewingId(null)}
+          />
+        )}
+
+        {enrichingId && (
+          <ConceptEnrichmentStudio
+            conceptId={enrichingId}
+            onClose={() => setEnrichingId(null)}
+            onSave={() => {
+              refetch();
+              setEnrichingId(null);
+              addToast("Concept enriched and saved successfully", "success");
+            }}
           />
         )}
 

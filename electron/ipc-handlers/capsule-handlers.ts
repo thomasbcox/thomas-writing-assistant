@@ -222,6 +222,74 @@ export function registerCapsuleHandlers() {
     }
   });
 
+  // Regenerate repurposed content for an anchor
+  ipcMain.handle("capsule:regenerateRepurposedContent", async (_event, input: unknown) => {
+    const parsed = z.object({
+      anchorId: z.string(),
+    }).parse(input);
+    
+    const db = getDb();
+
+    logger.info({ operation: "capsule:regenerateRepurposedContent", anchorId: parsed.anchorId }, "Regenerating repurposed content");
+
+    try {
+      // Get the anchor
+      const foundAnchor = await db.query.anchor.findFirst({
+        where: eq(anchor.id, parsed.anchorId),
+      });
+
+      if (!foundAnchor) {
+        logger.warn({ operation: "capsule:regenerateRepurposedContent", anchorId: parsed.anchorId }, "Anchor not found");
+        throw new Error("Anchor not found");
+      }
+
+      // Delete existing repurposed content for this anchor
+      await db.delete(repurposedContent).where(eq(repurposedContent.anchorId, parsed.anchorId));
+      logger.debug({ operation: "capsule:regenerateRepurposedContent", anchorId: parsed.anchorId }, "Deleted existing repurposed content");
+
+      // Get LLM client and config loader
+      const llmClient = getLLMClient();
+      const configLoader = getConfigLoader();
+
+      // Parse pain points and solution steps
+      const painPoints = foundAnchor.painPoints ? safeJsonParseArray<string>(foundAnchor.painPoints) : null;
+      const solutionSteps = foundAnchor.solutionSteps ? safeJsonParseArray<string>(foundAnchor.solutionSteps) : null;
+
+      // Generate new repurposed content
+      const repurposed = await repurposeAnchorContent(
+        foundAnchor.title,
+        foundAnchor.content,
+        painPoints,
+        solutionSteps,
+        llmClient,
+        configLoader,
+      );
+
+      // Save new repurposed content to database
+      const savedRepurposed = [];
+      for (const rc of repurposed) {
+        const [newRepurposed] = await db
+          .insert(repurposedContent)
+          .values({
+            anchorId: parsed.anchorId,
+            type: rc.type,
+            content: rc.content,
+            guidance: rc.guidance ?? null,
+          })
+          .returning();
+        savedRepurposed.push(newRepurposed);
+      }
+
+      logger.info({ operation: "capsule:regenerateRepurposedContent", anchorId: parsed.anchorId, count: savedRepurposed.length }, "Repurposed content regenerated successfully");
+      return savedRepurposed.map(serializeRepurposedContent);
+    } catch (error) {
+      logServiceError(error, "capsule.regenerateRepurposedContent", {
+        anchorId: parsed.anchorId,
+      });
+      throw error;
+    }
+  });
+
   // Additional capsule handlers can be added here following the same pattern
   // For now, these are the essential ones used by components
 }

@@ -156,6 +156,13 @@ export const ipc = {
       }
       return win.electronAPI.capsule.createAnchorFromPDF(input);
     },
+    regenerateRepurposedContent: (input: { anchorId: string }) => {
+      const win = getWindowRuntime();
+      if (!win || !win.electronAPI) {
+        throw new Error("IPC client not available - not running in Electron");
+      }
+      return win.electronAPI.capsule.regenerateRepurposedContent(input);
+    },
   },
   link: {
     getAll: (input?: { summary?: boolean }) => {
@@ -418,6 +425,36 @@ export const ipc = {
         throw new Error("IPC client not available - not running in Electron");
       }
       return win.electronAPI.offer.getUnassignedCapsules();
+    },
+  },
+  enrichment: {
+    analyze: (input: { title: string; description: string; content: string; creator: string; source: string; year: string }) => {
+      const win = getWindowRuntime();
+      if (!win || !win.electronAPI) {
+        throw new Error("IPC client not available - not running in Electron");
+      }
+      return win.electronAPI.enrichment.analyze(input);
+    },
+    enrichMetadata: (input: { title: string; description: string }) => {
+      const win = getWindowRuntime();
+      if (!win || !win.electronAPI) {
+        throw new Error("IPC client not available - not running in Electron");
+      }
+      return win.electronAPI.enrichment.enrichMetadata(input);
+    },
+    chat: (input: { message: string; conceptData: { title: string; description: string; content: string; creator: string; source: string; year: string }; chatHistory: Array<{ id: string; role: "user" | "assistant"; content: string; timestamp: string | Date }> }) => {
+      const win = getWindowRuntime();
+      if (!win || !win.electronAPI) {
+        throw new Error("IPC client not available - not running in Electron");
+      }
+      return win.electronAPI.enrichment.chat(input);
+    },
+    expandDefinition: (input: { currentDefinition: string; conceptTitle: string }) => {
+      const win = getWindowRuntime();
+      if (!win || !win.electronAPI) {
+        throw new Error("IPC client not available - not running in Electron");
+      }
+      return win.electronAPI.enrichment.expandDefinition(input);
     },
   },
   chat: {

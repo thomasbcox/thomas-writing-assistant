@@ -63,30 +63,14 @@ export function LinkProposer({ conceptId, conceptTitle }: LinkProposerProps) {
   );
 
   const handlePropose = async () => {
-    // #region agent log
-    console.log("[DEBUG] handlePropose called", { conceptId });
-    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LinkProposer.tsx:65',message:'handlePropose entry',data:{conceptId},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch((e)=>{console.error("[DEBUG] Log fetch failed:",e);});
-    // #endregion
     setIsLoading(true);
     try {
-      // #region agent log
-      console.log("[DEBUG] Calling refetch...");
-      fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LinkProposer.tsx:68',message:'Before refetch',data:{conceptId},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch((e)=>{console.error("[DEBUG] Log fetch failed:",e);});
-      // #endregion
       const result = await refetch();
-      // #region agent log
-      console.log("[DEBUG] Refetch result:", result);
-      fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LinkProposer.tsx:70',message:'After refetch',data:{conceptId,hasData:!!result?.data,hasError:!!result?.error,dataType:typeof result?.data,dataLength:Array.isArray(result?.data)?result.data.length:'not-array'},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch((e)=>{console.error("[DEBUG] Log fetch failed:",e);});
-      // #endregion
       // Use the result from refetch directly instead of relying on state
       const resultProposals = result?.data;
       const resultError = result?.error || proposalsError;
       
       if (resultError) {
-        // #region agent log
-        console.error("[DEBUG] Error in result:", resultError);
-        fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LinkProposer.tsx:74',message:'Result error',data:{conceptId,errorMessage:resultError.message,errorName:resultError.name},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch((e)=>{console.error("[DEBUG] Log fetch failed:",e);});
-        // #endregion
         const errorMessage = resultError.message || "Failed to propose links. Please try again.";
         addToast(errorMessage, "error");
         console.error("Error proposing links:", resultError);
@@ -95,17 +79,9 @@ export function LinkProposer({ conceptId, conceptTitle }: LinkProposerProps) {
       } else if (resultProposals && Array.isArray(resultProposals) && resultProposals.length > 0) {
         addToast(`Found ${resultProposals.length} link proposal${resultProposals.length !== 1 ? "s" : ""}`, "success");
       } else {
-        // #region agent log
-        console.warn("[DEBUG] No proposals returned - unexpected state", { resultProposals, result });
-        fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LinkProposer.tsx:82',message:'No proposals - unexpected',data:{conceptId,resultProposals,resultType:typeof result,hasResult:!!result},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch((e)=>{console.error("[DEBUG] Log fetch failed:",e);});
-        // #endregion
         addToast("No proposals returned. The query may still be processing.", "info");
       }
     } catch (error) {
-      // #region agent log
-      console.error("[DEBUG] Exception in handlePropose:", error);
-      fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LinkProposer.tsx:84',message:'Exception caught',data:{conceptId,errorMessage:error instanceof Error?error.message:String(error),errorName:error instanceof Error?error.name:'unknown'},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch((e)=>{console.error("[DEBUG] Log fetch failed:",e);});
-      // #endregion
       const errorMessage = error instanceof Error ? error.message : "Failed to propose links. Please try again.";
       addToast(errorMessage, "error");
       console.error("Error proposing links:", error);

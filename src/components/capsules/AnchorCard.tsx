@@ -6,6 +6,7 @@ import { safeJsonParseArray } from "~/lib/json-utils";
 import { DerivativeList } from "./DerivativeList";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
+import { useTimer } from "~/hooks/useTimer";
 
 interface AnchorCardProps {
   anchor: AnchorWithRepurposed;
@@ -42,6 +43,7 @@ export function AnchorCard({
 
   const repurposedCount = anchor.repurposedContent?.length ?? 0;
   const painPoints = safeJsonParseArray<string>(anchor.painPoints, []);
+  const { formattedTime, showCounter } = useTimer(isRegenerating);
 
   return (
     <>
@@ -90,7 +92,11 @@ export function AnchorCard({
                 className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {isRegenerating && <LoadingSpinner size="sm" />}
-                <span>{isRegenerating ? "Regenerating..." : "Regenerate"}</span>
+                <span>
+                  {isRegenerating 
+                    ? `Regenerating${showCounter ? ` (${formattedTime})` : "..."}` 
+                    : "Regenerate"}
+                </span>
               </button>
             )}
           </div>
@@ -104,9 +110,14 @@ export function AnchorCard({
                 <button
                   onClick={() => setShowGenerateConfirm(true)}
                   disabled={isRegenerating}
-                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
+                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  {isRegenerating ? "Generating..." : "Generate Derivatives"}
+                  {isRegenerating && <LoadingSpinner size="sm" />}
+                  <span>
+                    {isRegenerating 
+                      ? `Generating${showCounter ? ` (${formattedTime})` : "..."}` 
+                      : "Generate Derivatives"}
+                  </span>
                 </button>
               </div>
             ) : (
@@ -140,8 +151,8 @@ export function AnchorCard({
         message="Regenerate all derivatives for this anchor? This will replace existing content."
         variant="default"
         onConfirm={() => {
-          onRegenerate(anchor.id);
           setShowRegenerateConfirm(false);
+          onRegenerate(anchor.id);
         }}
         onCancel={() => setShowRegenerateConfirm(false)}
       />
@@ -152,8 +163,8 @@ export function AnchorCard({
         message="Generate derivatives for this anchor?"
         variant="default"
         onConfirm={() => {
-          onRegenerate(anchor.id);
           setShowGenerateConfirm(false);
+          onRegenerate(anchor.id);
         }}
         onCancel={() => setShowGenerateConfirm(false)}
       />

@@ -9,6 +9,7 @@ import type {
   ElectronAPI,
   SerializedConcept,
   SerializedCapsule,
+  SerializedRepurposedContent,
   SerializedLinkWithRelations,
   SerializedLinkName,
   SerializedOffer,
@@ -164,6 +165,7 @@ export function createMockElectronAPI(): ElectronAPI {
         },
         repurposedContent: [],
       }),
+      regenerateRepurposedContent: jest.fn<() => Promise<SerializedRepurposedContent[]>>().mockResolvedValue([]),
     },
 
     offer: {
@@ -266,6 +268,28 @@ export function createMockElectronAPI(): ElectronAPI {
         conceptsWithoutEmbeddings: 0,
         isIndexing: false,
         lastIndexedAt: null,
+      }),
+    },
+
+    enrichment: {
+      analyze: jest.fn<() => Promise<any>>().mockResolvedValue({
+        suggestions: [],
+        quickActions: [],
+        initialMessage: "Hello! I can help you enrich this concept.",
+      }),
+      enrichMetadata: jest.fn<() => Promise<any>>().mockResolvedValue({
+        creator: "Mock Creator",
+        year: "2025",
+        source: "Mock Source",
+        confidence: "high" as const,
+      }),
+      chat: jest.fn<() => Promise<any>>().mockResolvedValue({
+        response: "Mock chat response",
+        suggestions: [],
+        actions: [],
+      }),
+      expandDefinition: jest.fn<() => Promise<any>>().mockResolvedValue({
+        expandedDefinition: "Mock expanded definition",
       }),
     },
 

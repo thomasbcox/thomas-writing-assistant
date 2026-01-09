@@ -1,7 +1,6 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { appendFileSync } from "fs";
 import { config as dotenvConfig } from "dotenv";
 import { initDb, closeDb } from "./db.js";
 
@@ -12,10 +11,6 @@ const __dirname = dirname(__filename);
 // This must happen before any code that uses process.env
 // __dirname is dist-electron/electron/, so we need to go up 2 levels to reach project root
 dotenvConfig({ path: join(__dirname, "../../.env") });
-
-// #region agent log
-appendFileSync('/Users/thomasbcox/Projects/thomas-writing-assistant/.cursor/debug.log', JSON.stringify({location:'main.ts:15',message:'dotenv loaded',data:{openaiSet:process.env.OPENAI_API_KEY?'SET':'UNSET',googleSet:process.env.GOOGLE_API_KEY?'SET':'UNSET',envPath:join(__dirname, "../../.env")},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'}) + '\n');
-// #endregion
 
 function createWindow() {
   const mainWindow = new BrowserWindow({

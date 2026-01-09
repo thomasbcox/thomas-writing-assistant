@@ -171,6 +171,10 @@ export interface CapsuleCreateAnchorFromPDFInput {
   autoRepurpose?: boolean;
 }
 
+export interface CapsuleRegenerateRepurposedContentInput {
+  anchorId: string;
+}
+
 export interface LinkGetAllInput {
   summary?: boolean;
 }
@@ -476,6 +480,91 @@ export interface ChatDeleteResult {
   deleted: boolean;
 }
 
+// Enrichment Input Types
+export interface EnrichmentAnalyzeInput {
+  title: string;
+  description: string;
+  content: string;
+  creator: string;
+  source: string;
+  year: string;
+}
+
+export interface EnrichmentEnrichMetadataInput {
+  title: string;
+  description: string;
+}
+
+export interface EnrichmentChatInput {
+  message: string;
+  conceptData: {
+    title: string;
+    description: string;
+    content: string;
+    creator: string;
+    source: string;
+    year: string;
+  };
+  chatHistory: Array<{
+    id: string;
+    role: "user" | "assistant";
+    content: string;
+    timestamp: string | Date;
+  }>;
+}
+
+export interface EnrichmentExpandDefinitionInput {
+  currentDefinition: string;
+  conceptTitle: string;
+}
+
+// Enrichment Output Types
+export interface EnrichmentAnalyzeResult {
+  suggestions: Array<{
+    type: string;
+    field: string;
+    currentValue: string;
+    suggestedValue: string;
+    reason: string;
+  }>;
+  quickActions: Array<{
+    id: string;
+    label: string;
+    description: string;
+    action: string;
+  }>;
+  initialMessage: string;
+}
+
+export interface EnrichmentEnrichMetadataResult {
+  creator?: string;
+  year?: string;
+  source?: string;
+  sourceUrl?: string;
+  confidence: "high" | "medium" | "low";
+}
+
+export interface EnrichmentChatResult {
+  response: string;
+  suggestions?: Array<{
+    type: string;
+    field: string;
+    currentValue: string;
+    suggestedValue: string;
+    reason: string;
+  }>;
+  actions?: Array<{
+    id: string;
+    label: string;
+    description: string;
+    action: string;
+  }>;
+}
+
+export interface EnrichmentExpandDefinitionResult {
+  expandedDefinition: string;
+}
+
 // =============================================================================
 // Main ElectronAPI Interface
 // =============================================================================
@@ -498,6 +587,7 @@ export interface ElectronAPI {
     getById: (input: CapsuleGetByIdInput) => Promise<CapsuleResult>;
     create: (input: CapsuleCreateInput) => Promise<SerializedCapsule>;
     createAnchorFromPDF: (input: CapsuleCreateAnchorFromPDFInput) => Promise<CapsuleCreateAnchorFromPDFResult>;
+    regenerateRepurposedContent: (input: CapsuleRegenerateRepurposedContentInput) => Promise<SerializedRepurposedContent[]>;
   };
 
   offer: {
@@ -559,6 +649,13 @@ export interface ElectronAPI {
     getEmbeddingStatus: () => Promise<EmbeddingStatusResult>;
     generateMissingEmbeddings: (input?: { batchSize?: number }) => Promise<EmbeddingStatusResult>;
     retryFailedEmbeddings: (input?: { batchSize?: number }) => Promise<EmbeddingStatusResult>;
+  };
+
+  enrichment: {
+    analyze: (input: EnrichmentAnalyzeInput) => Promise<EnrichmentAnalyzeResult>;
+    enrichMetadata: (input: EnrichmentEnrichMetadataInput) => Promise<EnrichmentEnrichMetadataResult>;
+    chat: (input: EnrichmentChatInput) => Promise<EnrichmentChatResult>;
+    expandDefinition: (input: EnrichmentExpandDefinitionInput) => Promise<EnrichmentExpandDefinitionResult>;
   };
 
   ping: () => Promise<string>;

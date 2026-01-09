@@ -43,14 +43,20 @@ export function CapsulesTab() {
   const [expandedCapsules, setExpandedCapsules] = useState<Set<string>>(new Set());
   const [selectedAnchorId, setSelectedAnchorId] = useState<string | null>(null);
   const [editingAnchorId, setEditingAnchorId] = useState<string | null>(null);
+  // Track anchors that are being regenerated - clear their derivatives immediately
+  const [clearedDerivativesAnchors, setClearedDerivativesAnchors] = useState<Set<string>>(new Set());
 
   const regenerateMutation = api.capsule.regenerateRepurposedContent.useMutation({
     onSuccess: () => {
+      // Clear the cleared anchors set since we have fresh data
+      setClearedDerivativesAnchors(new Set());
       refetch();
       setSelectedAnchorId(null);
       addToast("Derivatives regenerated successfully", "success");
     },
     onError: (error) => {
+      // On error, also clear the set so derivatives show again
+      setClearedDerivativesAnchors(new Set());
       addToast(error.message || "Failed to regenerate derivatives", "error");
     },
   });
@@ -123,6 +129,8 @@ export function CapsulesTab() {
   }, [deleteAnchorMutation]);
 
   const handleRegenerateDerivatives = useCallback((anchorId: string) => {
+    // Immediately clear derivatives from UI
+    setClearedDerivativesAnchors((prev) => new Set(prev).add(anchorId));
     regenerateMutation.mutate({ anchorId });
   }, [regenerateMutation]);
 
@@ -170,7 +178,14 @@ export function CapsulesTab() {
         <CreateCapsuleForm onSuccess={handleCapsuleCreateSuccess} />
 
         <CapsuleList
-          capsules={capsules as any as import("~/types/database").CapsuleWithAnchors[] | undefined}
+          capsules={capsules ? (capsules as any as import("~/types/database").CapsuleWithAnchors[]).map((capsule) => ({
+            ...capsule,
+            anchors: capsule.anchors?.map((anchor) => ({
+              ...anchor,
+              // Clear repurposedContent for anchors being regenerated
+              repurposedContent: clearedDerivativesAnchors.has(anchor.id) ? [] : anchor.repurposedContent,
+            })),
+          })) : undefined}
           expandedCapsules={expandedCapsules}
           selectedAnchorId={selectedAnchorId}
           onToggleExpand={handleToggleExpand}

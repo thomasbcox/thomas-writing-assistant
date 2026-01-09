@@ -4,6 +4,8 @@ import { useState } from "react";
 import { api } from "~/hooks/useIPC";
 import type { CapsuleWithAnchors, AnchorWithRepurposed, RepurposedContent } from "~/types/database";
 import { PDFProcessingStatus } from "./PDFProcessingStatus";
+import { LoadingSpinner } from "../ui/LoadingSpinner";
+import { useTimer } from "~/hooks/useTimer";
 
 interface PDFUploadSectionProps {
   capsules: CapsuleWithAnchors[] | undefined;
@@ -59,6 +61,9 @@ export function PDFUploadSection({ capsules, onSuccess, onError }: PDFUploadSect
       onError?.(error.message);
     },
   });
+
+  const isProcessing = createAnchorFromPDFMutation.isLoading || createCapsuleMutation.isLoading;
+  const { formattedTime, showCounter } = useTimer(isProcessing);
 
   const handlePdfFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -289,14 +294,16 @@ export function PDFUploadSection({ capsules, onSuccess, onError }: PDFUploadSect
             !pdfFile ||
             (!createNewCapsule && !selectedCapsuleId) ||
             (createNewCapsule && (!showNewCapsuleForm || !newCapsuleData.title || !newCapsuleData.promise || !newCapsuleData.cta)) ||
-            createAnchorFromPDFMutation.isLoading ||
-            createCapsuleMutation.isLoading
+            isProcessing
           }
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          {createAnchorFromPDFMutation.isLoading || createCapsuleMutation.isLoading
-            ? "Processing..."
-            : "Upload & Generate Derivatives"}
+          {isProcessing && <LoadingSpinner size="sm" />}
+          <span>
+            {isProcessing
+              ? `Processing${showCounter ? ` (${formattedTime})` : "..."}`
+              : "Upload & Generate Derivatives"}
+          </span>
         </button>
         <PDFProcessingStatus status={pdfProcessingStatus} />
       </div>

@@ -29,6 +29,7 @@ const electronAPI: ElectronAPI = {
     getById: (input) => ipcRenderer.invoke("capsule:getById", input),
     create: (input) => ipcRenderer.invoke("capsule:create", input),
     createAnchorFromPDF: (input) => ipcRenderer.invoke("capsule:createAnchorFromPDF", input),
+    regenerateRepurposedContent: (input) => ipcRenderer.invoke("capsule:regenerateRepurposedContent", input),
   },
 
   // Offer handlers
@@ -97,6 +98,14 @@ const electronAPI: ElectronAPI = {
     getEmbeddingStatus: () => ipcRenderer.invoke("ai:getEmbeddingStatus"),
     generateMissingEmbeddings: (input) => ipcRenderer.invoke("ai:generateMissingEmbeddings", input),
     retryFailedEmbeddings: (input) => ipcRenderer.invoke("ai:retryFailedEmbeddings", input),
+  },
+
+  // Enrichment handlers
+  enrichment: {
+    analyze: (input) => ipcRenderer.invoke("enrichment:analyze", input),
+    enrichMetadata: (input) => ipcRenderer.invoke("enrichment:enrichMetadata", input),
+    chat: (input) => ipcRenderer.invoke("enrichment:chat", input),
+    expandDefinition: (input) => ipcRenderer.invoke("enrichment:expandDefinition", input),
   },
 
   // Ping for testing

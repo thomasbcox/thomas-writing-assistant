@@ -11,6 +11,7 @@ interface ConceptListProps {
   showTrash: boolean;
   onView: (id: string) => void;
   onEdit: (id: string) => void;
+  onEnrich?: (id: string) => void;
   onDelete: (id: string) => void;
   onRestore: (id: string) => void;
 }
@@ -22,6 +23,7 @@ export function ConceptList({
   showTrash,
   onView,
   onEdit,
+  onEnrich,
   onDelete,
   onRestore,
 }: ConceptListProps) {
@@ -106,12 +108,23 @@ export function ConceptList({
                   Restore
                 </button>
               ) : (
-                <button
-                  onClick={() => onEdit(concept.id)}
-                  className="px-3 py-1 text-sm bg-gray-600 text-white rounded hover:bg-gray-700"
-                >
-                  Edit
-                </button>
+                <>
+                  <button
+                    onClick={() => onEdit(concept.id)}
+                    className="px-3 py-1 text-sm bg-gray-600 text-white rounded hover:bg-gray-700"
+                  >
+                    Edit
+                  </button>
+                  {onEnrich && (
+                    <button
+                      onClick={() => onEnrich(concept.id)}
+                      className="px-3 py-1 text-sm bg-purple-600 text-white rounded hover:bg-purple-700"
+                      title="Enrich with AI chat"
+                    >
+                      Enrich
+                    </button>
+                  )}
+                </>
               )}
               <button
                 onClick={() => onDelete(concept.id)}

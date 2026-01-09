@@ -24,9 +24,11 @@ type ChatMessage = Omit<APIChatMessage, 'id'> & { id: string };
 interface ConceptEnrichmentStudioProps {
   conceptId?: string; // If undefined, this is a new concept from candidate
   initialData?: Partial<ConceptFormData>; // For new concepts from candidates
+  onClose?: () => void; // Callback when user closes the studio
+  onSave?: () => void; // Callback when concept is saved
 }
 
-export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnrichmentStudioProps) {
+export function ConceptEnrichmentStudio({ conceptId, initialData, onClose, onSave }: ConceptEnrichmentStudioProps) {
   // const router = useRouter(); // Not available in Electron
   const isNewConcept = !conceptId;
 
@@ -138,7 +140,14 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
     
     if (formData.title && (isNewConcept || existingConcept)) {
       setIsAIThinking(true);
-      analyzeMutation.mutate(formData, {
+      analyzeMutation.mutate({
+        title: formData.title,
+        description: formData.description,
+        content: formData.content,
+        creator: formData.creator,
+        source: formData.source,
+        year: formData.year,
+      }, {
         onSuccess: (result) => {
           setIsAIThinking(false);
           const initialMessage: ChatMessage = {
@@ -210,7 +219,8 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
         switch (action.action) {
           case "fetchMetadata":
             const metadata = await enrichMetadataMutation.mutateAsync({
-              conceptId: conceptId || "",
+              title: formData.title,
+              description: formData.description,
             });
             if (metadata.creator) handleFormChange({ creator: metadata.creator });
             if (metadata.year) handleFormChange({ year: metadata.year });
@@ -221,7 +231,7 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
               {
                 id: `msg-${Date.now()}`,
                 role: "assistant",
-                content: `Found metadata: ${metadata.creator} (${metadata.year}) - ${metadata.source}`,
+                content: `Found metadata: ${metadata.creator || ""} (${metadata.year || ""}) - ${metadata.source || ""}`,
                 timestamp: new Date(),
               },
             ]);
@@ -229,8 +239,8 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
 
           case "expandDefinition":
             const expanded = await expandDefinitionMutation.mutateAsync({
-              conceptId: conceptId || "",
               currentDefinition: formData.description,
+              conceptTitle: formData.title,
             });
             handleFormChange({ description: expanded.expandedDefinition });
 
@@ -248,22 +258,38 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
           default:
             // For other actions, use chat
             const chatResult = await chatMutation.mutateAsync({
-              conceptId: conceptId || "",
               message: `Please ${action.label.toLowerCase()}`,
-              history: messages,
+              conceptData: {
+                title: formData.title,
+                description: formData.description,
+                content: formData.content,
+                creator: formData.creator,
+                source: formData.source,
+                year: formData.year,
+              },
+              chatHistory: messages.map(msg => ({
+                id: msg.id,
+                role: msg.role,
+                content: msg.content,
+                timestamp: msg.timestamp,
+              })),
             });
             setMessages((prev) => [
               ...prev,
               {
                 id: `msg-${Date.now()}`,
                 role: "assistant" as const,
-                content: chatResult.content,
+                content: chatResult.response,
                 timestamp: new Date(),
                 suggestions: chatResult.suggestions,
+                actions: chatResult.actions,
               },
             ]);
             if (chatResult.suggestions) {
               setPendingSuggestions((prev) => [...prev, ...chatResult.suggestions!]);
+            }
+            if (chatResult.actions) {
+              setQuickActions((prev) => [...prev, ...chatResult.actions!]);
             }
         }
       } catch (error) {
@@ -299,15 +325,27 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
 
       try {
         const result = await chatMutation.mutateAsync({
-          conceptId: conceptId || "",
           message,
-          history: [...messages, userMessage],
+          conceptData: {
+            title: formData.title,
+            description: formData.description,
+            content: formData.content,
+            creator: formData.creator,
+            source: formData.source,
+            year: formData.year,
+          },
+          chatHistory: [...messages, userMessage].map(msg => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            timestamp: msg.timestamp,
+          })),
         });
 
         const assistantMessage: ChatMessage = {
           id: `msg-${Date.now() + 1}`,
           role: "assistant" as const,
-          content: result.content,
+          content: result.response,
           timestamp: new Date(),
           suggestions: result.suggestions,
           actions: result.actions,
@@ -343,9 +381,8 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
     if (isNewConcept) {
       createMutation.mutate(formData, {
         onSuccess: () => {
-          // Note: In Electron app, navigation is handled via window.location.reload()
-          // or by closing the enrichment panel. Router navigation is not available.
-          window.location.reload();
+          onSave?.();
+          onClose?.();
         },
       });
     } else if (conceptId) {
@@ -363,11 +400,12 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
           onSuccess: () => {
             setHasUnsavedChanges(false);
             setLastSavedAt(new Date());
+            onSave?.();
           },
         },
       );
     }
-  }, [isNewConcept, conceptId, formData, createMutation, updateMutation]);
+  }, [isNewConcept, conceptId, formData, createMutation, updateMutation, onSave, onClose]);
 
   if (conceptLoading) {
     return (
@@ -378,24 +416,25 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">
-          {isNewConcept ? "Enrich New Concept" : "Enrich Concept"}
-        </h1>
-        <div className="flex items-center gap-4">
-          {hasUnsavedChanges && (
-            <span className="text-sm text-gray-500">
-              {lastSavedAt ? `Last saved: ${lastSavedAt.toLocaleTimeString()}` : "Unsaved changes"}
-            </span>
-          )}
-          <button
-            onClick={() => window.history.back()} // Use browser history instead of Next.js router
-            className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
-          >
-            Cancel
-          </button>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl w-[95vw] h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-lg">
+          <h1 className="text-2xl font-semibold">
+            {isNewConcept ? "Enrich New Concept" : "Enrich Concept"}
+          </h1>
+          <div className="flex items-center gap-4">
+            {hasUnsavedChanges && (
+              <span className="text-sm text-gray-500">
+                {lastSavedAt ? `Last saved: ${lastSavedAt.toLocaleTimeString()}` : "Unsaved changes"}
+              </span>
+            )}
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+            >
+              Cancel
+            </button>
           <button
             onClick={handleSave}
             disabled={createMutation.isLoading || updateMutation.isLoading}
@@ -407,31 +446,32 @@ export function ConceptEnrichmentStudio({ conceptId, initialData }: ConceptEnric
                 ? isNewConcept ? "Creating..." : "Saving..."
                 : isNewConcept ? "Save as Concept" : "Save Changes"}
             </span>
-          </button>
-        </div>
-      </div>
-
-      {/* Split view */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left: Chat Panel */}
-        <div className="w-[60%] border-r border-gray-200">
-          <EnrichmentChatPanel
-            messages={messages}
-            quickActions={quickActions}
-            isAIThinking={isAIThinking}
-            onSendMessage={handleChatMessage}
-            onQuickAction={handleQuickAction}
-          />
+            </button>
+          </div>
         </div>
 
-        {/* Right: Editor Panel */}
-        <div className="w-[40%] overflow-y-auto">
-          <EnrichmentEditorPanel
-            formData={formData}
-            pendingSuggestions={pendingSuggestions}
-            onChange={handleFormChange}
-            onApplySuggestion={handleApplySuggestion}
-          />
+        {/* Split view */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Left: Chat Panel */}
+          <div className="w-[60%] border-r border-gray-200">
+            <EnrichmentChatPanel
+              messages={messages}
+              quickActions={quickActions}
+              isAIThinking={isAIThinking}
+              onSendMessage={handleChatMessage}
+              onQuickAction={handleQuickAction}
+            />
+          </div>
+
+          {/* Right: Editor Panel */}
+          <div className="w-[40%] overflow-y-auto">
+            <EnrichmentEditorPanel
+              formData={formData}
+              pendingSuggestions={pendingSuggestions}
+              onChange={handleFormChange}
+              onApplySuggestion={handleApplySuggestion}
+            />
+          </div>
         </div>
       </div>
     </div>

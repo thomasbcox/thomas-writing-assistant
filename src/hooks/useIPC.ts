@@ -100,10 +100,6 @@ export function useIPCQuery<T>(
   const prevInputsKeyRef = useRef<string | null>(inputsKey);
 
   const fetchData = useCallback(async (force: boolean = false): Promise<{ data: T | null; error: Error | null }> => {
-    // #region agent log
-    console.log("[DEBUG] useIPCQuery fetchData", { queryKey: options?.queryKey, enabled, force });
-    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useIPC.ts:100',message:'fetchData entry',data:{queryKey:options?.queryKey,enabled,force},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch((e)=>{console.error("[DEBUG] Log fetch failed:",e);});
-    // #endregion
     // Allow forced execution even when disabled (for refetch)
     if (!enabled && !force) {
       setIsLoading(false);
@@ -114,23 +110,11 @@ export function useIPCQuery<T>(
     setError(null);
 
     try {
-      // #region agent log
-      console.log("[DEBUG] useIPCQuery calling queryFn", { queryKey: options?.queryKey });
-      fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useIPC.ts:110',message:'Before queryFn call',data:{queryKey:options?.queryKey},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch((e)=>{console.error("[DEBUG] Log fetch failed:",e);});
-      // #endregion
       const result = await queryFnRef.current();
-      // #region agent log
-      console.log("[DEBUG] useIPCQuery result received", { queryKey: options?.queryKey, hasResult: !!result });
-      fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useIPC.ts:112',message:'After queryFn call',data:{queryKey:options?.queryKey,hasResult:!!result,resultType:typeof result,isArray:Array.isArray(result),arrayLength:Array.isArray(result)?result.length:'not-array'},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch((e)=>{console.error("[DEBUG] Log fetch failed:",e);});
-      // #endregion
       setData(result);
       return { data: result, error: null };
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
-      // #region agent log
-      console.error("[DEBUG] useIPCQuery error caught", { queryKey: options?.queryKey, error: error.message });
-      fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useIPC.ts:114',message:'Error in queryFn',data:{queryKey:options?.queryKey,errorMessage:error.message,errorName:error.name,errorStack:error.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch((e)=>{console.error("[DEBUG] Log fetch failed:",e);});
-      // #endregion
       // Log client-side errors for debugging
       console.error("[useIPCQuery] Error in query:", {
         queryKey: options?.queryKey,
@@ -145,17 +129,9 @@ export function useIPCQuery<T>(
   }, [enabled, options?.queryKey]); // Removed queryFn from deps to prevent loops
 
   const refetch = useCallback(async () => {
-    // #region agent log
-    console.log("[DEBUG] refetch called", { queryKey: options?.queryKey, enabled });
-    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useIPC.ts:128',message:'refetch entry',data:{queryKey:options?.queryKey,enabled},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch((e)=>{console.error("[DEBUG] Log fetch failed:",e);});
-    // #endregion
     // Always call fetchData with force=true when refetch is explicitly called, regardless of enabled state
     // This allows manual triggering of disabled queries
     const result = await fetchData(true);
-    // #region agent log
-    console.log("[DEBUG] refetch result", { queryKey: options?.queryKey, hasData: !!result.data, hasError: !!result.error });
-    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useIPC.ts:135',message:'refetch result',data:{queryKey:options?.queryKey,hasData:!!result.data,hasError:!!result.error},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch((e)=>{console.error("[DEBUG] Log fetch failed:",e);});
-    // #endregion
     return result;
   }, [fetchData, options?.queryKey]);
 
@@ -481,7 +457,7 @@ export const api = {
       ) =>
         useIPCMutation(
           async (input: { anchorId: string }) => {
-            throw new Error("regenerateRepurposedContent not yet implemented");
+            return await ipc.capsule.regenerateRepurposedContent(input);
           },
           {
             onSuccess: options?.onSuccess,
@@ -811,6 +787,56 @@ export const api = {
           () => ipc.offer.getUnassignedCapsules(),
           { queryKey: "offer:getUnassignedCapsules", inputs: [] },
         ),
+    },
+  },
+  enrichment: {
+    analyze: {
+      useMutation: (
+        options?: {
+          onSuccess?: (data: any) => void;
+          onError?: (error: Error) => void;
+        },
+      ) =>
+        useIPCMutation(ipc.enrichment.analyze, {
+          onSuccess: options?.onSuccess,
+          onError: options?.onError,
+        }),
+    },
+    enrichMetadata: {
+      useMutation: (
+        options?: {
+          onSuccess?: (data: any) => void;
+          onError?: (error: Error) => void;
+        },
+      ) =>
+        useIPCMutation(ipc.enrichment.enrichMetadata, {
+          onSuccess: options?.onSuccess,
+          onError: options?.onError,
+        }),
+    },
+    chat: {
+      useMutation: (
+        options?: {
+          onSuccess?: (data: any) => void;
+          onError?: (error: Error) => void;
+        },
+      ) =>
+        useIPCMutation(ipc.enrichment.chat, {
+          onSuccess: options?.onSuccess,
+          onError: options?.onError,
+        }),
+    },
+    expandDefinition: {
+      useMutation: (
+        options?: {
+          onSuccess?: (data: any) => void;
+          onError?: (error: Error) => void;
+        },
+      ) =>
+        useIPCMutation(ipc.enrichment.expandDefinition, {
+          onSuccess: options?.onSuccess,
+          onError: options?.onError,
+        }),
     },
   },
   chat: {

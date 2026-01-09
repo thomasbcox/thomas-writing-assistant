@@ -26,29 +26,41 @@ if (isNodeEnvironment) {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { env } = require("~/env");
     
+    // Check if we're in Electron (stdout/stderr might be closed)
+    const isElectron = typeof process !== "undefined" && process.versions?.electron;
+    
+    // In Electron, write to file to avoid EPIPE errors from closed stdout/stderr
+    // In regular Node.js, use pretty printing in dev
+    const transport = isElectron
+      ? {
+          target: "pino/file",
+          options: {
+            destination: "./logs/app.log",
+            mkdir: true,
+          },
+        }
+      : env.NODE_ENV === "development"
+        ? {
+            target: "pino-pretty",
+            options: {
+              colorize: true,
+              translateTime: "HH:MM:ss Z",
+              ignore: "pid,hostname",
+              singleLine: false,
+              hideObject: false,
+            },
+          }
+        : {
+            target: "pino/file",
+            options: {
+              destination: "./logs/app.log",
+              mkdir: true,
+            },
+          };
+    
     logger = pino({
       level: env.NODE_ENV === "development" ? "debug" : "info",
-      // Use pretty printing in development for human readability
-      // Use JSON in production for AI parsing
-      transport:
-        env.NODE_ENV === "development"
-          ? {
-              target: "pino-pretty",
-              options: {
-                colorize: true,
-                translateTime: "HH:MM:ss Z",
-                ignore: "pid,hostname",
-                singleLine: false,
-                hideObject: false,
-              },
-            }
-          : {
-              target: "pino/file",
-              options: {
-                destination: "./logs/app.log",
-                mkdir: true,
-              },
-            },
+      transport,
       // Base logger context
       base: {
         env: env.NODE_ENV,
@@ -62,6 +74,53 @@ if (isNodeEnvironment) {
         res: pino.stdSerializers.res,
       },
     });
+    
+    // Wrap pino logger methods to catch EPIPE errors
+    const originalInfo = logger.info.bind(logger);
+    const originalDebug = logger.debug.bind(logger);
+    const originalWarn = logger.warn.bind(logger);
+    const originalError = logger.error.bind(logger);
+    
+    logger.info = (...args: any[]) => {
+      try {
+        originalInfo(...args);
+      } catch (error: any) {
+        if (error?.code !== "EPIPE" && error?.code !== "ENOTCONN") {
+          throw error;
+        }
+        // Silently ignore EPIPE errors
+      }
+    };
+    
+    logger.debug = (...args: any[]) => {
+      try {
+        originalDebug(...args);
+      } catch (error: any) {
+        if (error?.code !== "EPIPE" && error?.code !== "ENOTCONN") {
+          throw error;
+        }
+      }
+    };
+    
+    logger.warn = (...args: any[]) => {
+      try {
+        originalWarn(...args);
+      } catch (error: any) {
+        if (error?.code !== "EPIPE" && error?.code !== "ENOTCONN") {
+          throw error;
+        }
+      }
+    };
+    
+    logger.error = (...args: any[]) => {
+      try {
+        originalError(...args);
+      } catch (error: any) {
+        if (error?.code !== "EPIPE" && error?.code !== "ENOTCONN") {
+          throw error;
+        }
+      }
+    };
   } catch (error) {
     // Fallback to console if pino fails to load
     logger = createConsoleLogger();
@@ -72,34 +131,51 @@ if (isNodeEnvironment) {
 }
 
 // Console logger for browser/renderer environments
+// Wraps console calls to handle EPIPE errors gracefully
+function safeConsoleCall(fn: (...args: any[]) => void, ...args: any[]) {
+  try {
+    fn(...args);
+  } catch (error: any) {
+    // Ignore EPIPE errors (broken pipe) - happens when stdout/stderr is closed
+    if (error?.code !== "EPIPE" && error?.code !== "ENOTCONN") {
+      // Only log non-EPIPE errors to avoid infinite loops
+      try {
+        console.error("[Logger] Failed to write log:", error);
+      } catch {
+        // If even error logging fails, silently ignore
+      }
+    }
+  }
+}
+
 function createConsoleLogger() {
   return {
     debug: (obj: any, msg?: string) => {
       if (msg) {
-        console.debug(`[DEBUG] ${msg}`, obj);
+        safeConsoleCall(console.debug, `[DEBUG] ${msg}`, obj);
       } else {
-        console.debug(obj);
+        safeConsoleCall(console.debug, obj);
       }
     },
     info: (obj: any, msg?: string) => {
       if (msg) {
-        console.info(`[INFO] ${msg}`, obj);
+        safeConsoleCall(console.info, `[INFO] ${msg}`, obj);
       } else {
-        console.info(obj);
+        safeConsoleCall(console.info, obj);
       }
     },
     warn: (obj: any, msg?: string) => {
       if (msg) {
-        console.warn(`[WARN] ${msg}`, obj);
+        safeConsoleCall(console.warn, `[WARN] ${msg}`, obj);
       } else {
-        console.warn(obj);
+        safeConsoleCall(console.warn, obj);
       }
     },
     error: (obj: any, msg?: string) => {
       if (msg) {
-        console.error(`[ERROR] ${msg}`, obj);
+        safeConsoleCall(console.error, `[ERROR] ${msg}`, obj);
       } else {
-        console.error(obj);
+        safeConsoleCall(console.error, obj);
       }
     },
     child: () => createConsoleLogger(),

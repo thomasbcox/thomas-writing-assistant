@@ -195,5 +195,3 @@ The prompt should:
 3. Test with completely new concepts
 4. Test edit proposal UI rendering
 5. Test applying edits to existing concepts
-
-## Migration Notes
