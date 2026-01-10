@@ -9,6 +9,8 @@ import { jest } from "@jest/globals";
 export const mockGenerateContent = jest.fn() as jest.MockedFunction<any>;
 export const mockEmbedContent = jest.fn() as jest.MockedFunction<any>;
 export const mockGetGenerativeModel = jest.fn() as jest.MockedFunction<any>;
+export const mockCacheCreate = jest.fn() as jest.MockedFunction<any>;
+export const mockCacheDelete = jest.fn() as jest.MockedFunction<any>;
 
 // Mock response structure matching real SDK
 const createMockResponse = (text: string) => ({
@@ -28,12 +30,22 @@ export const GoogleGenerativeAI = jest.fn().mockImplementation(() => ({
   getGenerativeModel: mockGetGenerativeModel,
 }));
 
+// Mock cache manager
+export const GoogleAICacheManager = jest.fn().mockImplementation(() => ({
+  create: mockCacheCreate,
+  delete: mockCacheDelete,
+}));
+
 // Helper to reset mocks between tests
 export const _resetMocks = () => {
   mockGenerateContent.mockReset();
   mockEmbedContent.mockReset();
   mockGetGenerativeModel.mockReset();
+  mockCacheCreate.mockReset();
+  mockCacheDelete.mockReset();
   mockGetGenerativeModel.mockReturnValue(createMockModel());
+  // Default cache create success
+  mockCacheCreate.mockResolvedValue({ name: "cachedContents/test-cache-123" });
 };
 
 // Helper to set default successful responses

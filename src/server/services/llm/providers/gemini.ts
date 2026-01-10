@@ -1,9 +1,11 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleAICacheManager } from "@google/generative-ai/server";
 import { ILLMProvider, type ConversationMessage } from "../types";
 import { logger } from "~/lib/logger";
 
 export class GeminiProvider implements ILLMProvider {
   private genAI: GoogleGenerativeAI;
+  private cacheManager: GoogleAICacheManager;
   private model: string;
   private temperature: number;
   private apiKey: string;
@@ -16,6 +18,7 @@ export class GeminiProvider implements ILLMProvider {
 
     this.apiKey = apiKey;
     this.genAI = new GoogleGenerativeAI(apiKey);
+    this.cacheManager = new GoogleAICacheManager(apiKey);
     this.model = model;
     this.temperature = temperature;
   }
@@ -107,17 +110,92 @@ export class GeminiProvider implements ILLMProvider {
     this.temperature = temperature;
   }
 
+  /**
+   * Get versioned model name for caching compatibility
+   * Caching requires versioned models (e.g., gemini-1.5-flash-001)
+   */
+  private getVersionedModel(model: string): string {
+    // Map unversioned models to versioned equivalents
+    const versionMap: Record<string, string> = {
+      "gemini-1.5-flash": "gemini-1.5-flash-001",
+      "gemini-1.5-pro": "gemini-1.5-pro-001",
+      "gemini-3-pro-preview": "gemini-1.5-pro-001", // Fallback to stable version
+      "gemini-1.5-flash-002": "gemini-1.5-flash-002",
+      "gemini-1.5-pro-002": "gemini-1.5-pro-002",
+    };
+    
+    // If already versioned, return as-is
+    if (model.includes("-001") || model.includes("-002")) {
+      return model;
+    }
+    
+    return versionMap[model] || "gemini-1.5-flash-001"; // Safe default
+  }
+
+  /**
+   * Create a context cache for large static content
+   * @param content - The static content to cache (e.g., concept descriptions, PDF text)
+   * @param ttlSeconds - Time to live in seconds (default 1 hour)
+   * @returns Cache resource name to store in database
+   */
+  async createContextCache(
+    content: string,
+    ttlSeconds: number = 3600,
+  ): Promise<string> {
+    // Must use versioned model for caching
+    const versionedModel = this.getVersionedModel(this.model);
+    
+    try {
+      const cache = await this.cacheManager.create({
+        model: `models/${versionedModel}`,
+        displayName: `context_cache_${Date.now()}`,
+        ttlSeconds,
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: content }],
+          },
+        ],
+      });
+      
+      return cache.name ?? ""; // e.g., "cachedContents/abc123"
+    } catch (error) {
+      logger.error({ error, model: versionedModel }, "Failed to create context cache");
+      throw error;
+    }
+  }
+
+  /**
+   * Delete an expired cache
+   */
+  async deleteCache(cacheName: string): Promise<void> {
+    try {
+      await this.cacheManager.delete(cacheName);
+      logger.debug({ cacheName }, "Deleted context cache");
+    } catch (error) {
+      logger.warn({ error, cacheName }, "Failed to delete cache");
+      // Don't throw - cache cleanup failures shouldn't break the app
+    }
+  }
+
   async complete(
     prompt: string,
     systemPrompt?: string,
     maxTokens?: number,
     temperature?: number,
     conversationHistory?: ConversationMessage[],
+    cachedContentName?: string,
   ): Promise<string> {
     // Build prompt from conversation history if provided
     let fullPrompt = "";
     
-    if (conversationHistory && conversationHistory.length > 0) {
+    // If cache exists, don't prepend conversation history (it's in the cache)
+    if (cachedContentName) {
+      // Only send system prompt and current prompt when using cache
+      fullPrompt = systemPrompt
+        ? `${systemPrompt}\n\n${prompt}`
+        : prompt;
+    } else if (conversationHistory && conversationHistory.length > 0) {
       // Combine conversation history into a single prompt
       // Gemini doesn't support multi-turn conversations natively, so we format it as a conversation
       const historyText = conversationHistory
@@ -165,13 +243,23 @@ export class GeminiProvider implements ILLMProvider {
 
     for (const modelName of modelsToTry) {
       try {
-        const model = this.genAI.getGenerativeModel({
-          model: modelName,
+        const versionedModel = this.getVersionedModel(modelName) ?? modelName;
+        
+        // Build model config with optional cached content
+        const modelConfig: any = {
+          model: versionedModel,
           generationConfig: {
             temperature: temperature ?? this.temperature,
             maxOutputTokens: maxTokens,
           },
-        });
+        };
+        
+        // If cache exists, reference it instead of sending full context
+        if (cachedContentName) {
+          modelConfig.cachedContent = cachedContentName;
+        }
+        
+        const model = this.genAI.getGenerativeModel(modelConfig);
 
         const result = await model.generateContent(fullPrompt);
         const response = await result.response;
@@ -208,11 +296,18 @@ export class GeminiProvider implements ILLMProvider {
     systemPrompt?: string,
     conversationHistory?: ConversationMessage[],
     maxRetries: number = 3,
+    cachedContentName?: string,
   ): Promise<Record<string, unknown>> {
     // Build prompt from conversation history if provided
     let fullPrompt = "";
     
-    if (conversationHistory && conversationHistory.length > 0) {
+    // If cache exists, don't prepend conversation history (it's in the cache)
+    if (cachedContentName) {
+      // Only send system prompt and current prompt when using cache
+      fullPrompt = systemPrompt
+        ? `${systemPrompt}\n\n${prompt}`
+        : prompt;
+    } else if (conversationHistory && conversationHistory.length > 0) {
       // Combine conversation history into a single prompt
       // Gemini doesn't support multi-turn conversations natively, so we format it as a conversation
       const historyText = conversationHistory
@@ -262,13 +357,23 @@ export class GeminiProvider implements ILLMProvider {
       // Retry logic for each model
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
-          const model = this.genAI.getGenerativeModel({
-            model: modelName,
+          const versionedModel = this.getVersionedModel(modelName) ?? modelName;
+          
+          // Build model config with optional cached content
+          const modelConfig: any = {
+            model: versionedModel,
             generationConfig: {
               temperature: this.temperature,
               responseMimeType: "application/json", // Structured output - ensures valid JSON
             },
-          });
+          };
+          
+          // If cache exists, reference it instead of sending full context
+          if (cachedContentName) {
+            modelConfig.cachedContent = cachedContentName;
+          }
+          
+          const model = this.genAI.getGenerativeModel(modelConfig);
 
           const result = await model.generateContent(fullPrompt);
           const response = await result.response;

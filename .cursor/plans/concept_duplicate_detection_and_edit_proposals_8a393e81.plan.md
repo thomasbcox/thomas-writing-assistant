@@ -97,8 +97,6 @@ export interface ConceptCandidateResult {
 export type ConceptProposal = ConceptCandidateResult | ConceptEditProposal;
 ```
 
-
-
 ### 3. Implement Semantic Similarity Detection
 
 **File:** `src/server/services/conceptProposer.ts`Create new function `detectDuplicatesAndProposeEdits`:
@@ -167,8 +165,6 @@ flowchart TD
     H --> K[Return New Concept]
     F --> L[Skip Candidate]
 ```
-
-
 
 ### LLM Prompt for Similarity Detection
 

@@ -9,6 +9,8 @@ import { contextSession } from "~/server/schema";
 import type { DatabaseInstance } from "~/server/db";
 import { logger } from "~/lib/logger";
 import type { LLMProvider } from "./types";
+import type { LLMClient } from "./client";
+import { GeminiProvider } from "./providers/gemini";
 
 export interface ContextMessage {
   role: "system" | "user" | "assistant";
@@ -22,6 +24,8 @@ export interface ContextSessionData {
   model: string;
   messages: ContextMessage[];
   conceptIds: string[];
+  externalCacheId?: string;
+  cacheExpiresAt?: Date;
   expiresAt: Date;
 }
 
@@ -101,6 +105,8 @@ export async function getOrCreateContextSession(
         model: session.model,
         messages: mergedMessages,
         conceptIds: mergedConceptIds,
+        externalCacheId: session.externalCacheId ?? undefined,
+        cacheExpiresAt: session.cacheExpiresAt ?? undefined,
         expiresAt,
       };
     }
@@ -142,6 +148,8 @@ export async function getOrCreateContextSession(
     model: newSession.model,
     messages: initialMessages,
     conceptIds,
+    externalCacheId: newSession.externalCacheId ?? undefined,
+    cacheExpiresAt: newSession.cacheExpiresAt ?? undefined,
     expiresAt,
   };
 }
@@ -180,6 +188,8 @@ export async function getContextSession(
     conceptIds: session.conceptIds
       ? (JSON.parse(session.conceptIds) as string[])
       : [],
+    externalCacheId: session.externalCacheId ?? undefined,
+    cacheExpiresAt: session.cacheExpiresAt ?? undefined,
     expiresAt: session.expiresAt,
   };
 }
@@ -231,6 +241,8 @@ export async function updateContextSession(
     model: session.model,
     messages: mergedMessages,
     conceptIds: mergedConceptIds,
+    externalCacheId: session.externalCacheId ?? undefined,
+    cacheExpiresAt: session.cacheExpiresAt ?? undefined,
     expiresAt: session.expiresAt,
   };
 }
@@ -246,12 +258,84 @@ export async function deleteContextSession(
 }
 
 /**
- * Clean up expired sessions
+ * Create cache for large static content in initial messages
+ */
+export async function createCacheForSession(
+  db: DatabaseInstance,
+  sessionKey: string,
+  provider: LLMProvider,
+  staticContent: string, // Large, repeated content
+  llmClient: LLMClient,
+): Promise<string | null> {
+  // Only cache for Gemini provider
+  if (provider !== "gemini") {
+    return null;
+  }
+  
+  // Only cache if content is large enough (e.g., > 2000 chars)
+  if (staticContent.length < 2000) {
+    return null;
+  }
+  
+  try {
+    // Get Gemini provider instance
+    const geminiProvider = llmClient.getProvider() === "gemini" 
+      ? (llmClient as any).provider as GeminiProvider
+      : null;
+    
+    if (!geminiProvider) {
+      return null;
+    }
+    
+    const cacheId = await geminiProvider.createContextCache(staticContent);
+    const cacheExpiresAt = new Date(Date.now() + 3600 * 1000); // 1 hour
+    
+    // Update session with cache info
+    await db
+      .update(contextSession)
+      .set({
+        externalCacheId: cacheId,
+        cacheExpiresAt,
+        updatedAt: new Date(),
+      })
+      .where(eq(contextSession.sessionKey, sessionKey));
+    
+    logger.debug({ sessionKey, cacheId }, "Created context cache for session");
+    return cacheId;
+  } catch (error) {
+    logger.warn({ error, sessionKey }, "Failed to create context cache, falling back to regular mode");
+    return null;
+  }
+}
+
+/**
+ * Clean up expired sessions and their caches
  */
 export async function cleanupExpiredSessions(
   db: DatabaseInstance,
+  llmClient?: LLMClient,
 ): Promise<number> {
   const now = new Date();
+  const expired = await db
+    .select()
+    .from(contextSession)
+    .where(lt(contextSession.expiresAt, now));
+  
+  // Delete expired caches from Gemini
+  if (llmClient && llmClient.getProvider() === "gemini") {
+    for (const session of expired) {
+      if (session.externalCacheId) {
+        try {
+          const geminiProvider = (llmClient as any).provider as GeminiProvider;
+          await geminiProvider.deleteCache(session.externalCacheId);
+        } catch (error) {
+          logger.warn({ error, cacheId: session.externalCacheId }, "Failed to delete expired cache");
+        }
+      }
+    }
+  }
+  
+  // Delete expired sessions from database
   const result = await db
     .delete(contextSession)
     .where(lt(contextSession.expiresAt, now));

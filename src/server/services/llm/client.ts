@@ -3,6 +3,7 @@ import { ILLMProvider, LLMProvider, LLMConfig, type ConversationMessage } from "
 import { OpenAIProvider } from "./providers/openai";
 import { GeminiProvider } from "./providers/gemini";
 import { getCachedResponse, storeCachedResponse } from "./semanticCache";
+import { getContextSession } from "./contextSession";
 import { getCurrentDb } from "~/server/db";
 import type { DatabaseInstance } from "~/server/db";
 
@@ -120,6 +121,7 @@ export class LLMClient {
     conversationHistory?: ConversationMessage[],
     db?: DatabaseInstance,
     useCache: boolean = true,
+    sessionKey?: string,
   ): Promise<string> {
     // Check semantic cache if enabled and database provided
     if (useCache && db) {
@@ -135,12 +137,22 @@ export class LLMClient {
       }
     }
 
+    // Check for context cache if session key provided (Gemini only)
+    let cachedContentName: string | undefined;
+    if (sessionKey && this.providerType === "gemini" && db) {
+      const session = await getContextSession(db, sessionKey);
+      if (session?.externalCacheId && session.cacheExpiresAt && session.cacheExpiresAt > new Date()) {
+        cachedContentName = session.externalCacheId;
+      }
+    }
+
     const response = await this.provider.complete(
       prompt,
       systemPrompt,
       maxTokens,
       temperature,
       conversationHistory,
+      cachedContentName,
     );
 
     // Store in cache if enabled and database provided
@@ -164,6 +176,7 @@ export class LLMClient {
     conversationHistory?: ConversationMessage[],
     db?: DatabaseInstance,
     useCache: boolean = true,
+    sessionKey?: string,
   ): Promise<Record<string, unknown>> {
     // Check semantic cache if enabled and database provided
     if (useCache && db) {
@@ -179,10 +192,21 @@ export class LLMClient {
       }
     }
 
+    // Check for context cache if session key provided (Gemini only)
+    let cachedContentName: string | undefined;
+    if (sessionKey && this.providerType === "gemini" && db) {
+      const session = await getContextSession(db, sessionKey);
+      if (session?.externalCacheId && session.cacheExpiresAt && session.cacheExpiresAt > new Date()) {
+        cachedContentName = session.externalCacheId;
+      }
+    }
+
     const response = await this.provider.completeJSON(
       prompt,
       systemPrompt,
       conversationHistory,
+      3, // maxRetries
+      cachedContentName,
     );
 
     // Store in cache if enabled and database provided

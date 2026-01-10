@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "@jest/globals";
+import { describe, it, expect, beforeEach, afterEach, jest } from "@jest/globals";
 import {
   getOrCreateContextSession,
   getContextSession,
@@ -7,12 +7,14 @@ import {
   cleanupExpiredSessions,
   invalidateSessionsForConcepts,
   generateSessionKey,
+  createCacheForSession,
   type ContextMessage,
 } from "~/server/services/llm/contextSession";
 import { createTestDb, migrateTestDb, closeTestDb } from "../../utils/db";
 import type { DatabaseInstance } from "~/server/db";
 import { contextSession } from "~/server/schema";
 import { eq } from "drizzle-orm";
+import { LLMClient } from "~/server/services/llm/client";
 
 describe("contextSession", () => {
   let testDb: DatabaseInstance;
@@ -71,18 +73,20 @@ describe("contextSession", () => {
         { role: "user", content: "Second context" },
       ];
 
+      // Create first session - cleanup will run but shouldn't affect new session
       const session1 = await getOrCreateContextSession(
         testDb,
-        "test-session",
+        "test-session-existing",
         "openai",
         "gpt-4o-mini",
         messages1,
         ["concept-1"],
       );
 
+      // Get second session - should reuse the existing one
       const session2 = await getOrCreateContextSession(
         testDb,
-        "test-session",
+        "test-session-existing",
         "openai",
         "gpt-4o-mini",
         messages2,
@@ -104,7 +108,7 @@ describe("contextSession", () => {
 
       await getOrCreateContextSession(
         testDb,
-        "test-session",
+        "test-session-merge",
         "openai",
         "gpt-4o-mini",
         messages1,
@@ -113,7 +117,7 @@ describe("contextSession", () => {
 
       const session = await getOrCreateContextSession(
         testDb,
-        "test-session",
+        "test-session-merge",
         "openai",
         "gpt-4o-mini",
         messages2,
@@ -138,17 +142,18 @@ describe("contextSession", () => {
         { role: "user", content: "Test" },
       ];
 
-      await getOrCreateContextSession(
+      const created = await getOrCreateContextSession(
         testDb,
-        "test-session",
+        "test-session-get",
         "openai",
         "gpt-4o-mini",
         messages,
       );
 
-      const session = await getContextSession(testDb, "test-session");
+      const session = await getContextSession(testDb, "test-session-get");
       expect(session).toBeDefined();
-      expect(session?.sessionKey).toBe("test-session");
+      expect(session?.sessionKey).toBe("test-session-get");
+      expect(session?.id).toBe(created.id);
     });
 
     it("should return null for expired session", async () => {
@@ -302,6 +307,117 @@ describe("contextSession", () => {
         "session-without-concept-1",
       );
       expect(session2).toBeDefined();
+    });
+  });
+
+  describe("createCacheForSession", () => {
+    it("should create cache for large content with Gemini provider", async () => {
+      // First create a session
+      const messages: ContextMessage[] = [
+        { role: "user", content: "Test context" },
+      ];
+      await getOrCreateContextSession(
+        testDb,
+        "test-session-cache",
+        "gemini",
+        "gemini-1.5-flash",
+        messages,
+        []
+      );
+
+      // Mock LLMClient with Gemini provider
+      const mockGeminiProvider = {
+        createContextCache: jest.fn<() => Promise<string>>().mockResolvedValue("cachedContents/test-123"),
+      };
+      const mockLLMClient = {
+        getProvider: jest.fn<() => "gemini">().mockReturnValue("gemini"),
+        provider: mockGeminiProvider,
+      } as unknown as LLMClient;
+
+      const largeContent = "x".repeat(3000); // Large content
+      const cacheId = await createCacheForSession(
+        testDb,
+        "test-session-cache",
+        "gemini",
+        largeContent,
+        mockLLMClient
+      );
+
+      expect(mockGeminiProvider.createContextCache).toHaveBeenCalled();
+      expect(cacheId).toBe("cachedContents/test-123");
+
+      // Verify cache was stored in database
+      const session = await getContextSession(testDb, "test-session-cache");
+      expect(session?.externalCacheId).toBe("cachedContents/test-123");
+    });
+
+    it("should not create cache for small content", async () => {
+      const mockLLMClient = {
+        getProvider: jest.fn().mockReturnValue("gemini"),
+      } as unknown as LLMClient;
+
+      const smallContent = "small"; // Less than 2000 chars
+      const cacheId = await createCacheForSession(
+        testDb,
+        "test-session",
+        "gemini",
+        smallContent,
+        mockLLMClient
+      );
+
+      expect(cacheId).toBeNull();
+    });
+
+    it("should not create cache for non-Gemini provider", async () => {
+      const mockLLMClient = {
+        getProvider: jest.fn().mockReturnValue("openai"),
+      } as unknown as LLMClient;
+
+      const largeContent = "x".repeat(3000);
+      const cacheId = await createCacheForSession(
+        testDb,
+        "test-session",
+        "openai",
+        largeContent,
+        mockLLMClient
+      );
+
+      expect(cacheId).toBeNull();
+    });
+  });
+
+  describe("cleanupExpiredSessions with cache", () => {
+    it("should delete expired caches when cleaning up sessions", async () => {
+      // Create a session with cache
+      const mockGeminiProvider = {
+        createContextCache: jest.fn<() => Promise<string>>().mockResolvedValue("cachedContents/expired-123"),
+        deleteCache: jest.fn<(name: string) => Promise<void>>().mockResolvedValue(undefined),
+      };
+      const mockLLMClient = {
+        getProvider: jest.fn<() => "gemini">().mockReturnValue("gemini"),
+        provider: mockGeminiProvider,
+      } as unknown as LLMClient;
+
+      // Create session with past expiration
+      const expiredDate = new Date(Date.now() - 1000);
+      await testDb.insert(contextSession).values({
+        id: "expired-session",
+        sessionKey: "expired-session",
+        provider: "gemini",
+        model: "gemini-1.5-flash",
+        contextMessages: JSON.stringify([]),
+        conceptIds: null,
+        externalCacheId: "cachedContents/expired-123",
+        cacheExpiresAt: expiredDate,
+        expiresAt: expiredDate,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const deletedCount = await cleanupExpiredSessions(testDb, mockLLMClient);
+
+      expect(deletedCount).toBe(1);
+      expect(mockGeminiProvider.deleteCache).toHaveBeenCalledWith("cachedContents/expired-123");
     });
   });
 });

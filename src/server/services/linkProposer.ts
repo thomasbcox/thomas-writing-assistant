@@ -287,6 +287,14 @@ ${i + 1}. ID: ${c.id}
 
   // Create or get context session with candidate concepts loaded
   const sessionKey = generateSessionKey("link-proposer", sourceConcept.id);
+  const staticContent = `Here are the candidate concepts in the knowledge graph that you can reference:
+
+${candidateList}
+
+Available link names: ${allLinkNames}
+
+You will be asked to propose links between a source concept and these candidate concepts.`;
+  
   const contextSession = await getOrCreateContextSession(
     database,
     sessionKey,
@@ -295,17 +303,23 @@ ${i + 1}. ID: ${c.id}
     [
       {
         role: "user",
-        content: `Here are the candidate concepts in the knowledge graph that you can reference:
-
-${candidateList}
-
-Available link names: ${allLinkNames}
-
-You will be asked to propose links between a source concept and these candidate concepts.`,
+        content: staticContent,
       },
     ],
     candidates.map((c) => c.id),
   );
+
+  // Create cache for the large static content if it's large enough
+  if (staticContent.length >= 2000) {
+    const { createCacheForSession } = await import("./llm/contextSession");
+    await createCacheForSession(
+      database,
+      sessionKey,
+      llmClient.getProvider(),
+      staticContent,
+      llmClient,
+    );
+  }
 
   // Build the link proposal query (references concepts already in context)
   const promptTemplate = configLoader.getPrompt(
@@ -376,6 +390,7 @@ Only include proposals with confidence >= 0.5. Limit to {{maxProposals}} proposa
       conversationHistory,
       database,
       true, // useCache
+      sessionKey, // Pass session key to enable context cache lookup
     );
     const llmDuration = Date.now() - llmStartTime;
 

@@ -25,14 +25,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/69</span>
+                <span class='fraction'>0/71</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/43</span>
+                <span class='fraction'>0/46</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/69</span>
+                <span class='fraction'>0/71</span>
             </div>
         
             
@@ -369,7 +369,14 @@
 <a name='L304'></a><a href='#L304'>304</a>
 <a name='L305'></a><a href='#L305'>305</a>
 <a name='L306'></a><a href='#L306'>306</a>
-<a name='L307'></a><a href='#L307'>307</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L307'></a><a href='#L307'>307</a>
+<a name='L308'></a><a href='#L308'>308</a>
+<a name='L309'></a><a href='#L309'>309</a>
+<a name='L310'></a><a href='#L310'>310</a>
+<a name='L311'></a><a href='#L311'>311</a>
+<a name='L312'></a><a href='#L312'>312</a>
+<a name='L313'></a><a href='#L313'>313</a>
+<a name='L314'></a><a href='#L314'>314</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -383,6 +390,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -428,8 +437,11 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -629,6 +641,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -681,6 +695,8 @@ import { useState } from "react";
 import { api } from "~/hooks/useIPC";
 import type { CapsuleWithAnchors, AnchorWithRepurposed, RepurposedContent } from "~/types/database";
 import { PDFProcessingStatus } from "./PDFProcessingStatus";
+import { LoadingSpinner } from "../ui/LoadingSpinner";
+import { useTimer } from "~/hooks/useTimer";
 &nbsp;
 interface PDFUploadSectionProps {
   capsules: CapsuleWithAnchors[] | undefined;
@@ -736,6 +752,9 @@ export function <span class="fstat-no" title="function not covered" >PDFUploadSe
 <span class="cstat-no" title="statement not covered" >      onError?.(error.message);</span>
     },
   });
+&nbsp;
+  const isProcessing = <span class="cstat-no" title="statement not covered" >createAnchorFromPDFMutation.isLoading || createCapsuleMutation.isLoading;</span>
+  const { formattedTime, showCounter } = <span class="cstat-no" title="statement not covered" >useTimer(isProcessing);</span>
 &nbsp;
   const handlePdfFileChange = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(e</span>: React.ChangeEvent&lt;HTMLInputElement&gt;) =&gt; {</span>
     const file = <span class="cstat-no" title="statement not covered" >e.target.files?.[0];</span>
@@ -966,14 +985,16 @@ export function <span class="fstat-no" title="function not covered" >PDFUploadSe
             !pdfFile ||
             (!createNewCapsule &amp;&amp; !selectedCapsuleId) ||
             (createNewCapsule &amp;&amp; (!showNewCapsuleForm || !newCapsuleData.title || !newCapsuleData.promise || !newCapsuleData.cta)) ||
-            createAnchorFromPDFMutation.isLoading ||
-            createCapsuleMutation.isLoading
+            isProcessing
           }
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         &gt;
-          {createAnchorFromPDFMutation.isLoading || createCapsuleMutation.isLoading
-            ? "Processing..."
-            : "Upload &amp; Generate Derivatives"}
+          {isProcessing &amp;&amp; &lt;LoadingSpinner size="sm" /&gt;}
+          &lt;span&gt;
+            {isProcessing
+              ? `Processing${showCounter ? ` (${formattedTime})` : "..."}`
+              : "Upload &amp; Generate Derivatives"}
+          &lt;/span&gt;
         &lt;/button&gt;
         &lt;PDFProcessingStatus status={pdfProcessingStatus} /&gt;
       &lt;/div&gt;
@@ -988,7 +1009,7 @@ export function <span class="fstat-no" title="function not covered" >PDFUploadSe
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-01-02T16:03:53.747Z
+                at 2026-01-10T06:10:51.176Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

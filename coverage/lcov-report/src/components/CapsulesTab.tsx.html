@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">44.44% </span>
+                <span class="strong">44.3% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>32/72</span>
+                <span class='fraction'>35/79</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">12.5% </span>
+                <span class="strong">20% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>2/16</span>
+                <span class='fraction'>4/20</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">13.33% </span>
+                <span class="strong">18.18% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>4/30</span>
+                <span class='fraction'>6/33</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">44.92% </span>
+                <span class="strong">45.33% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>31/69</span>
+                <span class='fraction'>34/75</span>
             </div>
         
             
@@ -265,7 +265,22 @@
 <a name='L200'></a><a href='#L200'>200</a>
 <a name='L201'></a><a href='#L201'>201</a>
 <a name='L202'></a><a href='#L202'>202</a>
-<a name='L203'></a><a href='#L203'>203</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L203'></a><a href='#L203'>203</a>
+<a name='L204'></a><a href='#L204'>204</a>
+<a name='L205'></a><a href='#L205'>205</a>
+<a name='L206'></a><a href='#L206'>206</a>
+<a name='L207'></a><a href='#L207'>207</a>
+<a name='L208'></a><a href='#L208'>208</a>
+<a name='L209'></a><a href='#L209'>209</a>
+<a name='L210'></a><a href='#L210'>210</a>
+<a name='L211'></a><a href='#L211'>211</a>
+<a name='L212'></a><a href='#L212'>212</a>
+<a name='L213'></a><a href='#L213'>213</a>
+<a name='L214'></a><a href='#L214'>214</a>
+<a name='L215'></a><a href='#L215'>215</a>
+<a name='L216'></a><a href='#L216'>216</a>
+<a name='L217'></a><a href='#L217'>217</a>
+<a name='L218'></a><a href='#L218'>218</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -313,11 +328,17 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">11x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -390,6 +411,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -433,6 +456,13 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">22x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">11x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -512,14 +542,20 @@ export function CapsulesTab() {
   const [expandedCapsules, setExpandedCapsules] = useState&lt;Set&lt;string&gt;&gt;(new Set());
   const [selectedAnchorId, setSelectedAnchorId] = useState&lt;string | null&gt;(null);
   const [editingAnchorId, setEditingAnchorId] = useState&lt;string | null&gt;(null);
+  // Track anchors that are being regenerated - clear their derivatives immediately
+  const [clearedDerivativesAnchors, setClearedDerivativesAnchors] = useState&lt;Set&lt;string&gt;&gt;(new Set());
 &nbsp;
   const regenerateMutation = api.capsule.regenerateRepurposedContent.useMutation({
     onSuccess: <span class="fstat-no" title="function not covered" >() =</span>&gt; {
+      // Clear the cleared anchors set since we have fresh data
+<span class="cstat-no" title="statement not covered" >      setClearedDerivativesAnchors(new Set());</span>
 <span class="cstat-no" title="statement not covered" >      refetch();</span>
 <span class="cstat-no" title="statement not covered" >      setSelectedAnchorId(null);</span>
 <span class="cstat-no" title="statement not covered" >      addToast("Derivatives regenerated successfully", "success");</span>
     },
     onError: <span class="fstat-no" title="function not covered" >(e</span>rror) =&gt; {
+      // On error, also clear the set so derivatives show again
+<span class="cstat-no" title="statement not covered" >      setClearedDerivativesAnchors(new Set());</span>
 <span class="cstat-no" title="statement not covered" >      addToast(error.message || "Failed to regenerate derivatives", "error");</span>
     },
   });
@@ -592,6 +628,8 @@ export function CapsulesTab() {
   }, [deleteAnchorMutation]);
 &nbsp;
   const handleRegenerateDerivatives = useCallback(<span class="fstat-no" title="function not covered" >(a</span>nchorId: string) =&gt; {
+    // Immediately clear derivatives from UI
+<span class="cstat-no" title="statement not covered" >    setClearedDerivativesAnchors(<span class="fstat-no" title="function not covered" >(p</span>rev) =&gt; <span class="cstat-no" title="statement not covered" >new Set(prev).add(anchorId))</span>;</span>
 <span class="cstat-no" title="statement not covered" >    regenerateMutation.mutate({ anchorId });</span>
   }, [regenerateMutation]);
 &nbsp;
@@ -639,7 +677,14 @@ export function CapsulesTab() {
         &lt;CreateCapsuleForm onSuccess={handleCapsuleCreateSuccess} /&gt;
 &nbsp;
         &lt;CapsuleList
-          capsules={capsules as any as import("~/types/database").CapsuleWithAnchors[] | undefined}
+          capsules={capsules ? (capsules as any as import("~/types/database").CapsuleWithAnchors[]).map((capsule) =&gt; ({
+            ...capsule,
+            anchors: capsule.anchors?.map((anchor) =&gt; ({
+              ...anchor,
+              // Clear repurposedContent for anchors being regenerated
+              repurposedContent: clearedDerivativesAnchors.has(anchor.id) ? <span class="branch-0 cbranch-no" title="branch not covered" >[] </span>: anchor.repurposedContent,
+            })),
+          })) : <span class="branch-1 cbranch-no" title="branch not covered" >undefined}</span>
           expandedCapsules={expandedCapsules}
           selectedAnchorId={selectedAnchorId}
           onToggleExpand={handleToggleExpand}
@@ -676,7 +721,7 @@ export function CapsulesTab() {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-01-02T16:03:53.747Z
+                at 2026-01-10T06:10:51.176Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

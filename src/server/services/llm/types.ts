@@ -16,12 +16,15 @@ export interface ILLMProvider {
     maxTokens?: number,
     temperature?: number,
     conversationHistory?: ConversationMessage[],
+    cachedContentName?: string,
   ): Promise<string>;
 
   completeJSON(
     prompt: string,
     systemPrompt?: string,
     conversationHistory?: ConversationMessage[],
+    maxRetries?: number,
+    cachedContentName?: string,
   ): Promise<Record<string, unknown>>;
 
   /**

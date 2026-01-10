@@ -396,7 +396,35 @@
 <a name='L331'></a><a href='#L331'>331</a>
 <a name='L332'></a><a href='#L332'>332</a>
 <a name='L333'></a><a href='#L333'>333</a>
-<a name='L334'></a><a href='#L334'>334</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L334'></a><a href='#L334'>334</a>
+<a name='L335'></a><a href='#L335'>335</a>
+<a name='L336'></a><a href='#L336'>336</a>
+<a name='L337'></a><a href='#L337'>337</a>
+<a name='L338'></a><a href='#L338'>338</a>
+<a name='L339'></a><a href='#L339'>339</a>
+<a name='L340'></a><a href='#L340'>340</a>
+<a name='L341'></a><a href='#L341'>341</a>
+<a name='L342'></a><a href='#L342'>342</a>
+<a name='L343'></a><a href='#L343'>343</a>
+<a name='L344'></a><a href='#L344'>344</a>
+<a name='L345'></a><a href='#L345'>345</a>
+<a name='L346'></a><a href='#L346'>346</a>
+<a name='L347'></a><a href='#L347'>347</a>
+<a name='L348'></a><a href='#L348'>348</a>
+<a name='L349'></a><a href='#L349'>349</a>
+<a name='L350'></a><a href='#L350'>350</a>
+<a name='L351'></a><a href='#L351'>351</a>
+<a name='L352'></a><a href='#L352'>352</a>
+<a name='L353'></a><a href='#L353'>353</a>
+<a name='L354'></a><a href='#L354'>354</a>
+<a name='L355'></a><a href='#L355'>355</a>
+<a name='L356'></a><a href='#L356'>356</a>
+<a name='L357'></a><a href='#L357'>357</a>
+<a name='L358'></a><a href='#L358'>358</a>
+<a name='L359'></a><a href='#L359'>359</a>
+<a name='L360'></a><a href='#L360'>360</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -532,6 +560,30 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -740,6 +792,7 @@ import type {
   ElectronAPI,
   SerializedConcept,
   SerializedCapsule,
+  SerializedRepurposedContent,
   SerializedLinkWithRelations,
   SerializedLinkName,
   SerializedOffer,
@@ -754,6 +807,7 @@ import type {
   CapsuleCreateAnchorFromPDFResult,
   LinkListResult,
   LinksByConceptResult,
+  LinkCountsByConceptResult,
   LinkNameListResult,
   LinkNameUsageResult,
   OfferListResult,
@@ -895,6 +949,7 @@ export function <span class="fstat-no" title="function not covered" >createMockE
         },
         repurposedContent: [],
       }),
+      regenerateRepurposedContent: jest.fn&lt;() =&gt; Promise&lt;SerializedRepurposedContent[]&gt;&gt;().mockResolvedValue([]),
     },
 &nbsp;
     offer: {
@@ -925,6 +980,7 @@ export function <span class="fstat-no" title="function not covered" >createMockE
     link: {
       getAll: jest.fn&lt;() =&gt; Promise&lt;LinkListResult&gt;&gt;().mockResolvedValue([]),
       getByConcept: jest.fn&lt;() =&gt; Promise&lt;LinksByConceptResult&gt;&gt;().mockResolvedValue({ outgoing: [], incoming: [] }),
+      getCountsByConcept: jest.fn&lt;() =&gt; Promise&lt;LinkCountsByConceptResult&gt;&gt;().mockResolvedValue([]),
       create: jest.fn&lt;() =&gt; Promise&lt;SerializedLinkWithRelations&gt;&gt;().mockResolvedValue(createMockLinkWithRelations()),
       update: jest.fn&lt;() =&gt; Promise&lt;SerializedLinkWithRelations&gt;&gt;().mockResolvedValue(createMockLinkWithRelations()),
       delete: jest.fn&lt;() =&gt; Promise&lt;SerializedLinkWithRelations | null&gt;&gt;().mockResolvedValue(null),
@@ -1000,6 +1056,28 @@ export function <span class="fstat-no" title="function not covered" >createMockE
       }),
     },
 &nbsp;
+    enrichment: {
+      analyze: jest.fn&lt;() =&gt; Promise&lt;any&gt;&gt;().mockResolvedValue({
+        suggestions: [],
+        quickActions: [],
+        initialMessage: "Hello! I can help you enrich this concept.",
+      }),
+      enrichMetadata: jest.fn&lt;() =&gt; Promise&lt;any&gt;&gt;().mockResolvedValue({
+        creator: "Mock Creator",
+        year: "2025",
+        source: "Mock Source",
+        confidence: "high" as const,
+      }),
+      chat: jest.fn&lt;() =&gt; Promise&lt;any&gt;&gt;().mockResolvedValue({
+        response: "Mock chat response",
+        suggestions: [],
+        actions: [],
+      }),
+      expandDefinition: jest.fn&lt;() =&gt; Promise&lt;any&gt;&gt;().mockResolvedValue({
+        expandedDefinition: "Mock expanded definition",
+      }),
+    },
+&nbsp;
     ping: jest.fn&lt;() =&gt; Promise&lt;string&gt;&gt;().mockResolvedValue("pong"),
   };
 }
@@ -1069,7 +1147,7 @@ export {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-01-02T16:03:53.747Z
+                at 2026-01-10T06:10:51.176Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

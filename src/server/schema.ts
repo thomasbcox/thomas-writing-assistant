@@ -285,6 +285,8 @@ export const contextSession = sqliteTable("ContextSession", {
   model: text("model").notNull(), // Model name used
   contextMessages: text("contextMessages").notNull(), // JSON array of messages for context
   conceptIds: text("conceptIds"), // JSON array of concept IDs in context
+  externalCacheId: text("externalCacheId"), // Gemini cache resource name (e.g., "cachedContents/abc123")
+  cacheExpiresAt: integer("cacheExpiresAt", { mode: "timestamp" }), // When the cache expires
   expiresAt: integer("expiresAt", { mode: "timestamp" }).notNull(), // When the session expires
   createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
   updatedAt: integer("updatedAt", { mode: "timestamp" }).$onUpdate(() => new Date()).notNull(),

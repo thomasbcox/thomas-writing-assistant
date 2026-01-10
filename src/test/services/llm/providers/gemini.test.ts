@@ -8,6 +8,8 @@ import { GeminiProvider } from "~/server/services/llm/providers/gemini";
 import {
   mockGenerateContent,
   mockGetGenerativeModel,
+  mockCacheCreate,
+  mockCacheDelete,
   _resetMocks,
   _setDefaultSuccess,
 } from "../../../__mocks__/@google/generative-ai";
@@ -412,6 +414,71 @@ describe("GeminiProvider", () => {
       expect(model).toBe("gemini-1.5-flash");
 
       global.fetch = originalFetch;
+    });
+  });
+
+  describe("context caching", () => {
+    it("should create context cache with versioned model", async () => {
+      mockCacheCreate.mockResolvedValue({ name: "cachedContents/test-cache-123" });
+
+      const cacheId = await provider.createContextCache("Large static content here", 3600);
+
+      expect(mockCacheCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: expect.stringContaining("gemini-1.5"),
+          ttlSeconds: 3600,
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: "Large static content here" }],
+            },
+          ],
+        })
+      );
+      expect(cacheId).toBe("cachedContents/test-cache-123");
+    });
+
+    it("should use cached content in complete() when cache ID provided", async () => {
+      mockGenerateContent.mockResolvedValue({
+        response: { text: jest.fn(() => "Cached response") },
+      });
+
+      const result = await provider.complete(
+        "test prompt",
+        "system prompt",
+        undefined,
+        undefined,
+        undefined,
+        "cachedContents/test-cache-123"
+      );
+
+      expect(mockGetGenerativeModel).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cachedContent: { name: "cachedContents/test-cache-123" },
+        })
+      );
+      expect(result).toBe("Cached response");
+    });
+
+    it("should delete cache", async () => {
+      mockCacheDelete.mockResolvedValue(undefined);
+
+      await provider.deleteCache("cachedContents/test-cache-123");
+
+      expect(mockCacheDelete).toHaveBeenCalledWith("cachedContents/test-cache-123");
+    });
+
+    it("should map unversioned models to versioned for caching", async () => {
+      provider.setModel("gemini-1.5-flash");
+      mockCacheCreate.mockResolvedValue({ name: "cachedContents/test-cache-123" });
+      
+      await provider.createContextCache("test content");
+
+      expect(mockCacheCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: "models/gemini-1.5-flash-001",
+        })
+      );
     });
   });
 });

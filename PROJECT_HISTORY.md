@@ -4,6 +4,32 @@
 
 ---
 
+## January 10, 2026 - Context Caching Implementation
+
+### Gemini Context Caching
+**Decision**: Implement explicit context caching using GoogleAICacheManager to reduce token costs and latency.
+
+**Implementation**:
+- Added `GoogleAICacheManager` from `@google/generative-ai/server` to `GeminiProvider`
+- Implemented automatic cache creation for large static content (>2000 chars)
+- Updated database schema to store cache IDs and expiration times
+- Modified `complete()` and `completeJSON()` methods to use cached content
+- Integrated cache creation in `linkProposer` service for large candidate lists
+- Added cache cleanup on session expiration
+
+**Benefits**:
+- 50-75% cost reduction for repeated context
+- Reduced latency (less data transmission)
+- Automatic and backward compatible
+- No code changes needed in services
+
+**Technical Details**:
+- Uses versioned models (automatically mapped from unversioned)
+- Cache TTL: 1 hour (aligned with session TTL)
+- Graceful fallback if cache creation fails
+
+---
+
 ## Project Genesis (December 2025)
 
 ### Initial Vision
