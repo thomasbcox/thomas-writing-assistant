@@ -41,6 +41,7 @@ export function LinkProposer({ conceptId, conceptTitle }: LinkProposerProps) {
       // Invalidate queries to refresh the UI
       void utils.link.getByConcept.invalidate({ conceptId });
       void utils.link.getAll.invalidate();
+      void utils.link.getCountsByConcept.invalidate();
       // Immediately refetch existingLinks to update the filter
       void refetchExistingLinks();
       // Refetch proposals to remove the confirmed proposal from the list

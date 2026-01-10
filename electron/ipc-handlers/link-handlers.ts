@@ -370,5 +370,45 @@ export function registerLinkHandlers() {
     logger.info({ operation: "link:delete", linkId: foundLink.id, sourceId: parsed.sourceId, targetId: parsed.targetId }, "Link deleted successfully");
     return foundLink;
   });
+
+  // Get link counts by concept
+  ipcMain.handle("link:getCountsByConcept", async (_event, _input: unknown) => {
+    const db = getDb();
+
+    logger.info({ operation: "link:getCountsByConcept" }, "Fetching link counts by concept");
+
+    try {
+      // Get all links
+      const allLinks = await db.select({
+        sourceId: link.sourceId,
+        targetId: link.targetId,
+      }).from(link);
+
+      // Count links per concept (outgoing + incoming)
+      const counts = new Map<string, number>();
+
+      for (const l of allLinks) {
+        // Count outgoing links
+        const outgoingCount = counts.get(l.sourceId) || 0;
+        counts.set(l.sourceId, outgoingCount + 1);
+
+        // Count incoming links
+        const incomingCount = counts.get(l.targetId) || 0;
+        counts.set(l.targetId, incomingCount + 1);
+      }
+
+      // Convert to array format
+      const result = Array.from(counts.entries()).map(([conceptId, count]) => ({
+        conceptId,
+        count,
+      }));
+
+      logger.info({ operation: "link:getCountsByConcept", count: result.length }, "Link counts fetched successfully");
+      return result;
+    } catch (error: unknown) {
+      logServiceError(error, "link.getCountsByConcept", {});
+      throw new Error(`Failed to load link counts: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  });
 }
 

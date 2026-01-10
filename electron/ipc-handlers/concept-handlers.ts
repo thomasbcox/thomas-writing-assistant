@@ -86,6 +86,7 @@ export function registerConceptHandlers() {
       const searchConditions = [
         like(concept.title, `%${parsed.search}%`),
         like(concept.description, `%${parsed.search}%`),
+        like(concept.content, `%${parsed.search}%`),
       ].filter(Boolean);
       
       if (searchConditions.length > 0) {

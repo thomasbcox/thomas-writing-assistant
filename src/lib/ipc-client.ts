@@ -179,6 +179,13 @@ export const ipc = {
       }
       return win.electronAPI.link.getByConcept(input);
     },
+    getCountsByConcept: () => {
+      const win = getWindowRuntime();
+      if (!win || !win.electronAPI) {
+        throw new Error("IPC client not available - not running in Electron");
+      }
+      return win.electronAPI.link.getCountsByConcept();
+    },
     create: (input: {
       sourceId: string;
       targetId: string;

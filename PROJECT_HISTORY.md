@@ -1122,3 +1122,88 @@ Added three new tables:
 - Semantic cache uses cosine similarity on query embeddings
 - Both features are transparent to existing services (backward compatible)
 - Migration: `drizzle/0003_quick_captain_flint.sql`
+
+---
+
+## Links and Concepts Tab Enhancements (January 2026)
+
+### Overview
+Enhanced both the Links and Concepts tabs with link count displays, comprehensive sorting, filtering, and search capabilities to improve concept discovery and management.
+
+### Links Tab Enhancements
+
+**Problem**: Users couldn't see which concepts had links or filter for concepts without links when proposing new connections.
+
+**Solution**:
+- Added `link:getCountsByConcept` IPC handler that efficiently counts outgoing + incoming links per concept
+- Display link counts in concept dropdown: "Concept Name (3)"
+- Added zero-link filter checkbox to show only concepts with no existing links
+- Enhanced links display with prominent border and header when a concept is selected
+- Link counts automatically update when links are created/deleted
+
+**Implementation**:
+- New IPC handler uses efficient client-side counting (can be upgraded to SQL aggregation if needed)
+- React Query hook for link counts with proper cache invalidation
+- Zero-link filter state management in LinksTab component
+- Enhanced visual hierarchy for existing links display
+
+### Concepts Tab Enhancements
+
+**Problem**: Concepts list appeared unordered, had no filtering capabilities, and didn't show link counts. Search was limited to title and description only.
+
+**Solution**:
+- **Link Counts**: Display counts in concept titles: "Concept Name (3)"
+- **Sorting**: Added comprehensive sorting by:
+  - Title (A-Z, Z-A)
+  - Date Created (newest/oldest)
+  - Date Modified (newest/oldest)
+  - Link Count (most/least linked)
+  - Creator
+  - Source
+  - Year
+- **Filtering**: Added multi-criteria filtering:
+  - Link count range (0, 1-5, 5-10, 10+)
+  - Creator (multi-select)
+  - Source (multi-select)
+  - Year (multi-select)
+  - Date range (created date)
+  - Zero links only checkbox
+- **Enhanced Search**: Extended search to include content field (previously only title + description)
+- **UI Improvements**: Collapsible filter panel with clear filters button, sort controls with visual indicators
+
+**Implementation**:
+- Client-side filtering and sorting for moderate datasets (can be upgraded to server-side if needed)
+- Filter state management with multiple filter types
+- Sort state with field and order selection
+- Enhanced concept list API handler to search content field
+- Link counts integrated into ConceptList component
+
+### Technical Details
+
+**New API Endpoint**:
+- `link:getCountsByConcept` - Returns array of `{ conceptId: string, count: number }`
+- Count includes both outgoing and incoming links
+- Efficient client-side implementation (can be optimized with SQL aggregation for large datasets)
+
+**Files Modified**:
+- `electron/ipc-handlers/link-handlers.ts` - Added getCountsByConcept handler
+- `electron/ipc-handlers/concept-handlers.ts` - Enhanced search to include content field
+- `src/components/LinksTab.tsx` - Added link counts, zero-link filter, enhanced display
+- `src/components/ConceptsTab.tsx` - Added sorting, filtering, enhanced search
+- `src/components/ConceptList.tsx` - Added link count display
+- `src/components/LinkProposer.tsx` - Added link count invalidation
+- `src/hooks/useIPC.ts` - Added getCountsByConcept query hook
+- `src/types/electron-api.ts` - Added LinkCountsByConceptResult type
+
+**Testing**:
+- Updated `LinksTab.test.tsx` to test link counts and zero-link filter
+- Created `ConceptsTab.test.tsx` to test sorting, filtering, and link count display
+- Updated `link-handlers.test.ts` with placeholder tests for new handler
+
+**Impact**:
+- **Usability**: Users can now easily find concepts with no links, see link counts at a glance
+- **Discovery**: Enhanced search and filtering make it easier to find specific concepts
+- **Organization**: Sorting helps organize large concept lists
+- **Performance**: Client-side operations work well for moderate datasets; can be optimized if needed
+
+**Date**: January 09, 2026

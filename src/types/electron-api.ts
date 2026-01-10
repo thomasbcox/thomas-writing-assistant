@@ -308,6 +308,13 @@ export type SerializedLinkWithRelations = SerializedLink & {
 
 export type LinkListResult = SerializedLinkWithRelations[];
 
+export interface LinkCountByConcept {
+  conceptId: string;
+  count: number;
+}
+
+export type LinkCountsByConceptResult = LinkCountByConcept[];
+
 export interface LinksByConceptResult {
   outgoing: SerializedLinkWithRelations[];
   incoming: SerializedLinkWithRelations[];
@@ -612,6 +619,7 @@ export interface ElectronAPI {
   link: {
     getAll: (input?: LinkGetAllInput) => Promise<LinkListResult>;
     getByConcept: (input: LinkGetByConceptInput) => Promise<LinksByConceptResult>;
+    getCountsByConcept: () => Promise<LinkCountsByConceptResult>;
     create: (input: LinkCreateInput) => Promise<SerializedLinkWithRelations>;
     update: (input: LinkUpdateInput) => Promise<SerializedLinkWithRelations>;
     delete: (input: LinkDeleteInput) => Promise<SerializedLink | null>;

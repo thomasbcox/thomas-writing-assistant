@@ -9,6 +9,7 @@ interface ConceptListProps {
   isLoading: boolean;
   error: Error | null;
   showTrash: boolean;
+  linkCounts?: Map<string, number>;
   onView: (id: string) => void;
   onEdit: (id: string) => void;
   onEnrich?: (id: string) => void;
@@ -21,12 +22,14 @@ export function ConceptList({
   isLoading,
   error,
   showTrash,
+  linkCounts,
   onView,
   onEdit,
   onEnrich,
   onDelete,
   onRestore,
 }: ConceptListProps) {
+  const getLinkCount = (conceptId: string) => linkCounts?.get(conceptId) ?? 0;
   if (isLoading) {
     return (
       <div className="flex justify-center py-12">
@@ -77,7 +80,7 @@ export function ConceptList({
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <h3 className="text-base font-semibold text-gray-900">
-                {concept.title}
+                {concept.title} ({getLinkCount(concept.id)})
               </h3>
               {concept.description && (
                 <p className="text-sm text-gray-700 mt-1">

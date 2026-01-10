@@ -57,6 +57,7 @@ const electronAPI: ElectronAPI = {
   link: {
     getAll: (input) => ipcRenderer.invoke("link:getAll", input),
     getByConcept: (input) => ipcRenderer.invoke("link:getByConcept", input),
+    getCountsByConcept: () => ipcRenderer.invoke("link:getCountsByConcept"),
     create: (input) => ipcRenderer.invoke("link:create", input),
     update: (input) => ipcRenderer.invoke("link:update", input),
     delete: (input) => ipcRenderer.invoke("link:delete", input),

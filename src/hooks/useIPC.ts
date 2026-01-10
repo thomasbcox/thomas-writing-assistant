@@ -19,6 +19,7 @@ import type {
   ConfigRawResult,
   ConfigStatusResult,
   LinksByConceptResult,
+  LinkCountsByConceptResult,
   LinkNameUsageResult,
 } from "~/types/electron-api";
 
@@ -260,6 +261,15 @@ export function useUtils() {
       getAll: {
         invalidate: () => {
           const refetch = queryCache.get("link:getAll");
+          if (refetch) {
+            return refetch();
+          }
+          return Promise.resolve();
+        },
+      },
+      getCountsByConcept: {
+        invalidate: () => {
+          const refetch = queryCache.get("link:getCountsByConcept");
           if (refetch) {
             return refetch();
           }
@@ -517,6 +527,13 @@ export const api = {
             inputs: [input.conceptId],
             enabled: options?.enabled,
           },
+        ),
+    },
+    getCountsByConcept: {
+      useQuery: () =>
+        useIPCQuery<LinkCountsByConceptResult>(
+          () => ipc.link.getCountsByConcept() as Promise<LinkCountsByConceptResult>,
+          { queryKey: "link:getCountsByConcept", inputs: [] },
         ),
     },
     create: {

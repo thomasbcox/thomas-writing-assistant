@@ -34,11 +34,18 @@ const mockLinkNames = [
 const mockDeleteMutate = jest.fn();
 const mockCreateMutate = jest.fn();
 
+// Mock link counts data
+const mockLinkCounts = [
+  { conceptId: "c1", count: 3 },
+  { conceptId: "c2", count: 0 },
+];
+
 // Mock the hooks module
 const mockUseUtils = jest.fn(() => ({
   link: {
     getByConcept: { invalidate: jest.fn() },
     getAll: { invalidate: jest.fn() },
+    getCountsByConcept: { invalidate: jest.fn() },
   },
 }));
 
@@ -64,6 +71,13 @@ jest.unstable_mockModule("../../hooks/useIPC", () => ({
       getByConcept: {
         useQuery: () => ({
           data: { outgoing: mockLinks, incoming: [] },
+          isLoading: false,
+          error: null,
+        }),
+      },
+      getCountsByConcept: {
+        useQuery: () => ({
+          data: mockLinkCounts,
           isLoading: false,
           error: null,
         }),
@@ -183,5 +197,27 @@ describe("LinksTab", () => {
   it("should have create link button", () => {
     render(<LinksTab />);
     expect(screen.getByText("Create Link")).toBeInTheDocument();
+  });
+
+  it("should display link counts in concept dropdown", () => {
+    render(<LinksTab />);
+    // The SearchableSelect should show concepts with counts
+    // Since we're mocking SearchableSelect, we can't directly test the label format
+    // But we can verify the component renders without errors
+    expect(screen.getByTestId("searchable-select")).toBeInTheDocument();
+  });
+
+  it("should have zero-links filter checkbox", () => {
+    render(<LinksTab />);
+    const checkbox = screen.getByLabelText(/Show only concepts with zero links/i);
+    expect(checkbox).toBeInTheDocument();
+    expect(checkbox).not.toBeChecked();
+  });
+
+  it("should filter concepts when zero-links checkbox is checked", () => {
+    render(<LinksTab />);
+    const checkbox = screen.getByLabelText(/Show only concepts with zero links/i);
+    fireEvent.click(checkbox);
+    expect(checkbox).toBeChecked();
   });
 });

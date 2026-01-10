@@ -24,6 +24,7 @@ import type {
   CapsuleCreateAnchorFromPDFResult,
   LinkListResult,
   LinksByConceptResult,
+  LinkCountsByConceptResult,
   LinkNameListResult,
   LinkNameUsageResult,
   OfferListResult,
@@ -196,6 +197,7 @@ export function createMockElectronAPI(): ElectronAPI {
     link: {
       getAll: jest.fn<() => Promise<LinkListResult>>().mockResolvedValue([]),
       getByConcept: jest.fn<() => Promise<LinksByConceptResult>>().mockResolvedValue({ outgoing: [], incoming: [] }),
+      getCountsByConcept: jest.fn<() => Promise<LinkCountsByConceptResult>>().mockResolvedValue([]),
       create: jest.fn<() => Promise<SerializedLinkWithRelations>>().mockResolvedValue(createMockLinkWithRelations()),
       update: jest.fn<() => Promise<SerializedLinkWithRelations>>().mockResolvedValue(createMockLinkWithRelations()),
       delete: jest.fn<() => Promise<SerializedLinkWithRelations | null>>().mockResolvedValue(null),
