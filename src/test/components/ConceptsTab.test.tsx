@@ -171,7 +171,9 @@ describe("ConceptsTab", () => {
     const filterButton = screen.getByText(/Show Filters/);
     fireEvent.click(filterButton);
     expect(screen.getByText(/Hide Filters/)).toBeInTheDocument();
-    expect(screen.getByText("Link Count")).toBeInTheDocument();
+    // Use getAllByText since "Link Count" appears in both sort dropdown and filter label
+    const linkCountElements = screen.getAllByText("Link Count");
+    expect(linkCountElements.length).toBeGreaterThan(0);
   });
 
   it("should have search input", () => {
