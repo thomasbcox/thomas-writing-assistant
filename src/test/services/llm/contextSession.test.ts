@@ -22,6 +22,8 @@ describe("contextSession", () => {
   beforeEach(async () => {
     testDb = createTestDb();
     await migrateTestDb(testDb);
+    // Clean up any leftover sessions from previous tests
+    await cleanupExpiredSessions(testDb);
   });
 
   afterEach(async () => {
@@ -73,24 +75,37 @@ describe("contextSession", () => {
         { role: "user", content: "Second context" },
       ];
 
-      // Create first session - cleanup will run but shouldn't affect new session
+      const sessionKey = `test-session-existing-${Date.now()}`;
+
+      // Create first session with a long TTL to avoid expiration
       const session1 = await getOrCreateContextSession(
         testDb,
-        "test-session-existing",
+        sessionKey,
         "openai",
         "gpt-4o-mini",
         messages1,
         ["concept-1"],
+        3600000, // 1 hour TTL
       );
+
+      // Verify session was created
+      expect(session1).toBeDefined();
+      expect(session1.sessionKey).toBe(sessionKey);
+
+      // Verify session exists in database
+      const verifySession = await getContextSession(testDb, sessionKey);
+      expect(verifySession).toBeDefined();
+      expect(verifySession?.id).toBe(session1.id);
 
       // Get second session - should reuse the existing one
       const session2 = await getOrCreateContextSession(
         testDb,
-        "test-session-existing",
+        sessionKey,
         "openai",
         "gpt-4o-mini",
         messages2,
         ["concept-2"],
+        3600000, // 1 hour TTL
       );
 
       expect(session2.id).toBe(session1.id);
@@ -106,28 +121,143 @@ describe("contextSession", () => {
         { role: "assistant", content: "Response" },
       ];
 
-      await getOrCreateContextSession(
+      const sessionKey = `test-session-merge-${Date.now()}`;
+
+      const session1 = await getOrCreateContextSession(
         testDb,
-        "test-session-merge",
+        sessionKey,
         "openai",
         "gpt-4o-mini",
         messages1,
         ["concept-1"],
+        3600000, // 1 hour TTL
       );
+
+      // Verify first session was created
+      expect(session1).toBeDefined();
+      expect(session1.messages).toHaveLength(1);
+
+      // Verify session exists in database
+      const verifySession = await getContextSession(testDb, sessionKey);
+      expect(verifySession).toBeDefined();
 
       const session = await getOrCreateContextSession(
         testDb,
-        "test-session-merge",
+        sessionKey,
         "openai",
         "gpt-4o-mini",
         messages2,
         ["concept-2"],
+        3600000, // 1 hour TTL
       );
 
       expect(session.messages).toHaveLength(2);
       expect(session.messages[0]).toEqual(messages1[0]);
       expect(session.messages[1]).toEqual(messages2[0]);
       expect(session.conceptIds).toEqual(["concept-1", "concept-2"]);
+    });
+
+    it("should automatically create cache for new Gemini sessions with large content", async () => {
+      // Mock LLMClient with Gemini provider
+      const mockGeminiProvider = {
+        createContextCache: jest.fn<() => Promise<string>>().mockResolvedValue("cachedContents/auto-123"),
+      };
+      const mockLLMClient = {
+        getProvider: jest.fn<() => "gemini">().mockReturnValue("gemini"),
+        provider: mockGeminiProvider,
+      } as unknown as LLMClient;
+
+      const largeContent = "x".repeat(3000); // Large content (> 2000 chars)
+      const messages: ContextMessage[] = [
+        { role: "user", content: largeContent },
+      ];
+
+      const session = await getOrCreateContextSession(
+        testDb,
+        "test-session-auto-cache",
+        "gemini",
+        "gemini-1.5-flash",
+        messages,
+        [],
+        undefined, // ttlMs - use default
+        mockLLMClient, // Pass llmClient for automatic caching
+      );
+
+      expect(session).toBeDefined();
+      
+      // Wait for async cache creation to complete
+      // Retry a few times since cache creation is fire-and-forget
+      let updatedSession = await getContextSession(testDb, "test-session-auto-cache");
+      let attempts = 0;
+      while (!updatedSession?.externalCacheId && attempts < 20) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        updatedSession = await getContextSession(testDb, "test-session-auto-cache");
+        attempts++;
+      }
+      
+      // Verify cache creation was attempted
+      expect(mockGeminiProvider.createContextCache).toHaveBeenCalled();
+      
+      // Verify cache was stored in database
+      expect(updatedSession?.externalCacheId).toBe("cachedContents/auto-123");
+    });
+
+    it("should not create cache for small content", async () => {
+      const mockLLMClient = {
+        getProvider: jest.fn().mockReturnValue("gemini"),
+      } as unknown as LLMClient;
+
+      const smallContent = "small"; // Less than 2000 chars
+      const messages: ContextMessage[] = [
+        { role: "user", content: smallContent },
+      ];
+
+      await getOrCreateContextSession(
+        testDb,
+        "test-session-no-cache",
+        "gemini",
+        "gemini-1.5-flash",
+        messages,
+        [],
+        undefined,
+        mockLLMClient,
+      );
+
+      // Wait a bit
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      
+      // Verify no cache was created (no mock provider means no createContextCache call)
+      const session = await getContextSession(testDb, "test-session-no-cache");
+      expect(session?.externalCacheId).toBeUndefined();
+    });
+
+    it("should not create cache for non-Gemini provider", async () => {
+      const mockLLMClient = {
+        getProvider: jest.fn().mockReturnValue("openai"),
+      } as unknown as LLMClient;
+
+      const largeContent = "x".repeat(3000);
+      const messages: ContextMessage[] = [
+        { role: "user", content: largeContent },
+      ];
+
+      await getOrCreateContextSession(
+        testDb,
+        "test-session-openai",
+        "openai",
+        "gpt-4o-mini",
+        messages,
+        [],
+        undefined,
+        mockLLMClient,
+      );
+
+      // Wait a bit
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      
+      // Verify no cache was created
+      const session = await getContextSession(testDb, "test-session-openai");
+      expect(session?.externalCacheId).toBeUndefined();
     });
   });
 
@@ -144,15 +274,20 @@ describe("contextSession", () => {
 
       const created = await getOrCreateContextSession(
         testDb,
-        "test-session-get",
+        "test-session-get-unique",
         "openai",
         "gpt-4o-mini",
         messages,
+        [],
+        3600000, // 1 hour TTL
       );
 
-      const session = await getContextSession(testDb, "test-session-get");
+      // Small delay to ensure session is committed
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      const session = await getContextSession(testDb, "test-session-get-unique");
       expect(session).toBeDefined();
-      expect(session?.sessionKey).toBe("test-session-get");
+      expect(session?.sessionKey).toBe("test-session-get-unique");
       expect(session?.id).toBe(created.id);
     });
 
@@ -276,21 +411,26 @@ describe("contextSession", () => {
     it("should invalidate sessions containing specified concepts", async () => {
       await getOrCreateContextSession(
         testDb,
-        "session-with-concept-1",
+        "session-with-concept-1-unique",
         "openai",
         "gpt-4o-mini",
         [{ role: "user", content: "Test" }],
         ["concept-1", "concept-2"],
+        3600000, // 1 hour TTL
       );
 
       await getOrCreateContextSession(
         testDb,
-        "session-without-concept-1",
+        "session-without-concept-1-unique",
         "openai",
         "gpt-4o-mini",
         [{ role: "user", content: "Test" }],
         ["concept-3"],
+        3600000, // 1 hour TTL
       );
+
+      // Small delay to ensure sessions are committed
+      await new Promise((resolve) => setTimeout(resolve, 10));
 
       const deleted = await invalidateSessionsForConcepts(testDb, ["concept-1"]);
 
@@ -298,13 +438,13 @@ describe("contextSession", () => {
 
       const session1 = await getContextSession(
         testDb,
-        "session-with-concept-1",
+        "session-with-concept-1-unique",
       );
       expect(session1).toBeNull();
 
       const session2 = await getContextSession(
         testDb,
-        "session-without-concept-1",
+        "session-without-concept-1-unique",
       );
       expect(session2).toBeDefined();
     });
@@ -318,11 +458,12 @@ describe("contextSession", () => {
       ];
       await getOrCreateContextSession(
         testDb,
-        "test-session-cache",
+        "test-session-cache-unique",
         "gemini",
         "gemini-1.5-flash",
         messages,
-        []
+        [],
+        3600000, // 1 hour TTL
       );
 
       // Mock LLMClient with Gemini provider
@@ -337,7 +478,7 @@ describe("contextSession", () => {
       const largeContent = "x".repeat(3000); // Large content
       const cacheId = await createCacheForSession(
         testDb,
-        "test-session-cache",
+        "test-session-cache-unique",
         "gemini",
         largeContent,
         mockLLMClient
@@ -347,7 +488,10 @@ describe("contextSession", () => {
       expect(cacheId).toBe("cachedContents/test-123");
 
       // Verify cache was stored in database
-      const session = await getContextSession(testDb, "test-session-cache");
+      // Small delay to ensure database update is committed
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const session = await getContextSession(testDb, "test-session-cache-unique");
+      expect(session).toBeDefined();
       expect(session?.externalCacheId).toBe("cachedContents/test-123");
     });
 

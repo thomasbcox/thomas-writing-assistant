@@ -166,6 +166,25 @@ export class GeminiProvider implements ILLMProvider {
   }
 
   /**
+   * Update cache TTL to keep it alive
+   * @param cacheName - Cache resource name
+   * @param ttlSeconds - New TTL in seconds (default 1 hour)
+   */
+  async updateCacheTTL(
+    cacheName: string,
+    ttlSeconds: number = 3600,
+  ): Promise<void> {
+    try {
+      // Use type assertion since the SDK types may not be fully up to date
+      await (this.cacheManager as any).update(cacheName, { ttlSeconds });
+      logger.debug({ cacheName, ttlSeconds }, "Refreshed cache TTL");
+    } catch (error) {
+      logger.warn({ error, cacheName }, "Failed to refresh cache TTL");
+      // Don't throw - TTL refresh failure shouldn't break requests
+    }
+  }
+
+  /**
    * Delete an expired cache
    */
   async deleteCache(cacheName: string): Promise<void> {
@@ -186,33 +205,31 @@ export class GeminiProvider implements ILLMProvider {
     conversationHistory?: ConversationMessage[],
     cachedContentName?: string,
   ): Promise<string> {
-    // Build prompt from conversation history if provided
-    let fullPrompt = "";
-    
-    // If cache exists, don't prepend conversation history (it's in the cache)
-    if (cachedContentName) {
-      // Only send system prompt and current prompt when using cache
-      fullPrompt = systemPrompt
-        ? `${systemPrompt}\n\n${prompt}`
-        : prompt;
-    } else if (conversationHistory && conversationHistory.length > 0) {
-      // Combine conversation history into a single prompt
-      // Gemini doesn't support multi-turn conversations natively, so we format it as a conversation
-      const historyText = conversationHistory
+    // ALWAYS build conversation history text (dynamic content)
+    // Cache contains static content (concepts, PDFs), but conversation history is dynamic
+    let historyText = "";
+    if (conversationHistory && conversationHistory.length > 0) {
+      historyText = conversationHistory
         .map((msg) => {
-          if (msg.role === "system") {
-            return `[System]: ${msg.content}`;
-          } else if (msg.role === "user") {
-            return `[User]: ${msg.content}`;
-          } else {
-            return `[Assistant]: ${msg.content}`;
-          }
+          const rolePrefix = msg.role === "system" 
+            ? "[System]" 
+            : msg.role === "user" 
+            ? "[User]" 
+            : "[Assistant]";
+          return `${rolePrefix}: ${msg.content}`;
         })
         .join("\n\n");
-      
-      fullPrompt = historyText + (systemPrompt ? `\n\n[System]: ${systemPrompt}` : "") + `\n\n[User]: ${prompt}`;
+    }
+
+    // Construct full prompt
+    // Cache contains static content (concepts, PDFs)
+    // We still send dynamic conversation + new prompt
+    let fullPrompt = "";
+    if (historyText) {
+      fullPrompt = systemPrompt
+        ? `${historyText}\n\n[System]: ${systemPrompt}\n\n[User]: ${prompt}`
+        : `${historyText}\n\n[User]: ${prompt}`;
     } else {
-      // Fallback to original behavior
       fullPrompt = systemPrompt
         ? `${systemPrompt}\n\n${prompt}`
         : prompt;
@@ -256,7 +273,7 @@ export class GeminiProvider implements ILLMProvider {
         
         // If cache exists, reference it instead of sending full context
         if (cachedContentName) {
-          modelConfig.cachedContent = cachedContentName;
+          modelConfig.cachedContent = { name: cachedContentName, contents: [] };
         }
         
         const model = this.genAI.getGenerativeModel(modelConfig);
@@ -298,33 +315,31 @@ export class GeminiProvider implements ILLMProvider {
     maxRetries: number = 3,
     cachedContentName?: string,
   ): Promise<Record<string, unknown>> {
-    // Build prompt from conversation history if provided
-    let fullPrompt = "";
-    
-    // If cache exists, don't prepend conversation history (it's in the cache)
-    if (cachedContentName) {
-      // Only send system prompt and current prompt when using cache
-      fullPrompt = systemPrompt
-        ? `${systemPrompt}\n\n${prompt}`
-        : prompt;
-    } else if (conversationHistory && conversationHistory.length > 0) {
-      // Combine conversation history into a single prompt
-      // Gemini doesn't support multi-turn conversations natively, so we format it as a conversation
-      const historyText = conversationHistory
+    // ALWAYS build conversation history text (dynamic content)
+    // Cache contains static content (concepts, PDFs), but conversation history is dynamic
+    let historyText = "";
+    if (conversationHistory && conversationHistory.length > 0) {
+      historyText = conversationHistory
         .map((msg) => {
-          if (msg.role === "system") {
-            return `[System]: ${msg.content}`;
-          } else if (msg.role === "user") {
-            return `[User]: ${msg.content}`;
-          } else {
-            return `[Assistant]: ${msg.content}`;
-          }
+          const rolePrefix = msg.role === "system" 
+            ? "[System]" 
+            : msg.role === "user" 
+            ? "[User]" 
+            : "[Assistant]";
+          return `${rolePrefix}: ${msg.content}`;
         })
         .join("\n\n");
-      
-      fullPrompt = historyText + (systemPrompt ? `\n\n[System]: ${systemPrompt}` : "") + `\n\n[User]: ${prompt}`;
+    }
+
+    // Construct full prompt
+    // Cache contains static content (concepts, PDFs)
+    // We still send dynamic conversation + new prompt
+    let fullPrompt = "";
+    if (historyText) {
+      fullPrompt = systemPrompt
+        ? `${historyText}\n\n[System]: ${systemPrompt}\n\n[User]: ${prompt}`
+        : `${historyText}\n\n[User]: ${prompt}`;
     } else {
-      // Fallback to original behavior
       fullPrompt = systemPrompt
         ? `${systemPrompt}\n\n${prompt}`
         : prompt;
@@ -370,7 +385,7 @@ export class GeminiProvider implements ILLMProvider {
           
           // If cache exists, reference it instead of sending full context
           if (cachedContentName) {
-            modelConfig.cachedContent = cachedContentName;
+            modelConfig.cachedContent = { name: cachedContentName, contents: [] };
           }
           
           const model = this.genAI.getGenerativeModel(modelConfig);

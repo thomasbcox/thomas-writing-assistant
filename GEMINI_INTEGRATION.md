@@ -155,19 +155,65 @@ When a context session is created with large static content (>2000 characters), 
 2. Stores the cache ID in the session
 3. References the cache in subsequent API calls instead of re-sending the full context
 
+### Cache vs Conversation History
+
+**Important distinction:**
+- **Cache**: Contains **static content** (concept lists, PDFs, large reference data) that doesn't change
+- **Conversation History**: Contains **dynamic content** (previous messages, user queries, assistant responses) that changes with each turn
+
+When a cache is active, the system:
+- Uses the cache for static content (sent once, referenced thereafter)
+- Still sends full conversation history with each request (dynamic content)
+- Combines both: `[conversation history] + [system prompt] + [new prompt]` while referencing cached static content
+
+This ensures multi-turn conversations work correctly while still benefiting from cache cost savings.
+
+### Automatic Cache Creation
+
+Cache creation is **automatic** when:
+- A new context session is created (not existing)
+- Provider is Gemini
+- `llmClient` is passed to `getOrCreateContextSession()`
+- Initial messages contain large static content (>2000 characters)
+
+**Example:**
+```typescript
+// Cache is automatically created for large content
+const contextSession = await getOrCreateContextSession(
+  database,
+  sessionKey,
+  llmClient.getProvider(),
+  llmClient.getModel(),
+  [{ role: "user", content: largeCandidateList }], // Large static content
+  candidateIds,
+  undefined, // ttlMs - use default
+  llmClient, // Pass llmClient for automatic caching
+);
+```
+
+### TTL Refresh (Keep-Alive)
+
+To prevent cache expiration in long sessions (>1 hour), the system automatically refreshes the cache TTL on each use:
+- When a cached session is accessed, TTL is refreshed asynchronously
+- Cache expiration is extended by 1 hour from the refresh time
+- This happens in the background and doesn't block requests
+- If refresh fails, the request continues normally (graceful degradation)
+
 ### Benefits
 
 - **50-75% cost reduction** for repeated context
 - **Reduced latency** (less data to transmit)
 - **Automatic** - no code changes needed in services
 - **Backward compatible** - falls back gracefully if caching fails
+- **Long session support** - TTL refresh prevents expiration
 
 ### Technical Details
 
 - Uses `GoogleAICacheManager` from `@google/generative-ai/server`
-- Requires versioned models (automatically mapped)
-- Cache TTL: 1 hour (aligned with session TTL)
+- Requires versioned models (automatically mapped via `getVersionedModel()`)
+- Cache TTL: 1 hour (refreshed on each use)
 - Automatic cleanup of expired caches
+- Conversation history always preserved, even with cache active
 
 ### Example Usage
 
@@ -180,10 +226,13 @@ const contextSession = await getOrCreateContextSession(
   llmClient.getModel(),
   [{ role: "user", content: largeCandidateList }], // Large static content
   candidateIds,
+  undefined, // ttlMs - use default
+  llmClient, // Pass llmClient for automatic caching
 );
 
 // Cache is automatically created if content > 2000 chars
 // Subsequent LLM calls use the cache automatically
+// Conversation history is still sent with each request
 ```
 
 ## Current Status

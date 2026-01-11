@@ -143,6 +143,13 @@ export class LLMClient {
       const session = await getContextSession(db, sessionKey);
       if (session?.externalCacheId && session.cacheExpiresAt && session.cacheExpiresAt > new Date()) {
         cachedContentName = session.externalCacheId;
+        
+        // Fire-and-forget: Refresh TTL to keep cache alive
+        // Don't await - this is best-effort, shouldn't block request
+        const geminiProvider = this.provider as GeminiProvider;
+        geminiProvider.updateCacheTTL(session.externalCacheId).catch(() => {
+          // Silently fail - TTL refresh is optional
+        });
       }
     }
 
@@ -198,6 +205,13 @@ export class LLMClient {
       const session = await getContextSession(db, sessionKey);
       if (session?.externalCacheId && session.cacheExpiresAt && session.cacheExpiresAt > new Date()) {
         cachedContentName = session.externalCacheId;
+        
+        // Fire-and-forget: Refresh TTL to keep cache alive
+        // Don't await - this is best-effort, shouldn't block request
+        const geminiProvider = this.provider as GeminiProvider;
+        geminiProvider.updateCacheTTL(session.externalCacheId).catch(() => {
+          // Silently fail - TTL refresh is optional
+        });
       }
     }
 

@@ -4,6 +4,34 @@
 
 ---
 
+## January 11, 2026 - Context Caching Improvements
+
+### Critical Fixes to Context Caching
+**Issue**: Initial implementation had three critical issues:
+1. Conversation history was dropped when cache was active
+2. Cache creation was not automatic as documented
+3. Long sessions (>1 hour) would fail due to cache expiration
+
+**Fixes Implemented**:
+- **Preserved conversation history**: Cache is for static content (concepts, PDFs), conversation history is dynamic and always sent
+- **Automatic cache creation**: `getOrCreateContextSession()` now automatically creates caches for new Gemini sessions with large content when `llmClient` is provided
+- **TTL refresh**: Added `updateCacheTTL()` method that automatically refreshes cache expiration on each use to prevent expiration in long sessions
+
+**Technical Changes**:
+- Modified `complete()` and `completeJSON()` to always include conversation history, even with cache active
+- Added optional `llmClient` parameter to `getOrCreateContextSession()` for automatic caching
+- Integrated TTL refresh in `LLMClient.complete()` and `completeJSON()` methods
+- Updated `linkProposer.ts` to pass `llmClient` for automatic cache creation
+- Added comprehensive tests for conversation history preservation, automatic cache creation, and TTL refresh
+
+**Benefits**:
+- Multi-turn conversations now work correctly with cache active
+- Caches are created automatically without manual service code changes
+- Long sessions (>1 hour) no longer fail due to expired caches
+- All improvements are backward compatible
+
+---
+
 ## January 10, 2026 - Context Caching Implementation
 
 ### Gemini Context Caching

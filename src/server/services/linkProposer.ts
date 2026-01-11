@@ -307,19 +307,9 @@ You will be asked to propose links between a source concept and these candidate 
       },
     ],
     candidates.map((c) => c.id),
+    undefined, // ttlMs - use default
+    llmClient, // Pass llmClient for automatic cache creation
   );
-
-  // Create cache for the large static content if it's large enough
-  if (staticContent.length >= 2000) {
-    const { createCacheForSession } = await import("./llm/contextSession");
-    await createCacheForSession(
-      database,
-      sessionKey,
-      llmClient.getProvider(),
-      staticContent,
-      llmClient,
-    );
-  }
 
   // Build the link proposal query (references concepts already in context)
   const promptTemplate = configLoader.getPrompt(

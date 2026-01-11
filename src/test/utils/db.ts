@@ -215,6 +215,8 @@ export async function migrateTestDb(db: DatabaseInstance): Promise<void> {
       "model" TEXT NOT NULL,
       "contextMessages" TEXT NOT NULL,
       "conceptIds" TEXT,
+      "externalCacheId" TEXT,
+      "cacheExpiresAt" INTEGER,
       "expiresAt" INTEGER NOT NULL,
       "createdAt" INTEGER NOT NULL DEFAULT (unixepoch()),
       "updatedAt" INTEGER NOT NULL DEFAULT (unixepoch())

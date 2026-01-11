@@ -56,6 +56,7 @@ export async function getOrCreateContextSession(
   initialMessages: ContextMessage[],
   conceptIds: string[] = [],
   ttlMs: number = DEFAULT_SESSION_TTL_MS,
+  llmClient?: LLMClient, // Optional for automatic caching
 ): Promise<ContextSessionData> {
   // Clean up expired sessions first
   await cleanupExpiredSessions(db);
@@ -141,15 +142,55 @@ export async function getOrCreateContextSession(
     throw new Error("Failed to create context session");
   }
 
+  // AUTO-CACHE: Create cache for large static content if:
+  // 1. This is a new session (not existing)
+  // 2. Provider is Gemini
+  // 3. LLMClient provided
+  // 4. Initial messages contain large static content
+  if (existing.length === 0 && provider === "gemini" && llmClient) {
+    // Extract static content from initial messages
+    // Typically the first "user" message with large content
+    const staticMessages = initialMessages.filter(
+      m => m.role === "user" && m.content.length > 2000
+    );
+    
+    if (staticMessages.length > 0) {
+      const staticContent = staticMessages
+        .map(m => m.content)
+        .join("\n\n");
+      
+      // Create cache asynchronously (don't block session creation)
+      createCacheForSession(
+        db,
+        sessionKey,
+        provider,
+        staticContent,
+        llmClient,
+      ).catch(error => {
+        logger.warn({ error, sessionKey }, "Failed to auto-create cache");
+      });
+    }
+  }
+
+  // Re-fetch session to get cache info if it was created synchronously
+  // (In practice, cache creation is async, so we return without waiting)
+  const finalSession = await db
+    .select()
+    .from(contextSession)
+    .where(eq(contextSession.sessionKey, sessionKey))
+    .limit(1);
+
+  const sessionData = finalSession[0] || newSession;
+
   return {
-    id: newSession.id,
-    sessionKey: newSession.sessionKey,
-    provider: newSession.provider as LLMProvider,
-    model: newSession.model,
+    id: sessionData.id,
+    sessionKey: sessionData.sessionKey,
+    provider: sessionData.provider as LLMProvider,
+    model: sessionData.model,
     messages: initialMessages,
     conceptIds,
-    externalCacheId: newSession.externalCacheId ?? undefined,
-    cacheExpiresAt: newSession.cacheExpiresAt ?? undefined,
+    externalCacheId: sessionData.externalCacheId ?? undefined,
+    cacheExpiresAt: sessionData.cacheExpiresAt ?? undefined,
     expiresAt,
   };
 }

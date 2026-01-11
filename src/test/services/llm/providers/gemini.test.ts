@@ -9,6 +9,7 @@ import {
   mockGenerateContent,
   mockGetGenerativeModel,
   mockCacheCreate,
+  mockCacheUpdate,
   mockCacheDelete,
   _resetMocks,
   _setDefaultSuccess,
@@ -454,10 +455,103 @@ describe("GeminiProvider", () => {
 
       expect(mockGetGenerativeModel).toHaveBeenCalledWith(
         expect.objectContaining({
-          cachedContent: { name: "cachedContents/test-cache-123" },
+          cachedContent: expect.objectContaining({
+            name: "cachedContents/test-cache-123",
+            contents: [],
+          }),
         })
       );
       expect(result).toBe("Cached response");
+    });
+
+    it("should preserve conversation history when cache is active", async () => {
+      mockGenerateContent.mockResolvedValue({
+        response: { text: jest.fn(() => "Response with history") },
+      });
+
+      const conversationHistory = [
+        { role: "user" as const, content: "First message" },
+        { role: "assistant" as const, content: "First response" },
+        { role: "user" as const, content: "Second message" },
+      ];
+
+      await provider.complete(
+        "new prompt",
+        "system prompt",
+        undefined,
+        undefined,
+        conversationHistory,
+        "cachedContents/test-cache-123"
+      );
+
+      // Verify cache is used
+      expect(mockGetGenerativeModel).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cachedContent: expect.objectContaining({
+            name: "cachedContents/test-cache-123",
+            contents: [],
+          }),
+        })
+      );
+
+      // Verify conversation history is included in the prompt
+      const generateCall = mockGenerateContent.mock.calls[0][0];
+      expect(generateCall).toContain("[User]: First message");
+      expect(generateCall).toContain("[Assistant]: First response");
+      expect(generateCall).toContain("[User]: Second message");
+      expect(generateCall).toContain("[System]: system prompt");
+      expect(generateCall).toContain("[User]: new prompt");
+    });
+
+    it("should preserve conversation history in completeJSON() when cache is active", async () => {
+      mockGenerateContent.mockResolvedValue({
+        response: { text: jest.fn(() => '{"result": "success"}') },
+      });
+
+      const conversationHistory = [
+        { role: "user" as const, content: "Previous question" },
+        { role: "assistant" as const, content: "Previous answer" },
+      ];
+
+      await provider.completeJSON(
+        "new question",
+        "system prompt",
+        conversationHistory,
+        3,
+        "cachedContents/test-cache-123"
+      );
+
+      // Verify cache is used
+      expect(mockGetGenerativeModel).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cachedContent: expect.objectContaining({
+            name: "cachedContents/test-cache-123",
+            contents: [],
+          }),
+        })
+      );
+
+      // Verify conversation history is included
+      const generateCall = mockGenerateContent.mock.calls[0][0];
+      expect(generateCall).toContain("[User]: Previous question");
+      expect(generateCall).toContain("[Assistant]: Previous answer");
+      expect(generateCall).toContain("[User]: new question");
+    });
+
+    it("should update cache TTL", async () => {
+      mockCacheUpdate.mockResolvedValue(undefined);
+
+      await provider.updateCacheTTL("cachedContents/test-cache-123", 7200);
+
+      expect(mockCacheUpdate).toHaveBeenCalledWith("cachedContents/test-cache-123", { ttlSeconds: 7200 });
+    });
+
+    it("should use default TTL when updating cache", async () => {
+      mockCacheUpdate.mockResolvedValue(undefined);
+
+      await provider.updateCacheTTL("cachedContents/test-cache-123");
+
+      expect(mockCacheUpdate).toHaveBeenCalledWith("cachedContents/test-cache-123", { ttlSeconds: 3600 });
     });
 
     it("should delete cache", async () => {
