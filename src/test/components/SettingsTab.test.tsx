@@ -47,6 +47,38 @@ jest.unstable_mockModule("../../hooks/useIPC", () => ({
           error: null,
         }),
       },
+      getEmbeddingStatus: {
+        useQuery: () => ({
+          data: {
+            totalConcepts: 0,
+            conceptsWithEmbeddings: 0,
+            conceptsWithoutEmbeddings: 0,
+            isIndexing: false,
+            lastIndexedAt: null,
+          },
+          isLoading: false,
+          error: null,
+          refetch: jest.fn(),
+        }),
+      },
+      generateMissingEmbeddings: {
+        useMutation: (options?: { onSuccess?: () => void }) => ({
+          mutate: (data: any) => {
+            options?.onSuccess?.();
+          },
+          isLoading: false,
+          error: null,
+        }),
+      },
+      retryFailedEmbeddings: {
+        useMutation: (options?: { onSuccess?: () => void }) => ({
+          mutate: (data: any) => {
+            options?.onSuccess?.();
+          },
+          isLoading: false,
+          error: null,
+        }),
+      },
       updateSettings: {
         useMutation: (options?: { onSuccess?: () => void }) => ({
           mutate: (data: any) => {

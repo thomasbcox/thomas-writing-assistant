@@ -1,7 +1,7 @@
 # Roadmap & Status
 
-**Last Updated**: January 1, 2026  
-**Current Status**: Core features implemented. Vector embeddings, link editing, and scalability improvements completed. App optimized for <1000 concepts scale with binary storage and in-memory indexing. Background embedding orchestration now resilient to failures. Test infrastructure refinement in progress (90.9% pass rate, 317/352 tests passing). Offer mapping workflow is next priority.
+**Last Updated**: January 11, 2026  
+**Current Status**: Core features implemented. Vector embeddings, link editing, and scalability improvements completed. App optimized for <1000 concepts scale with binary storage and in-memory indexing. Background embedding orchestration now resilient to failures. Test infrastructure refinement in progress (96.4% pass rate, 556/577 tests passing). Context caching improvements completed. Offer mapping workflow is next priority.
 
 ---
 
@@ -67,17 +67,17 @@
 ## 📊 Current Status
 
 ### Test Coverage
-- **Overall**: 68% pass rate (255/373 tests passing)
-- **Test Suites**: 29 passing, 24 failing (mostly test infrastructure issues)
+- **Overall**: 96.4% pass rate (556/577 tests passing)
+- **Test Suites**: 51 passing, 3 failing (test infrastructure issues)
 - **Routers**: Excellent coverage (core business logic well-tested)
 - **Services**: Good coverage (critical services 100% tested)
-- **Components**: Some tests need tRPC provider setup
+- **Components**: Most tests passing, some need mock updates
 
 ### Test Suite
-- **373 total tests**
-- **255 passing** (68%)
-- **117 failing** (31% - mostly test mock infrastructure)
-- **1 skipped**
+- **577 total tests**
+- **556 passing** (96.4%)
+- **19 failing** (3.3% - test mock infrastructure)
+- **2 skipped**
 
 ### Features Status: Implemented vs Production-Ready
 
@@ -647,8 +647,8 @@ Together, they limit scalability, reliability, and user trust. Fixing them trans
 
 ---
 
-*Last Updated: January 1, 2026*  
-*Test Status: 317/352 passing (90.9%)*  
+*Last Updated: January 11, 2026*  
+*Test Status: 556/577 passing (96.4%)*  
 *Coverage: 28.68% statements, 24.25% branches*  
 *Feature Status: Production-ready for <1000 concepts scale*  
-*Recent Improvements: Binary embedding storage, in-memory vector index, sliding window chunking, background orchestration resilience*
+*Recent Improvements: Binary embedding storage, in-memory vector index, sliding window chunking, background orchestration resilience, context caching improvements*

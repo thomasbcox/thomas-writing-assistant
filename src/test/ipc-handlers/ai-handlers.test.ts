@@ -31,7 +31,7 @@ jest.mock("~/server/services/llm/client", () => {
   const actual = jest.requireActual("~/server/services/llm/client") as Record<string, unknown>;
   return {
     ...actual,
-    getLLMClient: jest.fn(() => mockGetLLMClient()),
+    getLLMClient: mockGetLLMClient,
     resetLLMClient: jest.fn(),
   };
 });
