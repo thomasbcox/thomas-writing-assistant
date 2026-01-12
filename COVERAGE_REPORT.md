@@ -1,162 +1,137 @@
 # Code Coverage Report
-**Generated:** January 5, 2026
 
-## Current Coverage Summary
+**Last Updated**: January 12, 2026
 
-| Metric | Current | Target | Gap |
-|--------|---------|--------|-----|
-| **Statements** | 44.05% | 80% | -35.95% |
-| **Branches** | 35.28% | 80% | -44.72% |
-| **Functions** | 30.59% | 80% | -49.41% |
-| **Lines** | 44.16% | 80% | -35.84% |
+## Overall Coverage
 
-**Overall Status:** 🟡 **44% coverage** - Good progress, but still below target
-
----
-
-## Coverage by Directory
-
-### ✅ Well-Covered Areas (>70%)
-
-#### LLM Providers (93.71% Overall) ⭐
-- **Gemini Provider** (`src/server/services/llm/providers/gemini.ts`):
-  - Statements: 93.63%
-  - Branches: 77.92%
-  - Functions: 94.44%
-  - Lines: 94.28%
-- **OpenAI Provider** (`src/server/services/llm/providers/openai.ts`):
-  - Statements: 93.87%
-  - Branches: 86.11%
-  - Functions: 90%
-  - Lines: 95.65%
-
-**Note:** Excellent coverage achieved through manual mocks pattern implemented January 5, 2026.
-
-#### Server Services (75.72% Overall)
-- `repurposer.ts`: 95.55%
-- `blogPostGenerator.ts`: 91.66%
-- `conceptEnricher.ts`: 89.33%
-- `conceptProposer.ts`: 88.57%
-- `anchorExtractor.ts`: 88.23%
-- `vectorIndex.ts`: 88.33%
-
-### ⚠️ Partially Covered (40-70%)
-
-#### Server Services (continued)
-- `config.ts`: 66.97% - Missing edge cases
-- `embeddingOrchestrator.ts`: 67.08% - Missing batch processing edge cases
-- `linkProposer.ts`: 63.51% - Missing error handling paths
-
-#### Server Core (54.24%)
-- `db.ts`: 48.43% - Missing connection error handling
-- `schema.ts`: 64.19% - Schema utilities not tested
-- `dependencies.ts`: 0% - Dependency injection not tested
-
-#### Lib Utilities (43.06%)
-- `data-validation.ts`: 92% ✅
-- `text-processing.ts`: 85.71% ✅
-- `logger.ts`: 82.14% ✅
-- `ipc-client.ts`: 6.11% ❌ - Critical gap
-
-### ❌ Critical Gaps (0-40%)
-
-#### Components (0-52.7%)
-- All enrichment components: 0%
-- PDF components: 0%
-- Derivative components: 0%
-- Most UI components have minimal coverage
-
-#### IPC Client (6.11%)
-- `ipc-client.ts` has very low coverage
-- Type-safe IPC client needs more tests
-
----
+| Metric | Coverage | Target | Status |
+|--------|----------|--------|--------|
+| **Lines** | 54.62% | 70% | 🟡 In Progress |
+| **Statements** | 54.16% | 70% | 🟡 In Progress |
+| **Functions** | 42.22% | 70% | 🟡 In Progress |
+| **Branches** | 46.71% | 70% | 🟡 In Progress |
 
 ## Recent Improvements
 
-### LLM Provider Coverage (January 5, 2026)
-- ✅ Created manual mocks for `@google/generative-ai` and `openai` SDKs
-- ✅ Added comprehensive test suites:
-  - `gemini.test.ts`: 29 tests
-  - `openai.test.ts`: 25 tests
-- ✅ Achieved 93.71% overall coverage for LLM providers
-- ✅ All provider tests passing
+### Coverage Changes (January 12, 2026)
+- **Lines**: +1.30% (53.32% → 54.62%)
+- **Statements**: +1.25% (52.91% → 54.16%)
+- **Functions**: +1.80% (40.42% → 42.22%)
+- **Branches**: +1.29% (45.42% → 46.71%)
 
-### Test Infrastructure
-- ✅ Manual mocks pattern for SDKs
-- ✅ Jest fake timers for exponential backoff testing
-- ✅ Proper TypeScript type annotations for mocks
+### Contributing Factors
+- Added component tests for ConceptActions (9 tests)
+- Added component tests for ConceptCreateForm (9 tests)
+- Fixed LLM client tests (28/28 passing)
+- Enhanced test infrastructure
+
+## High Coverage Areas
+
+### LLM Providers
+- **Gemini Provider**: 93.24% lines, 92.81% statements, 95.83% functions, 79.83% branches
+- **OpenAI Provider**: 88.46% lines, 84.21% statements, 75% functions, 84.09% branches
+
+### Core Services
+- **LLM Client**: 100% test coverage (28/28 tests passing)
+- **Vector Index**: Comprehensive test coverage
+- **Embedding Orchestrator**: Good coverage with edge cases
+
+## Coverage Gaps
+
+### Components (0% Coverage)
+- ConceptEditor
+- ConceptList
+- ConceptViewer
+- LinkNameManager
+- LinkProposer
+- OfferManager
+- PDFUploader
+- TextInputTab
+- BlogPostsTab (partial - needs hook mocking)
+
+### Services
+- Some edge cases in embedding orchestrator
+- Error paths in vector search
+- Context session edge cases
+
+### IPC Handlers
+- Some error paths not fully tested
+- Edge cases in handler validation
+
+## Coverage Goals
+
+### Short Term (Next Sprint)
+- **Target**: 60% overall coverage
+- **Focus**: Component tests for core UI components
+- **Priority**: ConceptEditor, ConceptList, ConceptViewer
+
+### Medium Term (Next Month)
+- **Target**: 70% overall coverage
+- **Focus**: Service layer edge cases, IPC handler error paths
+- **Priority**: Complete component test coverage
+
+### Long Term (Next Quarter)
+- **Target**: 80% overall coverage
+- **Focus**: Comprehensive edge case coverage
+- **Priority**: All error paths, all user flows
+
+## Test Infrastructure
+
+### Current Status
+- **Test Suites**: 64 total (58 passing, 6 failing)
+- **Tests**: 825 total (806 passing, 17 failing, 2 skipped)
+- **Pass Rate**: 97.7%
+
+### Test Utilities
+- Enhanced `ComponentTestWrapper` for component testing
+- `renderWithWrapper()` helper function
+- Comprehensive mock utilities for IPC, LLM, database
+
+## Coverage by Category
+
+### Services Layer
+- **Coverage**: ~70-80% average
+- **Status**: Good coverage, some edge cases remain
+- **Priority**: Error paths, edge cases
+
+### Components Layer
+- **Coverage**: ~30-40% average
+- **Status**: Improving with recent additions
+- **Priority**: Core UI components
+
+### IPC Handlers
+- **Coverage**: ~60-70% average
+- **Status**: Good coverage, error paths need work
+- **Priority**: Error handling, edge cases
+
+### Utilities
+- **Coverage**: ~50-60% average
+- **Status**: Moderate coverage
+- **Priority**: Core utilities, helpers
+
+## Recommendations
+
+1. **Continue Component Testing**
+   - Focus on core UI components next
+   - Use enhanced test wrapper utilities
+   - Test user interactions and form validation
+
+2. **Expand Service Coverage**
+   - Add edge case tests for embedding orchestrator
+   - Test error paths in vector search
+   - Cover context session edge cases
+
+3. **Improve IPC Handler Coverage**
+   - Test error paths more thoroughly
+   - Add validation edge case tests
+   - Cover all handler methods
+
+4. **Maintain High Coverage Areas**
+   - Keep LLM provider tests comprehensive
+   - Maintain LLM client test coverage
+   - Continue testing vector index thoroughly
 
 ---
 
-## Coverage Targets
-
-### Current State
-- **Statements**: 44.05%
-- **Branches**: 35.28%
-- **Functions**: 30.59%
-- **Lines**: 44.16%
-
-### Recommended Targets (Phased Approach)
-
-**Phase 1 (Short-term - 1-2 weeks)**
-- **Statements**: 50%
-- **Branches**: 45%
-- **Functions**: 40%
-- **Lines**: 50%
-
-**Phase 2 (Medium-term - 1 month)**
-- **Statements**: 60%
-- **Branches**: 55%
-- **Functions**: 50%
-- **Lines**: 60%
-
-**Phase 3 (Long-term - 3 months)**
-- **Statements**: 80%
-- **Branches**: 75%
-- **Functions**: 75%
-- **Lines**: 80%
-
----
-
-## Priority Areas for Coverage Improvement
-
-### High Priority 🔴
-1. **IPC Client** (6.11%) - Critical for type safety
-2. **Components** (0-52.7%) - UI reliability
-3. **Error Handling Paths** - Production stability
-
-### Medium Priority 🟠
-1. **Dependencies** (0%) - Dependency injection testing
-2. **Edge Cases** - Boundary conditions
-3. **Integration Tests** - End-to-end flows
-
-### Low Priority 🟢
-1. **Schema Utilities** - Already partially covered
-2. **Legacy Code** - Deprecated features
-
----
-
-## Coverage Commands
-
-```bash
-# Generate coverage report
-npm test -- --coverage
-
-# View HTML report
-open coverage/index.html
-
-# Coverage with specific reporters
-npm test -- --coverage --coverageReporters=text
-npm test -- --coverage --coverageReporters=html
-```
-
----
-
-## Conclusion
-
-**Current Status**: 🟡 **44% coverage** - Good progress, significant improvement needed
-
-While LLM provider coverage is excellent (93.71%), overall coverage is still below the 80% target. The main gaps are in React components, IPC client, and error handling paths.
-
-**Priority**: Focus on increasing component coverage and fixing critical gaps in IPC client and error handling.
+**Report Generated**: January 12, 2026  
+**Next Update**: January 19, 2026
