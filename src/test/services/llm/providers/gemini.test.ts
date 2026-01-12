@@ -25,11 +25,6 @@ jest.mock("~/lib/logger", () => ({
   },
 }));
 
-// Use manual mock from __mocks__ (configured via moduleNameMapper in jest.config.js)
-jest.mock("@google/generative-ai", () => {
-  return jest.requireActual("../../../__mocks__/@google/generative-ai");
-});
-
 describe("GeminiProvider", () => {
   let provider: GeminiProvider;
 

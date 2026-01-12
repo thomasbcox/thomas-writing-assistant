@@ -12,11 +12,6 @@ import {
   _setDefaultSuccess,
 } from "../../../__mocks__/openai";
 
-// Use manual mock from __mocks__ (configured via moduleNameMapper in jest.config.js)
-jest.mock("openai", () => {
-  return jest.requireActual("../../../__mocks__/openai");
-});
-
 describe("OpenAIProvider", () => {
   let provider: OpenAIProvider;
 

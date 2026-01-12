@@ -47,11 +47,47 @@ class VectorIndex {
         
         if (Buffer.isBuffer(embeddingData)) {
           // Binary format: Convert blob to Float32Array, then to number[]
-          const floatArray = new Float32Array(embeddingData.buffer, embeddingData.byteOffset, embeddingData.byteLength / 4);
-          embeddingVector = Array.from(floatArray);
+          // Validate that the buffer size is valid for Float32Array (must be divisible by 4)
+          const bufferLength = embeddingData.length;
+          if (bufferLength % 4 !== 0 || bufferLength === 0) {
+            logger.warn({ conceptId: emb.conceptId, bufferLength }, "Invalid buffer size for Float32Array, skipping");
+            continue;
+          }
+          // Embeddings are typically at least 128 dimensions (512 bytes), reject very small buffers
+          // This catches cases where numbers or other invalid data were stored as blobs
+          // Reject buffers smaller than 16 bytes (4 dimensions) - this catches single numbers and small invalid data
+          if (bufferLength < 16) {
+            logger.warn({ conceptId: emb.conceptId, bufferLength }, "Buffer too small to be a valid embedding, skipping");
+            continue;
+          }
+          try {
+            const floatArray = new Float32Array(embeddingData.buffer, embeddingData.byteOffset, bufferLength / 4);
+            embeddingVector = Array.from(floatArray);
+            // Validate that the embedding has a reasonable number of dimensions
+            // Reject very small vectors (likely invalid data like single numbers converted to buffers)
+            // Most embeddings are at least 128 dimensions, but allow smaller ones for testing (minimum 4)
+            if (embeddingVector.length < 4) {
+              logger.warn({ conceptId: emb.conceptId, dimensions: embeddingVector.length }, "Embedding vector too small, skipping");
+              continue;
+            }
+          } catch (error) {
+            logger.warn({ conceptId: emb.conceptId, error }, "Failed to create Float32Array from buffer, skipping");
+            continue;
+          }
         } else if (typeof embeddingData === "string") {
           // Legacy JSON format: Parse JSON
-          embeddingVector = JSON.parse(embeddingData) as number[];
+          try {
+            const parsed = JSON.parse(embeddingData);
+            // Validate that parsed result is an array with reasonable size
+            if (!Array.isArray(parsed) || parsed.length < 4) {
+              logger.warn({ conceptId: emb.conceptId, parsedType: typeof parsed, length: Array.isArray(parsed) ? parsed.length : 'N/A' }, "Parsed JSON is not a valid embedding array, skipping");
+              continue;
+            }
+            embeddingVector = parsed as number[];
+          } catch (parseError) {
+            logger.warn({ conceptId: emb.conceptId, error: parseError }, "Failed to parse JSON embedding, skipping");
+            continue;
+          }
         } else {
           logger.warn({ conceptId: emb.conceptId, embeddingDataType: typeof embeddingData }, "Unknown embedding format, skipping");
           continue;

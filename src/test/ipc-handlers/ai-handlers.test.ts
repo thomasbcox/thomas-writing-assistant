@@ -25,14 +25,14 @@ jest.mock("~/lib/logger", () => ({
 // Mock process.env (env module reads from process.env at access time)
 const originalEnv = process.env;
 
-// Mock LLM client
+// Mock LLM client - use unstable_mockModule for ESM compatibility
 const mockGetLLMClient = jest.fn();
-jest.mock("~/server/services/llm/client", () => {
-  const actual = jest.requireActual("~/server/services/llm/client") as Record<string, unknown>;
+const mockResetLLMClient = jest.fn();
+jest.unstable_mockModule("~/server/services/llm/client", () => {
   return {
-    ...actual,
     getLLMClient: mockGetLLMClient,
-    resetLLMClient: jest.fn(),
+    resetLLMClient: mockResetLLMClient,
+    LLMClient: class MockLLMClientClass {},
   };
 });
 

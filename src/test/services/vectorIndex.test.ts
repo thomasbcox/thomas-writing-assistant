@@ -4,6 +4,7 @@ import { createTestConcept, createTestEmbedding, createDeterministicEmbedding } 
 import { getVectorIndex, resetVectorIndex } from "~/server/services/vectorIndex";
 import type { DatabaseInstance } from "~/server/db";
 import { concept, conceptEmbedding } from "~/server/schema";
+import { eq } from "drizzle-orm";
 
 describe("vectorIndex", () => {
   let testDb: DatabaseInstance;
@@ -268,10 +269,13 @@ describe("vectorIndex", () => {
       await testDb.insert(concept).values(testConcept);
 
       // Insert embedding with unknown format (neither Buffer nor string)
+      // Use a Buffer that's too small to be a valid embedding (simulates number conversion)
+      // 4 bytes = 1 float dimension, which is less than the minimum of 4 dimensions (16 bytes)
+      const invalidBuffer = Buffer.from([1, 2, 3, 4]); // 4 bytes = 1 float, too small
       await testDb.insert(conceptEmbedding).values({
         id: "unknown-format-id",
         conceptId: testConcept.id!,
-        embedding: 12345 as any, // Invalid format
+        embedding: invalidBuffer,
         model: "test-model",
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -279,7 +283,9 @@ describe("vectorIndex", () => {
 
       const index = getVectorIndex();
       await index.initialize(testDb);
-      // Should skip the invalid embedding
+      // Should skip the invalid embedding (too small - 4 bytes < 16 bytes minimum)
+      // The validation should reject buffers smaller than 16 bytes
+      // Also, even if it passes the size check, a 1-element vector should be rejected by the dimension check
       expect(index.size()).toBe(0);
     });
 

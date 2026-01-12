@@ -4,22 +4,20 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, jest } from "@jest/globals";
-import { getCachedResponse, storeCachedResponse } from "~/server/services/llm/semanticCache";
-import { getContextSession } from "~/server/services/llm/contextSession";
 import { createTestDb, migrateTestDb, closeTestDb } from "../../utils/db";
 import type { DatabaseInstance } from "~/server/db";
 
-// Mock caching
+// Mock caching - use unstable_mockModule to work with ESM
 const mockGetCachedResponse = jest.fn() as jest.MockedFunction<(...args: any[]) => Promise<any>>;
 const mockStoreCachedResponse = jest.fn() as jest.MockedFunction<(...args: any[]) => Promise<any>>;
-jest.mock("~/server/services/llm/semanticCache", () => ({
+jest.unstable_mockModule("~/server/services/llm/semanticCache", () => ({
   getCachedResponse: (...args: any[]) => mockGetCachedResponse(...args),
   storeCachedResponse: (...args: any[]) => mockStoreCachedResponse(...args),
 }));
 
-// Mock context session
+// Mock context session - use unstable_mockModule to work with ESM
 const mockGetContextSession = jest.fn() as jest.MockedFunction<(...args: any[]) => Promise<any>>;
-jest.mock("~/server/services/llm/contextSession", () => ({
+jest.unstable_mockModule("~/server/services/llm/contextSession", () => ({
   getContextSession: (...args: any[]) => mockGetContextSession(...args),
 }));
 
