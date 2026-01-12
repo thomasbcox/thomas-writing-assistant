@@ -6,6 +6,7 @@ import { getCachedResponse, storeCachedResponse } from "./semanticCache";
 import { getContextSession } from "./contextSession";
 import { getCurrentDb } from "~/server/db";
 import type { DatabaseInstance } from "~/server/db";
+import { logger } from "~/lib/logger";
 
 /**
  * Unified LLM Client that supports multiple providers
@@ -85,19 +86,27 @@ export class LLMClient {
       return; // Already using this provider
     }
 
-    this.providerType = provider;
-    const model = this.getDefaultModel(provider);
-
+    // Check API key BEFORE changing providerType to ensure atomic operation
     if (provider === "gemini") {
       if (!env.GOOGLE_API_KEY) {
         throw new Error("GOOGLE_API_KEY environment variable not set");
       }
-      this.provider = new GeminiProvider(env.GOOGLE_API_KEY, model, this.temperature);
     } else {
       if (!env.OPENAI_API_KEY) {
         throw new Error("OPENAI_API_KEY environment variable not set");
       }
-      this.provider = new OpenAIProvider(env.OPENAI_API_KEY, model, this.temperature);
+    }
+
+    // Only change providerType and create provider if API key check passed
+    this.providerType = provider;
+    const model = this.getDefaultModel(provider);
+
+    if (provider === "gemini") {
+      // TypeScript: We already checked env.GOOGLE_API_KEY above, so it's safe to use !
+      this.provider = new GeminiProvider(env.GOOGLE_API_KEY!, model, this.temperature);
+    } else {
+      // TypeScript: We already checked env.OPENAI_API_KEY above, so it's safe to use !
+      this.provider = new OpenAIProvider(env.OPENAI_API_KEY!, model, this.temperature);
     }
   }
 
@@ -126,30 +135,40 @@ export class LLMClient {
     // Check semantic cache if enabled and database provided
     if (useCache && db) {
       const cacheKey = `${systemPrompt || ""}\n${prompt}`;
-      const cached = await getCachedResponse(
-        db,
-        cacheKey,
-        this.providerType,
-        this.model,
-      );
-      if (cached && typeof cached.response === "string") {
-        return cached.response;
+      try {
+        const cached = await getCachedResponse(
+          db,
+          cacheKey,
+          this.providerType,
+          this.model,
+        );
+        if (cached && typeof cached.response === "string") {
+          return cached.response;
+        }
+      } catch (error) {
+        // Cache errors should not block the request - log and continue
+        logger.warn({ error }, "Cache lookup failed, proceeding without cache");
       }
     }
 
     // Check for context cache if session key provided (Gemini only)
     let cachedContentName: string | undefined;
     if (sessionKey && this.providerType === "gemini" && db) {
-      const session = await getContextSession(db, sessionKey);
-      if (session?.externalCacheId && session.cacheExpiresAt && session.cacheExpiresAt > new Date()) {
-        cachedContentName = session.externalCacheId;
-        
-        // Fire-and-forget: Refresh TTL to keep cache alive
-        // Don't await - this is best-effort, shouldn't block request
-        const geminiProvider = this.provider as GeminiProvider;
-        geminiProvider.updateCacheTTL(session.externalCacheId).catch(() => {
-          // Silently fail - TTL refresh is optional
-        });
+      try {
+        const session = await getContextSession(db, sessionKey);
+        if (session?.externalCacheId && session.cacheExpiresAt && session.cacheExpiresAt > new Date()) {
+          cachedContentName = session.externalCacheId;
+          
+          // Fire-and-forget: Refresh TTL to keep cache alive
+          // Don't await - this is best-effort, shouldn't block request
+          const geminiProvider = this.provider as GeminiProvider;
+          geminiProvider.updateCacheTTL(session.externalCacheId).catch(() => {
+            // Silently fail - TTL refresh is optional
+          });
+        }
+      } catch (error) {
+        // Context session errors should not block the request - log and continue
+        logger.warn({ error }, "Context session lookup failed, proceeding without context cache");
       }
     }
 
@@ -188,30 +207,40 @@ export class LLMClient {
     // Check semantic cache if enabled and database provided
     if (useCache && db) {
       const cacheKey = `${systemPrompt || ""}\n${prompt}`;
-      const cached = await getCachedResponse(
-        db,
-        cacheKey,
-        this.providerType,
-        this.model,
-      );
-      if (cached) {
-        return cached;
+      try {
+        const cached = await getCachedResponse(
+          db,
+          cacheKey,
+          this.providerType,
+          this.model,
+        );
+        if (cached) {
+          return cached;
+        }
+      } catch (error) {
+        // Cache errors should not block the request - log and continue
+        logger.warn({ error }, "Cache lookup failed, proceeding without cache");
       }
     }
 
     // Check for context cache if session key provided (Gemini only)
     let cachedContentName: string | undefined;
     if (sessionKey && this.providerType === "gemini" && db) {
-      const session = await getContextSession(db, sessionKey);
-      if (session?.externalCacheId && session.cacheExpiresAt && session.cacheExpiresAt > new Date()) {
-        cachedContentName = session.externalCacheId;
-        
-        // Fire-and-forget: Refresh TTL to keep cache alive
-        // Don't await - this is best-effort, shouldn't block request
-        const geminiProvider = this.provider as GeminiProvider;
-        geminiProvider.updateCacheTTL(session.externalCacheId).catch(() => {
-          // Silently fail - TTL refresh is optional
-        });
+      try {
+        const session = await getContextSession(db, sessionKey);
+        if (session?.externalCacheId && session.cacheExpiresAt && session.cacheExpiresAt > new Date()) {
+          cachedContentName = session.externalCacheId;
+          
+          // Fire-and-forget: Refresh TTL to keep cache alive
+          // Don't await - this is best-effort, shouldn't block request
+          const geminiProvider = this.provider as GeminiProvider;
+          geminiProvider.updateCacheTTL(session.externalCacheId).catch(() => {
+            // Silently fail - TTL refresh is optional
+          });
+        }
+      } catch (error) {
+        // Context session errors should not block the request - log and continue
+        logger.warn({ error }, "Context session lookup failed, proceeding without context cache");
       }
     }
 

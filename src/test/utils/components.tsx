@@ -331,6 +331,15 @@ export function resetMockElectronAPI(): void {
 /**
  * Wrapper component for tests - provides React context if needed
  * Sets up window.electronAPI with the mock
+ * 
+ * @example
+ * ```tsx
+ * render(
+ *   <ComponentTestWrapper>
+ *     <MyComponent />
+ *   </ComponentTestWrapper>
+ * );
+ * ```
  */
 export function ComponentTestWrapper({ children }: { children: React.ReactNode }) {
   // Ensure window.electronAPI is set
@@ -341,6 +350,32 @@ export function ComponentTestWrapper({ children }: { children: React.ReactNode }
   }
 
   return <>{children}</>;
+}
+
+/**
+ * Helper function to render a component with test wrapper
+ * Automatically sets up window.electronAPI mock
+ * 
+ * @param component - React component to render
+ * @param options - Optional render options
+ * @returns Render result from @testing-library/react
+ * 
+ * @example
+ * ```tsx
+ * const { container } = renderWithWrapper(<MyComponent />);
+ * ```
+ */
+export function renderWithWrapper(component: React.ReactElement, options?: any) {
+  const { render } = require("@testing-library/react");
+  return render(<ComponentTestWrapper>{component}</ComponentTestWrapper>, options);
+}
+
+/**
+ * Helper to reset all mock Electron API calls
+ * Useful in beforeEach hooks
+ */
+export function resetAllMocks(): void {
+  resetMockElectronAPI();
 }
 
 // Initialize mock on module load
