@@ -238,5 +238,201 @@ describe("vectorIndex", () => {
       expect(index.size()).toBe(0);
     });
   });
+
+  describe("initialize edge cases", () => {
+    it("should handle legacy JSON string embeddings", async () => {
+      const testConcept = createTestConcept();
+      await testDb.insert(concept).values(testConcept);
+
+      const legacyEmbedding = JSON.stringify([0.1, 0.2, 0.3, 0.4]);
+      await testDb.insert(conceptEmbedding).values({
+        id: "legacy-json-id",
+        conceptId: testConcept.id!,
+        embedding: legacyEmbedding as any, // Legacy JSON string format
+        model: "legacy-model",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const index = getVectorIndex();
+      await index.initialize(testDb);
+      expect(index.size()).toBe(1);
+
+      // Verify it can be searched
+      const results = index.search([0.1, 0.2, 0.3, 0.4], 1);
+      expect(results.length).toBe(1);
+    });
+
+    it("should skip embeddings with unknown format", async () => {
+      const testConcept = createTestConcept();
+      await testDb.insert(concept).values(testConcept);
+
+      // Insert embedding with unknown format (neither Buffer nor string)
+      await testDb.insert(conceptEmbedding).values({
+        id: "unknown-format-id",
+        conceptId: testConcept.id!,
+        embedding: 12345 as any, // Invalid format
+        model: "test-model",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const index = getVectorIndex();
+      await index.initialize(testDb);
+      // Should skip the invalid embedding
+      expect(index.size()).toBe(0);
+    });
+
+    it("should handle malformed JSON embeddings gracefully", async () => {
+      const testConcept = createTestConcept();
+      await testDb.insert(concept).values(testConcept);
+
+      await testDb.insert(conceptEmbedding).values({
+        id: "malformed-json-id",
+        conceptId: testConcept.id!,
+        embedding: "not valid json" as any,
+        model: "test-model",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const index = getVectorIndex();
+      // Should not throw - error is caught and logged, embedding is skipped
+      // The main goal is to verify graceful error handling (no crash)
+      await expect(index.initialize(testDb)).resolves.not.toThrow();
+      // Verify the index is in a valid state (can perform searches)
+      const results = index.search([1, 2, 3], 10);
+      expect(Array.isArray(results)).toBe(true);
+    });
+
+    it("should handle empty embeddings array", async () => {
+      const index = getVectorIndex();
+      await index.initialize(testDb);
+      expect(index.size()).toBe(0);
+
+      const results = index.search([1, 2, 3], 10);
+      expect(results.length).toBe(0);
+    });
+  });
+
+  describe("search edge cases", () => {
+    beforeEach(() => {
+      const index = getVectorIndex();
+      index.addEmbedding("concept-1", [1, 0, 0]);
+      index.addEmbedding("concept-2", [0, 1, 0]);
+      index.addEmbedding("concept-3", [0, 0, 1]);
+    });
+
+    it("should handle zero query norm (all zeros)", () => {
+      const index = getVectorIndex();
+      const query = [0, 0, 0];
+      const results = index.search(query, 10);
+
+      // Should return empty results since query norm is 0
+      expect(results.length).toBe(0);
+    });
+
+    it("should handle zero embedding norm", () => {
+      const index = getVectorIndex();
+      index.addEmbedding("zero-norm", [0, 0, 0]);
+      const query = [1, 0, 0];
+      const results = index.search(query, 10);
+
+      // Zero norm entries should be skipped
+      expect(results.every((r) => r.conceptId !== "zero-norm")).toBe(true);
+    });
+
+    it("should handle mismatched embedding dimensions", () => {
+      const index = getVectorIndex();
+      index.addEmbedding("short-embedding", [1, 2]); // 2D
+      const query = [1, 2, 3, 4]; // 4D
+
+      const results = index.search(query, 10);
+      // Should handle gracefully, only comparing up to min length
+      expect(Array.isArray(results)).toBe(true);
+    });
+
+    it("should handle empty excludeConceptIds array", () => {
+      const index = getVectorIndex();
+      const query = [1, 0, 0];
+      const results = index.search(query, 10, 0.0, []);
+
+      expect(results.length).toBeGreaterThan(0);
+    });
+
+    it("should return empty array when no matches meet minSimilarity", () => {
+      const index = getVectorIndex();
+      const query = [1, 0, 0];
+      const results = index.search(query, 10, 1.1); // Impossible threshold
+
+      expect(results.length).toBe(0);
+    });
+
+    it("should handle all concepts excluded", () => {
+      const index = getVectorIndex();
+      const query = [1, 0, 0];
+      const results = index.search(query, 10, 0.0, ["concept-1", "concept-2", "concept-3"]);
+
+      expect(results.length).toBe(0);
+    });
+  });
+
+  describe("addEmbedding edge cases", () => {
+    it("should handle empty embedding array", () => {
+      const index = getVectorIndex();
+      index.addEmbedding("empty", []);
+      expect(index.size()).toBe(1);
+
+      // Should handle gracefully in search
+      const results = index.search([1, 2, 3], 10);
+      expect(Array.isArray(results)).toBe(true);
+    });
+
+    it("should handle very large embeddings", () => {
+      const index = getVectorIndex();
+      const largeEmbedding = Array(1536).fill(0.1);
+      index.addEmbedding("large", largeEmbedding);
+      expect(index.size()).toBe(1);
+
+      const results = index.search(largeEmbedding, 1);
+      expect(results.length).toBe(1);
+    });
+
+    it("should update embedding when adding same conceptId multiple times", () => {
+      const index = getVectorIndex();
+      index.addEmbedding("concept-1", [1, 0, 0]);
+      index.addEmbedding("concept-1", [0, 1, 0]);
+      index.addEmbedding("concept-1", [0, 0, 1]);
+
+      expect(index.size()).toBe(1);
+      // Should have the last embedding
+      const results = index.search([0, 0, 1], 1);
+      expect(results[0]?.conceptId).toBe("concept-1");
+    });
+  });
+
+  describe("removeEmbedding edge cases", () => {
+    it("should handle removing from empty index", () => {
+      const index = getVectorIndex();
+      expect(() => index.removeEmbedding("any-id")).not.toThrow();
+      expect(index.size()).toBe(0);
+    });
+
+    it("should handle removing same ID multiple times", () => {
+      const index = getVectorIndex();
+      index.addEmbedding("concept-1", [1, 2, 3]);
+      index.removeEmbedding("concept-1");
+      index.removeEmbedding("concept-1");
+      expect(index.size()).toBe(0);
+    });
+  });
+
+  describe("initializeVectorIndex", () => {
+    it("should initialize index using getCurrentDb when no db provided", async () => {
+      const index = getVectorIndex();
+      // This will use getCurrentDb() internally
+      await expect(index.initialize()).resolves.not.toThrow();
+    });
+  });
 });
 
