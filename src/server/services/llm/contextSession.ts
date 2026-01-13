@@ -3,7 +3,7 @@
  * Manages concept corpus context sessions for multi-turn LLM conversations
  */
 
-import { eq, and, lt } from "drizzle-orm";
+import { eq, and, lt, sql } from "drizzle-orm";
 import { contextSession as contextSessionTable } from "~/server/schema";
 import { contextSession } from "~/server/schema";
 import type { DatabaseInstance } from "~/server/db";
@@ -62,18 +62,42 @@ export async function getOrCreateContextSession(
   await cleanupExpiredSessions(db);
 
   // Try to find existing session
+  // Query raw integer value to avoid Drizzle's timestamp conversion
   const existing = await db
-    .select()
+    .select({
+      id: contextSession.id,
+      sessionKey: contextSession.sessionKey,
+      provider: contextSession.provider,
+      model: contextSession.model,
+      contextMessages: contextSession.contextMessages,
+      conceptIds: contextSession.conceptIds,
+      externalCacheId: contextSession.externalCacheId,
+      cacheExpiresAt: contextSession.cacheExpiresAt,
+      expiresAt: sql<number>`CAST(${contextSession.expiresAt} AS INTEGER)`, // Get raw integer value (stored as seconds)
+      createdAt: contextSession.createdAt,
+      updatedAt: contextSession.updatedAt,
+    })
     .from(contextSession)
     .where(eq(contextSession.sessionKey, sessionKey))
     .limit(1);
 
-  const expiresAt = new Date(Date.now() + ttlMs);
+  const now = Date.now();
+  const expiresAtMs = now + ttlMs;
+  const expiresAt = new Date(expiresAtMs);
+  // Drizzle's { mode: "timestamp" } expects seconds, not milliseconds
+  // So we need to divide by 1000 when storing, and multiply by 1000 when reading
+  const expiresAtSeconds = Math.floor(expiresAtMs / 1000);
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'contextSession.ts:72',message:'getOrCreateContextSession expiresAt calculation',data:{sessionKey,ttlMs,now,expiresAtMs,expiresAt:expiresAt.toISOString(),expiresAtTimestamp:expiresAt.getTime()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
 
   if (existing.length > 0) {
     const session = existing[0];
-    // Check if session is expired
-    if (session.expiresAt < new Date()) {
+    // Check if session is expired - convert from seconds to milliseconds
+    // expiresAt is already a raw integer (seconds) from the CAST query above
+    const sessionExpiresAt = new Date((session.expiresAt as number) * 1000);
+    if (sessionExpiresAt < new Date()) {
       // Delete expired session and create new one
       await db.delete(contextSession).where(eq(contextSession.id, session.id));
     } else {
@@ -94,7 +118,7 @@ export async function getOrCreateContextSession(
         .set({
           contextMessages: JSON.stringify(mergedMessages),
           conceptIds: JSON.stringify(mergedConceptIds),
-          expiresAt,
+          expiresAt: sql`${expiresAtSeconds}`, // Store as seconds (Drizzle's { mode: "timestamp" } expects seconds)
           updatedAt: new Date(),
         })
         .where(eq(contextSession.id, session.id));
@@ -118,6 +142,17 @@ export async function getOrCreateContextSession(
   const { createId } = await import("@paralleldrive/cuid2");
   const sessionId = createId();
   
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'contextSession.ts:137',message:'getOrCreateContextSession before insert',data:{sessionId,sessionKey,expiresAt:expiresAt.toISOString(),expiresAtGetTime:expiresAt.getTime(),expiresAtValueOf:expiresAt.valueOf(),expiresAtType:typeof expiresAt,expiresAtMs,expiresAtSeconds,nowSeconds:Math.floor(now/1000),now},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+  
+  // Store expiresAtSeconds value in a const to ensure it's not being modified
+  const expiresAtSecondsToStore = expiresAtSeconds;
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'contextSession.ts:145',message:'getOrCreateContextSession about to insert',data:{expiresAtSecondsToStore,expiresAtSeconds,expiresAtMs,nowSeconds:Math.floor(now/1000)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+  
   await db
     .insert(contextSession)
     .values({
@@ -127,12 +162,25 @@ export async function getOrCreateContextSession(
       model,
       contextMessages: JSON.stringify(initialMessages),
       conceptIds: conceptIds.length > 0 ? JSON.stringify(conceptIds) : null,
-      expiresAt,
+      expiresAt: sql<number>`CAST(${expiresAtSecondsToStore} AS INTEGER)`, // Store as seconds - explicit CAST to bypass Drizzle's timestamp conversion
     });
 
   // Query the database to get the inserted session (returning() doesn't work with in-memory DB)
+  // Query raw integer value to avoid Drizzle's timestamp conversion
   const sessions = await db
-    .select()
+    .select({
+      id: contextSession.id,
+      sessionKey: contextSession.sessionKey,
+      provider: contextSession.provider,
+      model: contextSession.model,
+      contextMessages: contextSession.contextMessages,
+      conceptIds: contextSession.conceptIds,
+      externalCacheId: contextSession.externalCacheId,
+      cacheExpiresAt: contextSession.cacheExpiresAt,
+      expiresAt: sql<number>`CAST(${contextSession.expiresAt} AS INTEGER)`, // Get raw integer value (stored as seconds)
+      createdAt: contextSession.createdAt,
+      updatedAt: contextSession.updatedAt,
+    })
     .from(contextSession)
     .where(eq(contextSession.sessionKey, sessionKey))
     .limit(1);
@@ -141,6 +189,13 @@ export async function getOrCreateContextSession(
   if (!newSession) {
     throw new Error("Failed to create context session");
   }
+  
+  // Convert raw integer (seconds) to Date object (multiply by 1000 to get milliseconds)
+  const storedExpiresAtDate = new Date((newSession.expiresAt as number) * 1000);
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'contextSession.ts:177',message:'getOrCreateContextSession after query',data:{sessionId:newSession.id,sessionKey,calculatedExpiresAtMs:expiresAtMs,calculatedExpiresAtSeconds:expiresAtSeconds,calculatedExpiresAt:expiresAt.toISOString(),storedExpiresAtRaw:newSession.expiresAt,storedExpiresAt:storedExpiresAtDate.toISOString(),storedExpiresAtGetTime:storedExpiresAtDate.getTime(),expiresAtType:typeof newSession.expiresAt,expiresAtMatch:expiresAtMs===storedExpiresAtDate.getTime()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
 
   // AUTO-CACHE: Create cache for large static content if:
   // 1. This is a new session (not existing)
@@ -174,14 +229,34 @@ export async function getOrCreateContextSession(
 
   // Re-fetch session to get cache info if it was created synchronously
   // (In practice, cache creation is async, so we return without waiting)
+  // Query raw integer value to avoid Drizzle's timestamp conversion
   const finalSession = await db
-    .select()
+    .select({
+      id: contextSession.id,
+      sessionKey: contextSession.sessionKey,
+      provider: contextSession.provider,
+      model: contextSession.model,
+      contextMessages: contextSession.contextMessages,
+      conceptIds: contextSession.conceptIds,
+      externalCacheId: contextSession.externalCacheId,
+      cacheExpiresAt: contextSession.cacheExpiresAt,
+      expiresAt: sql<number>`CAST(${contextSession.expiresAt} AS INTEGER)`, // Get raw integer value (stored as seconds)
+      createdAt: contextSession.createdAt,
+      updatedAt: contextSession.updatedAt,
+    })
     .from(contextSession)
     .where(eq(contextSession.sessionKey, sessionKey))
     .limit(1);
 
   const sessionData = finalSession[0] || newSession;
-
+  
+  // Convert raw integer (seconds) to Date object (multiply by 1000 to get milliseconds)
+  const sessionExpiresAt = new Date(((sessionData.expiresAt as number) || expiresAtSeconds) * 1000);
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'contextSession.ts:200',message:'getOrCreateContextSession final session',data:{sessionId:sessionData.id,sessionKey,calculatedExpiresAt:expiresAt.toISOString(),storedExpiresAt:sessionExpiresAt.toISOString(),expiresAtMatch:expiresAt.getTime()===sessionExpiresAt.getTime(),externalCacheId:sessionData.externalCacheId,externalCacheIdType:typeof sessionData.externalCacheId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+  
   return {
     id: sessionData.id,
     sessionKey: sessionData.sessionKey,
@@ -189,9 +264,13 @@ export async function getOrCreateContextSession(
     model: sessionData.model,
     messages: initialMessages,
     conceptIds,
-    externalCacheId: sessionData.externalCacheId ?? undefined,
-    cacheExpiresAt: sessionData.cacheExpiresAt ?? undefined,
-    expiresAt,
+    externalCacheId: sessionData.externalCacheId ? String(sessionData.externalCacheId) : undefined,
+    cacheExpiresAt: sessionData.cacheExpiresAt 
+      ? (sessionData.cacheExpiresAt instanceof Date 
+          ? sessionData.cacheExpiresAt 
+          : new Date(sessionData.cacheExpiresAt))
+      : undefined,
+    expiresAt: sessionExpiresAt, // Use the stored value from database, not the calculated one
   };
 }
 
@@ -202,25 +281,69 @@ export async function getContextSession(
   db: DatabaseInstance,
   sessionKey: string,
 ): Promise<ContextSessionData | null> {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'contextSession.ts:201',message:'getContextSession entry',data:{sessionKey},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+
+  // Query raw integer value to avoid Drizzle's timestamp conversion
   const existing = await db
-    .select()
+    .select({
+      id: contextSession.id,
+      sessionKey: contextSession.sessionKey,
+      provider: contextSession.provider,
+      model: contextSession.model,
+      contextMessages: contextSession.contextMessages,
+      conceptIds: contextSession.conceptIds,
+      externalCacheId: contextSession.externalCacheId,
+      cacheExpiresAt: contextSession.cacheExpiresAt,
+      expiresAt: sql<number>`CAST(${contextSession.expiresAt} AS INTEGER)`, // Get raw integer value (stored as seconds)
+      createdAt: contextSession.createdAt,
+      updatedAt: contextSession.updatedAt,
+    })
     .from(contextSession)
     .where(eq(contextSession.sessionKey, sessionKey))
     .limit(1);
 
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'contextSession.ts:280',message:'getContextSession query result',data:{resultCount:existing.length,foundSession:existing.length>0?{id:existing[0].id,sessionKey:existing[0].sessionKey,expiresAtRaw:existing[0].expiresAt,expiresAt:new Date(existing[0].expiresAt as number).toISOString()}:null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A1'})}).catch(()=>{});
+  // #endregion
+
   if (existing.length === 0) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'contextSession.ts:283',message:'getContextSession returning null - no session found',data:{sessionKey},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A1'})}).catch(()=>{});
+    // #endregion
     return null;
   }
 
   const session = existing[0];
+  
+  // Convert raw integer (seconds) to Date object (multiply by 1000 to get milliseconds)
+  const expiresAtDate = new Date((session.expiresAt as number) * 1000);
+  const now = new Date();
+  const isExpired = expiresAtDate < now;
+
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'contextSession.ts:230',message:'getContextSession expiry check',data:{sessionId:session.id,expiresAt:expiresAtDate.toISOString(),now:now.toISOString(),isExpired,expiresAtRaw:session.expiresAt,expiresAtType:typeof session.expiresAt},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A2'})}).catch(()=>{});
+  // #endregion
 
   // Check if expired
-  if (session.expiresAt < new Date()) {
+  if (isExpired) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'contextSession.ts:225',message:'getContextSession returning null - session expired',data:{sessionId:session.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A2'})}).catch(()=>{});
+    // #endregion
     await db.delete(contextSession).where(eq(contextSession.id, session.id));
     return null;
   }
 
-  return {
+  // Ensure all date fields are Date objects and externalCacheId is a string
+  const resultExpiresAt = expiresAtDate; // Reuse the already computed expiresAtDate
+  const resultCacheExpiresAt = session.cacheExpiresAt 
+    ? (session.cacheExpiresAt instanceof Date 
+        ? session.cacheExpiresAt 
+        : new Date(session.cacheExpiresAt))
+    : undefined;
+
+  const result = {
     id: session.id,
     sessionKey: session.sessionKey,
     provider: session.provider as LLMProvider,
@@ -229,10 +352,16 @@ export async function getContextSession(
     conceptIds: session.conceptIds
       ? (JSON.parse(session.conceptIds) as string[])
       : [],
-    externalCacheId: session.externalCacheId ?? undefined,
-    cacheExpiresAt: session.cacheExpiresAt ?? undefined,
-    expiresAt: session.expiresAt,
+    externalCacheId: session.externalCacheId ? String(session.externalCacheId) : undefined,
+    cacheExpiresAt: resultCacheExpiresAt,
+    expiresAt: resultExpiresAt,
   };
+
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'contextSession.ts:236',message:'getContextSession returning session',data:{id:result.id,sessionKey:result.sessionKey,hasExternalCacheId:!!result.externalCacheId,externalCacheId:result.externalCacheId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+
+  return result;
 }
 
 /**
@@ -308,6 +437,10 @@ export async function createCacheForSession(
   staticContent: string, // Large, repeated content
   llmClient: LLMClient,
 ): Promise<string | null> {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'contextSession.ts:304',message:'createCacheForSession entry',data:{sessionKey,provider,contentLength:staticContent.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
+
   // Only cache for Gemini provider
   if (provider !== "gemini") {
     return null;
@@ -325,25 +458,51 @@ export async function createCacheForSession(
       : null;
     
     if (!geminiProvider) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'contextSession.ts:327',message:'createCacheForSession no gemini provider',data:{sessionKey,actualProvider:llmClient.getProvider()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       return null;
     }
     
     const cacheId = await geminiProvider.createContextCache(staticContent);
     const cacheExpiresAt = new Date(Date.now() + 3600 * 1000); // 1 hour
     
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'contextSession.ts:333',message:'createCacheForSession before update',data:{sessionKey,cacheId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C1'})}).catch(()=>{});
+    // #endregion
+    
     // Update session with cache info
-    await db
+    // Ensure cacheId is stored as string (not number)
+    const updateResult = await db
       .update(contextSession)
       .set({
-        externalCacheId: cacheId,
+        externalCacheId: String(cacheId), // Explicitly convert to string
         cacheExpiresAt,
         updatedAt: new Date(),
       })
       .where(eq(contextSession.sessionKey, sessionKey));
     
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'contextSession.ts:343',message:'createCacheForSession after update',data:{sessionKey,cacheId,updateChanges:updateResult.changes},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C2'})}).catch(()=>{});
+    // #endregion
+
+    // Verify update by reading back
+    const verifySession = await db
+      .select()
+      .from(contextSession)
+      .where(eq(contextSession.sessionKey, sessionKey))
+      .limit(1);
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'contextSession.ts:352',message:'createCacheForSession verify read',data:{sessionKey,found:verifySession.length>0,externalCacheId:verifySession[0]?.externalCacheId,externalCacheIdType:typeof verifySession[0]?.externalCacheId,cacheExpiresAt:verifySession[0]?.cacheExpiresAt},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C3'})}).catch(()=>{});
+    // #endregion
+    
     logger.debug({ sessionKey, cacheId }, "Created context cache for session");
     return cacheId;
   } catch (error) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'contextSession.ts:357',message:'createCacheForSession error',data:{sessionKey,error:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     logger.warn({ error, sessionKey }, "Failed to create context cache, falling back to regular mode");
     return null;
   }
@@ -356,11 +515,12 @@ export async function cleanupExpiredSessions(
   db: DatabaseInstance,
   llmClient?: LLMClient,
 ): Promise<number> {
-  const now = new Date();
+  // Compare using raw integer (seconds) to avoid Drizzle's timestamp conversion
+  const nowSeconds = Math.floor(Date.now() / 1000);
   const expired = await db
     .select()
     .from(contextSession)
-    .where(lt(contextSession.expiresAt, now));
+    .where(sql`CAST(${contextSession.expiresAt} AS INTEGER) < ${nowSeconds}`);
   
   // Delete expired caches from Gemini
   if (llmClient && llmClient.getProvider() === "gemini") {
@@ -377,9 +537,10 @@ export async function cleanupExpiredSessions(
   }
   
   // Delete expired sessions from database
+  // Compare using raw integer (seconds) to avoid Drizzle's timestamp conversion
   const result = await db
     .delete(contextSession)
-    .where(lt(contextSession.expiresAt, now));
+    .where(sql`CAST(${contextSession.expiresAt} AS INTEGER) < ${nowSeconds}`);
 
   const deletedCount = result.changes || 0;
   if (deletedCount > 0) {
@@ -399,6 +560,10 @@ export async function invalidateSessionsForConcepts(
   db: DatabaseInstance,
   conceptIds: string[],
 ): Promise<number> {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'contextSession.ts:398',message:'invalidateSessionsForConcepts entry',data:{conceptIds},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
+
   if (conceptIds.length === 0) {
     return 0;
   }
@@ -406,18 +571,47 @@ export async function invalidateSessionsForConcepts(
   // Get all sessions
   const allSessions = await db.select().from(contextSession);
 
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'contextSession.ts:408',message:'invalidateSessionsForConcepts all sessions',data:{totalSessions:allSessions.length,sessions:allSessions.map(s=>({id:s.id,sessionKey:s.sessionKey,conceptIds:s.conceptIds}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B3'})}).catch(()=>{});
+  // #endregion
+
   let deletedCount = 0;
   for (const session of allSessions) {
-    if (!session.conceptIds) continue;
+    if (!session.conceptIds) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'contextSession.ts:414',message:'invalidateSessionsForConcepts skipping - no conceptIds',data:{sessionId:session.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B1'})}).catch(()=>{});
+      // #endregion
+      continue;
+    }
 
-    const sessionConceptIds = JSON.parse(session.conceptIds) as string[];
+    let sessionConceptIds: string[] = [];
+    try {
+      sessionConceptIds = JSON.parse(session.conceptIds) as string[];
+    } catch (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'contextSession.ts:420',message:'invalidateSessionsForConcepts JSON parse failed',data:{sessionId:session.id,conceptIdsRaw:session.conceptIds,error:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B1'})}).catch(()=>{});
+      // #endregion
+      continue;
+    }
+
     const hasConcept = conceptIds.some((id) => sessionConceptIds.includes(id));
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'contextSession.ts:425',message:'invalidateSessionsForConcepts concept check',data:{sessionId:session.id,sessionConceptIds,searchConceptIds:conceptIds,hasConcept},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B2'})}).catch(()=>{});
+    // #endregion
+
     if (hasConcept) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'contextSession.ts:428',message:'invalidateSessionsForConcepts deleting session',data:{sessionId:session.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B4'})}).catch(()=>{});
+      // #endregion
       await db.delete(contextSession).where(eq(contextSession.id, session.id));
       deletedCount++;
     }
   }
+
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'contextSession.ts:433',message:'invalidateSessionsForConcepts returning',data:{deletedCount},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
 
   if (deletedCount > 0) {
     logger.debug(

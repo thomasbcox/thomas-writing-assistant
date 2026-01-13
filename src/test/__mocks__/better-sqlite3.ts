@@ -142,6 +142,9 @@ class MockDatabaseImpl extends EventEmitter implements MockDatabase {
   executeSQL(sql: string, params: unknown[]): Record<string, unknown> | null {
     const upperSQL = sql.toUpperCase().trim();
     if (upperSQL.startsWith("INSERT")) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'better-sqlite3.ts:142',message:'executeSQL INSERT',data:{sql:sql.substring(0,500),params:params.map(p=>typeof p==='object'?String(p):p),paramsLength:params.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       // Handle INSERT - Drizzle uses parameterized queries with ? placeholders
       const tableMatch = sql.match(/INTO\s+["']?(\w+)["']?/i);
       if (tableMatch) {
@@ -161,10 +164,35 @@ class MockDatabaseImpl extends EventEmitter implements MockDatabase {
             .map(c => c.trim().replace(/["']/g, ""))
             .filter(c => c.length > 0);
           
-          // Map params to columns (params array matches column order)
-          columns.forEach((col, index) => {
-            row[col] = params[index] ?? null;
-          });
+          // Extract VALUES clause to find null placeholders
+          const valuesMatch = sql.match(/values\s*\(([^)]+)\)/i);
+          let paramIndex = 0;
+          
+          if (valuesMatch) {
+            // Parse VALUES to identify which positions are null vs parameters
+            const values = valuesMatch[1].split(",").map(v => v.trim());
+            
+            columns.forEach((col, colIndex) => {
+              const valueExpr = values[colIndex];
+              // Check if this position is null (literal null, not a parameter)
+              if (valueExpr && /^null$/i.test(valueExpr)) {
+                row[col] = null;
+              } else {
+                // This position is a parameter - use the next param from the array
+                row[col] = params[paramIndex] ?? null;
+                paramIndex++;
+              }
+            });
+          } else {
+            // Fallback: map params to columns by index (old behavior)
+            columns.forEach((col, index) => {
+              row[col] = params[index] ?? null;
+            });
+          }
+          
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'better-sqlite3.ts:185',message:'executeSQL mapped row',data:{tableName,columns,row,expiresAtValue:row.expiresAt,expiresAtType:typeof row.expiresAt,paramIndex},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
         } else {
           // No column list - use positional params with generic names
           params.forEach((param, index) => {
