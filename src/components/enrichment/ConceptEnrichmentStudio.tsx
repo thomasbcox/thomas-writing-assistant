@@ -140,15 +140,17 @@ export function ConceptEnrichmentStudio({ conceptId, initialData, onClose, onSav
     
     if (formData.title && (isNewConcept || existingConcept)) {
       setIsAIThinking(true);
-      analyzeMutation.mutate({
-        title: formData.title,
-        description: formData.description,
-        content: formData.content,
-        creator: formData.creator,
-        source: formData.source,
-        year: formData.year,
-      }, {
-        onSuccess: (result) => {
+      // Use mutateAsync with try/catch to prevent uncaught promise errors
+      (async () => {
+        try {
+          const result = await analyzeMutation.mutateAsync({
+            title: formData.title,
+            description: formData.description,
+            content: formData.content,
+            creator: formData.creator,
+            source: formData.source,
+            year: formData.year,
+          });
           setIsAIThinking(false);
           const initialMessage: ChatMessage = {
             id: `msg-${Date.now()}`,
@@ -165,11 +167,13 @@ export function ConceptEnrichmentStudio({ conceptId, initialData, onClose, onSav
           }
           setPendingSuggestions(result.suggestions);
           setQuickActions(result.quickActions);
-        },
-        onError: () => {
+        } catch (error) {
+          // Error is already handled by the mutation's onError callback,
+          // but we must catch it here to prevent "Uncaught in promise" logs
           setIsAIThinking(false);
-        },
-      });
+          console.debug("Analysis stopped due to error:", error);
+        }
+      })();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.title, isNewConcept, !!existingConcept, sessionId, messages.length, chatSession]);
