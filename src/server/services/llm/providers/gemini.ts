@@ -112,24 +112,36 @@ export class GeminiProvider implements ILLMProvider {
 
   /**
    * Get versioned model name for caching compatibility
-   * Caching requires versioned models (e.g., gemini-1.5-flash-001)
+   * Caching requires versioned models (e.g., gemini-1.5-flash-002)
+   * Note: -001 versions are deprecated, use -002 or unversioned names
    */
-  private getVersionedModel(model: string): string {
-    // Map unversioned models to versioned equivalents
+  private getVersionedModel(model: string, forCache: boolean = false): string {
+    // For regular API calls, use unversioned model names (v1beta API supports them)
+    // Only version when actually needed for caching
+    if (!forCache) {
+      // Return unversioned model name for regular API calls
+      // Remove any version suffix if present
+      return model.replace(/-00[12]$/, "");
+    }
+    
+    // For caching, map to versioned equivalents (use -002, not deprecated -001)
     const versionMap: Record<string, string> = {
-      "gemini-1.5-flash": "gemini-1.5-flash-001",
-      "gemini-1.5-pro": "gemini-1.5-pro-001",
-      "gemini-3-pro-preview": "gemini-1.5-pro-001", // Fallback to stable version
+      "gemini-1.5-flash": "gemini-1.5-flash-002",
+      "gemini-1.5-pro": "gemini-1.5-pro-002",
+      "gemini-3-pro-preview": "gemini-1.5-pro-002", // Use stable versioned model for caching
       "gemini-1.5-flash-002": "gemini-1.5-flash-002",
       "gemini-1.5-pro-002": "gemini-1.5-pro-002",
     };
     
-    // If already versioned, return as-is
-    if (model.includes("-001") || model.includes("-002")) {
+    // If already versioned with -002, return as-is
+    if (model.includes("-002")) {
       return model;
     }
     
-    return versionMap[model] || "gemini-1.5-flash-001"; // Safe default
+    // Remove any -001 suffix (deprecated) and map to -002
+    const baseModel = model.replace(/-00[12]$/, "");
+    const versioned = versionMap[baseModel] || "gemini-1.5-flash-002"; // Use -002, not deprecated -001
+    return versioned;
   }
 
   /**
@@ -143,7 +155,7 @@ export class GeminiProvider implements ILLMProvider {
     ttlSeconds: number = 3600,
   ): Promise<string> {
     // Must use versioned model for caching
-    const versionedModel = this.getVersionedModel(this.model);
+    const versionedModel = this.getVersionedModel(this.model, true);
     
     try {
       const cache = await this.cacheManager.create({
@@ -259,12 +271,12 @@ export class GeminiProvider implements ILLMProvider {
     let lastError: Error | null = null;
 
     for (const modelName of modelsToTry) {
+      // Use unversioned model name for regular API calls (v1beta supports unversioned names)
+      const apiModel = this.getVersionedModel(modelName, false);
       try {
-        const versionedModel = this.getVersionedModel(modelName) ?? modelName;
-        
         // Build model config with optional cached content
         const modelConfig: any = {
-          model: versionedModel,
+          model: apiModel,
           generationConfig: {
             temperature: temperature ?? this.temperature,
             maxOutputTokens: maxTokens,
@@ -372,11 +384,12 @@ export class GeminiProvider implements ILLMProvider {
       // Retry logic for each model
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
-          const versionedModel = this.getVersionedModel(modelName) ?? modelName;
+          // Use unversioned model name for regular API calls (v1beta supports unversioned names)
+          const apiModel = this.getVersionedModel(modelName, false);
           
           // Build model config with optional cached content
           const modelConfig: any = {
-            model: versionedModel,
+            model: apiModel,
             generationConfig: {
               temperature: this.temperature,
               responseMimeType: "application/json", // Structured output - ensures valid JSON

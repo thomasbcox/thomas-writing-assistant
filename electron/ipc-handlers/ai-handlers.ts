@@ -3,10 +3,12 @@ import { z } from "zod";
 import { getLLMClient } from "../../src/server/services/llm/client.js";
 import { env } from "../../src/env.js";
 import { getEmbeddingStatus, checkAndGenerateMissing } from "../../src/server/services/embeddingOrchestrator.js";
+import { handleIpc } from "./ipc-wrapper.js";
+import { logger } from "../../src/lib/logger.js";
 
 export function registerAiHandlers() {
   // Get AI settings
-  ipcMain.handle("ai:getSettings", async () => {
+  ipcMain.handle("ai:getSettings", handleIpc(async () => {
     const hasOpenAI = !!env.OPENAI_API_KEY;
     const hasGemini = !!env.GOOGLE_API_KEY;
     
@@ -35,7 +37,8 @@ export function registerAiHandlers() {
         },
       };
     } catch (error) {
-      // Fallback if client creation fails
+      // Log error before returning fallback
+      logger.warn({ error }, "Failed to initialize LLM client, returning fallback settings");
       return {
         provider: hasGemini ? ("gemini" as const) : ("openai" as const),
         model: hasGemini ? "gemini-3-pro-preview" : "gpt-4o-mini",
@@ -46,10 +49,10 @@ export function registerAiHandlers() {
         },
       };
     }
-  });
+  }, "ai:getSettings"));
 
   // Update AI settings
-  ipcMain.handle("ai:updateSettings", async (_event, input: unknown) => {
+  ipcMain.handle("ai:updateSettings", handleIpc(async (_event, input: unknown) => {
     const parsed = z.object({
       provider: z.enum(["openai", "gemini"]).optional(),
       model: z.string().optional(),
@@ -64,44 +67,36 @@ export function registerAiHandlers() {
       throw new Error("No LLM provider API keys found. Set OPENAI_API_KEY or GOOGLE_API_KEY in your .env file.");
     }
 
-    try {
-      const client = getLLMClient();
+    const client = getLLMClient();
 
-      if (parsed.provider) {
-        // Validate that the provider has an API key
-        if (parsed.provider === "gemini" && !hasGemini) {
-          throw new Error("GOOGLE_API_KEY not set. Cannot use Gemini provider.");
-        }
-        if (parsed.provider === "openai" && !hasOpenAI) {
-          throw new Error("OPENAI_API_KEY not set. Cannot use OpenAI provider.");
-        }
-        client.setProvider(parsed.provider);
+    if (parsed.provider) {
+      // Validate that the provider has an API key
+      if (parsed.provider === "gemini" && !hasGemini) {
+        throw new Error("GOOGLE_API_KEY not set. Cannot use Gemini provider.");
       }
-
-      if (parsed.model) {
-        client.setModel(parsed.model);
+      if (parsed.provider === "openai" && !hasOpenAI) {
+        throw new Error("OPENAI_API_KEY not set. Cannot use OpenAI provider.");
       }
-
-      if (parsed.temperature !== undefined) {
-        client.setTemperature(parsed.temperature);
-      }
-
-      return {
-        provider: client.getProvider(),
-        model: client.getModel(),
-        temperature: client.getTemperature(),
-      };
-    } catch (error) {
-      // Re-throw with more context
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error("Failed to update AI settings");
+      client.setProvider(parsed.provider);
     }
-  });
+
+    if (parsed.model) {
+      client.setModel(parsed.model);
+    }
+
+    if (parsed.temperature !== undefined) {
+      client.setTemperature(parsed.temperature);
+    }
+
+    return {
+      provider: client.getProvider(),
+      model: client.getModel(),
+      temperature: client.getTemperature(),
+    };
+  }, "ai:updateSettings"));
 
   // Get available models
-  ipcMain.handle("ai:getAvailableModels", async () => {
+  ipcMain.handle("ai:getAvailableModels", handleIpc(async () => {
     const hasOpenAI = !!env.OPENAI_API_KEY;
     const hasGemini = !!env.GOOGLE_API_KEY;
     
@@ -148,6 +143,8 @@ export function registerAiHandlers() {
         };
       }
     } catch (error) {
+      // Log error before returning fallback
+      logger.warn({ error }, "Failed to get LLM client, returning fallback models");
       // Fallback: return models for the provider that has API keys, or OpenAI as default
       if (hasGemini) {
         return {
@@ -175,15 +172,15 @@ export function registerAiHandlers() {
         };
       }
     }
-  });
+  }, "ai:getAvailableModels"));
 
   // Get embedding status
-  ipcMain.handle("ai:getEmbeddingStatus", async () => {
+  ipcMain.handle("ai:getEmbeddingStatus", handleIpc(async () => {
     return await getEmbeddingStatus();
-  });
+  }, "ai:getEmbeddingStatus"));
 
   // Generate missing embeddings (manual trigger)
-  ipcMain.handle("ai:generateMissingEmbeddings", async (_event, input: unknown) => {
+  ipcMain.handle("ai:generateMissingEmbeddings", handleIpc(async (_event, input: unknown) => {
     const parsed = z.object({
       batchSize: z.number().min(1).max(100).optional(),
     }).parse(input);
@@ -192,10 +189,10 @@ export function registerAiHandlers() {
     
     // Return updated status
     return await getEmbeddingStatus();
-  });
+  }, "ai:generateMissingEmbeddings"));
 
   // Retry failed embeddings (manual trigger for recovery)
-  ipcMain.handle("ai:retryFailedEmbeddings", async (_event, input: unknown) => {
+  ipcMain.handle("ai:retryFailedEmbeddings", handleIpc(async (_event, input: unknown) => {
     const parsed = z.object({
       batchSize: z.number().min(1).max(100).optional(),
     }).parse(input);
@@ -205,6 +202,6 @@ export function registerAiHandlers() {
     
     // Return updated status
     return await getEmbeddingStatus();
-  });
+  }, "ai:retryFailedEmbeddings"));
 }
 

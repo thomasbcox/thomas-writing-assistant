@@ -3,8 +3,9 @@ import { z } from "zod";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { link, linkName, concept } from "../../src/server/schema.js";
 import { getDb } from "../db.js";
-import { logger, logServiceError } from "../../src/lib/logger.js";
+import { logger } from "../../src/lib/logger.js";
 import { serializeLink, serializeLinkName, serializeConcept, serializeLinkWithRelations } from "../../src/lib/serializers.js";
+import { handleIpc } from "./ipc-wrapper.js";
 
 // Helper to check if error is a Drizzle relation error
 function isDrizzleRelationError(error: unknown): boolean {
@@ -18,7 +19,7 @@ function isDrizzleRelationError(error: unknown): boolean {
 
 export function registerLinkHandlers() {
   // Get all links
-  ipcMain.handle("link:getAll", async (_event, input: unknown) => {
+  ipcMain.handle("link:getAll", handleIpc(async (_event, input: unknown) => {
     const parsed = z.object({
       summary: z.boolean().optional().default(false),
     }).optional().parse(input);
@@ -54,7 +55,6 @@ export function registerLinkHandlers() {
       return links;
     } catch (error: unknown) {
       if (!isDrizzleRelationError(error)) {
-        logServiceError(error, "link.getAll", { summary: summaryOnly });
         throw new Error(`Failed to load links: ${error instanceof Error ? error.message : "Unknown error"}`);
       }
 
@@ -89,10 +89,10 @@ export function registerLinkHandlers() {
         linkName: linkNameMap.get(l.linkNameId) || null,
       }));
     }
-  });
+  }, "link:getAll"));
 
   // Get links by concept
-  ipcMain.handle("link:getByConcept", async (_event, input: unknown) => {
+  ipcMain.handle("link:getByConcept", handleIpc(async (_event, input: unknown) => {
     const parsed = z.object({ conceptId: z.string() }).parse(input);
     const db = getDb();
 
@@ -124,7 +124,6 @@ export function registerLinkHandlers() {
       };
     } catch (error: unknown) {
       if (!isDrizzleRelationError(error)) {
-        logServiceError(error, "link.getByConcept", { conceptId: parsed.conceptId });
         throw new Error(`Failed to load links: ${error instanceof Error ? error.message : "Unknown error"}`);
       }
 
@@ -170,10 +169,10 @@ export function registerLinkHandlers() {
         incoming: incomingData.map(mapLink),
       };
     }
-  });
+  }, "link:getByConcept"));
 
   // Create link
-  ipcMain.handle("link:create", async (_event, input: unknown) => {
+  ipcMain.handle("link:create", handleIpc(async (_event, input: unknown) => {
     const parsed = z.object({
       sourceId: z.string(),
       targetId: z.string(),
@@ -265,7 +264,6 @@ export function registerLinkHandlers() {
       });
       return serializeLinkWithRelations(fullLink!);
     } catch (error) {
-      logServiceError(error, "link.create.fetchRelations", { linkId: newLink.id });
       const [sourceResult, targetResult, linkNameResult] = await Promise.all([
         db.select().from(concept).where(eq(concept.id, newLink.sourceId)).limit(1),
         db.select().from(concept).where(eq(concept.id, newLink.targetId)).limit(1),
@@ -279,10 +277,10 @@ export function registerLinkHandlers() {
         linkName: linkNameResult[0] || null,
       });
     }
-  });
+  }, "link:create"));
 
   // Update link
-  ipcMain.handle("link:update", async (_event, input: unknown) => {
+  ipcMain.handle("link:update", handleIpc(async (_event, input: unknown) => {
     const parsed = z.object({
       id: z.string(),
       linkNameId: z.string().optional(),
@@ -343,10 +341,10 @@ export function registerLinkHandlers() {
         linkName: linkNameResult[0] || null,
       });
     }
-  });
+  }, "link:update"));
 
   // Delete link
-  ipcMain.handle("link:delete", async (_event, input: unknown) => {
+  ipcMain.handle("link:delete", handleIpc(async (_event, input: unknown) => {
     const parsed = z.object({
       sourceId: z.string(),
       targetId: z.string(),
@@ -369,46 +367,41 @@ export function registerLinkHandlers() {
     await db.delete(link).where(eq(link.id, foundLink.id));
     logger.info({ operation: "link:delete", linkId: foundLink.id, sourceId: parsed.sourceId, targetId: parsed.targetId }, "Link deleted successfully");
     return foundLink;
-  });
+  }, "link:delete"));
 
   // Get link counts by concept
-  ipcMain.handle("link:getCountsByConcept", async (_event, _input: unknown) => {
+  ipcMain.handle("link:getCountsByConcept", handleIpc(async (_event, _input: unknown) => {
     const db = getDb();
 
     logger.info({ operation: "link:getCountsByConcept" }, "Fetching link counts by concept");
 
-    try {
-      // Get all links
-      const allLinks = await db.select({
-        sourceId: link.sourceId,
-        targetId: link.targetId,
-      }).from(link);
+    // Get all links
+    const allLinks = await db.select({
+      sourceId: link.sourceId,
+      targetId: link.targetId,
+    }).from(link);
 
-      // Count links per concept (outgoing + incoming)
-      const counts = new Map<string, number>();
+    // Count links per concept (outgoing + incoming)
+    const counts = new Map<string, number>();
 
-      for (const l of allLinks) {
-        // Count outgoing links
-        const outgoingCount = counts.get(l.sourceId) || 0;
-        counts.set(l.sourceId, outgoingCount + 1);
+    for (const l of allLinks) {
+      // Count outgoing links
+      const outgoingCount = counts.get(l.sourceId) || 0;
+      counts.set(l.sourceId, outgoingCount + 1);
 
-        // Count incoming links
-        const incomingCount = counts.get(l.targetId) || 0;
-        counts.set(l.targetId, incomingCount + 1);
-      }
-
-      // Convert to array format
-      const result = Array.from(counts.entries()).map(([conceptId, count]) => ({
-        conceptId,
-        count,
-      }));
-
-      logger.info({ operation: "link:getCountsByConcept", count: result.length }, "Link counts fetched successfully");
-      return result;
-    } catch (error: unknown) {
-      logServiceError(error, "link.getCountsByConcept", {});
-      throw new Error(`Failed to load link counts: ${error instanceof Error ? error.message : "Unknown error"}`);
+      // Count incoming links
+      const incomingCount = counts.get(l.targetId) || 0;
+      counts.set(l.targetId, incomingCount + 1);
     }
-  });
+
+    // Convert to array format
+    const result = Array.from(counts.entries()).map(([conceptId, count]) => ({
+      conceptId,
+      count,
+    }));
+
+    logger.info({ operation: "link:getCountsByConcept", count: result.length }, "Link counts fetched successfully");
+    return result;
+  }, "link:getCountsByConcept"));
 }
 

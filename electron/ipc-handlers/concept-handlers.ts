@@ -6,12 +6,13 @@ import { v4 as uuidv4 } from "uuid";
 import { getDb } from "../db.js";
 import { getLLMClient } from "../../src/server/services/llm/client.js";
 import { getConfigLoader } from "../../src/server/services/config.js";
-import { logger, logServiceError } from "../../src/lib/logger.js";
+import { logger } from "../../src/lib/logger.js";
 import { proposeLinksForConcept } from "../../src/server/services/linkProposer.js";
 import { generateConceptCandidates } from "../../src/server/services/conceptProposer.js";
 import { serializeConcept } from "../../src/lib/serializers.js";
 import { generateEmbeddingForConcept } from "../../src/server/services/embeddingOrchestrator.js";
 import type { DatabaseInstance } from "../../src/server/db.js";
+import { handleIpc } from "./ipc-wrapper.js";
 
 // Input schemas
 const listInputSchema = z.object({
@@ -69,7 +70,7 @@ const generateCandidatesInputSchema = z.object({
 
 export function registerConceptHandlers() {
   // List concepts
-  ipcMain.handle("concept:list", async (_event, input: unknown) => {
+  ipcMain.handle("concept:list", handleIpc(async (_event, input: unknown) => {
     const parsed = listInputSchema.parse(input);
     const db = getDb();
     // Removed unused sqlite variable - was not being used
@@ -104,10 +105,10 @@ export function registerConceptHandlers() {
 
     logger.info({ operation: "concept:list", count: concepts.length }, "Concepts fetched successfully");
     return concepts.map(serializeConcept);
-  });
+  }, "concept:list"));
 
   // Get concept by ID
-  ipcMain.handle("concept:getById", async (_event, input: unknown) => {
+  ipcMain.handle("concept:getById", handleIpc(async (_event, input: unknown) => {
     const parsed = getByIdInputSchema.parse(input);
     const db = getDb();
 
@@ -138,10 +139,10 @@ export function registerConceptHandlers() {
 
     logger.info({ operation: "concept:getById", conceptId: parsed.id, title: foundConcept.title }, "Concept fetched successfully");
     return serializeConcept(foundConcept);
-  });
+  }, "concept:getById"));
 
   // Create concept
-  ipcMain.handle("concept:create", async (_event, input: unknown) => {
+  ipcMain.handle("concept:create", handleIpc(async (_event, input: unknown) => {
     const parsed = createInputSchema.parse(input);
     const db = getDb();
 
@@ -175,10 +176,10 @@ export function registerConceptHandlers() {
     }
     
     return serializeConcept(newConcept);
-  });
+  }, "concept:create"));
 
   // Update concept
-  ipcMain.handle("concept:update", async (_event, input: unknown) => {
+  ipcMain.handle("concept:update", handleIpc(async (_event, input: unknown) => {
     const parsed = updateInputSchema.parse(input);
     const db = getDb();
 
@@ -208,10 +209,10 @@ export function registerConceptHandlers() {
 
     logger.info({ operation: "concept:update", conceptId: id, title: updatedConcept.title }, "Concept updated successfully");
     return serializeConcept(updatedConcept);
-  });
+  }, "concept:update"));
 
   // Delete concept (soft delete)
-  ipcMain.handle("concept:delete", async (_event, input: unknown) => {
+  ipcMain.handle("concept:delete", handleIpc(async (_event, input: unknown) => {
     const parsed = deleteInputSchema.parse(input);
     const db = getDb();
 
@@ -233,10 +234,10 @@ export function registerConceptHandlers() {
 
     logger.info({ operation: "concept:delete", conceptId: parsed.id, title: deletedConcept.title }, "Concept soft-deleted successfully");
     return serializeConcept(deletedConcept);
-  });
+  }, "concept:delete"));
 
   // Restore concept
-  ipcMain.handle("concept:restore", async (_event, input: unknown) => {
+  ipcMain.handle("concept:restore", handleIpc(async (_event, input: unknown) => {
     const parsed = restoreInputSchema.parse(input);
     const db = getDb();
 
@@ -258,10 +259,10 @@ export function registerConceptHandlers() {
 
     logger.info({ operation: "concept:restore", conceptId: parsed.id, title: restoredConcept.title }, "Concept restored successfully");
     return serializeConcept(restoredConcept);
-  });
+  }, "concept:restore"));
 
   // Purge trash
-  ipcMain.handle("concept:purgeTrash", async (_event, input: unknown) => {
+  ipcMain.handle("concept:purgeTrash", handleIpc(async (_event, input: unknown) => {
     const parsed = purgeTrashInputSchema.parse(input);
     const db = getDb();
 
@@ -281,61 +282,51 @@ export function registerConceptHandlers() {
 
     logger.info({ operation: "concept:purgeTrash", deletedCount: result.changes, daysOld: parsed.daysOld }, "Trash purged successfully");
     return { deletedCount: result.changes };
-  });
+  }, "concept:purgeTrash"));
 
   // Propose links
-  ipcMain.handle("concept:proposeLinks", async (_event, input: unknown) => {
+  ipcMain.handle("concept:proposeLinks", handleIpc(async (_event, input: unknown) => {
     const parsed = proposeLinksInputSchema.parse(input);
     const db = getDb();
 
     logger.info({ operation: "concept:proposeLinks", conceptId: parsed.conceptId, maxProposals: parsed.maxProposals }, "Proposing links for concept");
 
-    try {
-      const llmClient = getLLMClient();
-      const configLoader = getConfigLoader();
-      const context = { db: db as DatabaseInstance, llm: llmClient, config: configLoader };
+    const llmClient = getLLMClient();
+    const configLoader = getConfigLoader();
+    const context = { db: db as DatabaseInstance, llm: llmClient, config: configLoader };
 
-      const result = await proposeLinksForConcept(
-        parsed.conceptId,
-        parsed.maxProposals,
-        context,
-      );
+    const result = await proposeLinksForConcept(
+      parsed.conceptId,
+      parsed.maxProposals,
+      context,
+    );
 
-      logger.info({ operation: "concept:proposeLinks", conceptId: parsed.conceptId, proposalCount: result?.length ?? 0 }, "Link proposals generated successfully");
-      return result;
-    } catch (error) {
-      logServiceError(error, "concept.proposeLinks", { conceptId: parsed.conceptId, maxProposals: parsed.maxProposals });
-      throw error;
-    }
-  });
+    logger.info({ operation: "concept:proposeLinks", conceptId: parsed.conceptId, proposalCount: result?.length ?? 0 }, "Link proposals generated successfully");
+    return result;
+  }, "concept:proposeLinks"));
 
   // Generate candidates
-  ipcMain.handle("concept:generateCandidates", async (_event, input: unknown) => {
+  ipcMain.handle("concept:generateCandidates", handleIpc(async (_event, input: unknown) => {
     const parsed = generateCandidatesInputSchema.parse(input);
 
     logger.info({ operation: "concept:generateCandidates", textLength: parsed.text?.length ?? 0, maxCandidates: parsed.maxCandidates }, "Generating concept candidates from text");
 
-    try {
-      const db = getDb();
-      const llmClient = getLLMClient();
-      const configLoader = getConfigLoader();
-      const context = { db: db as DatabaseInstance, llm: llmClient, config: configLoader };
+    const db = getDb();
+    const llmClient = getLLMClient();
+    const configLoader = getConfigLoader();
+    const context = { db: db as DatabaseInstance, llm: llmClient, config: configLoader };
 
-      const result = await generateConceptCandidates(
-        parsed.text,
-        parsed.instructions,
-        parsed.maxCandidates,
-        context,
-        parsed.defaultCreator,
-        parsed.defaultYear,
-      );
+    const result = await generateConceptCandidates(
+      parsed.text,
+      parsed.instructions,
+      parsed.maxCandidates,
+      context,
+      parsed.defaultCreator,
+      parsed.defaultYear,
+    );
 
-      logger.info({ operation: "concept:generateCandidates", candidateCount: result?.length ?? 0 }, "Concept candidates generated successfully");
-      return result;
-    } catch (error) {
-      logServiceError(error, "concept.generateCandidates", { textLength: parsed.text?.length ?? 0, maxCandidates: parsed.maxCandidates });
-      throw error;
-    }
-  });
+    logger.info({ operation: "concept:generateCandidates", candidateCount: result?.length ?? 0 }, "Concept candidates generated successfully");
+    return result;
+  }, "concept:generateCandidates"));
 }
 
