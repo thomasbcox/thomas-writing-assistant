@@ -10,7 +10,7 @@ interface MockStatement {
   run(...params: unknown[]): { changes: number; lastInsertRowid: bigint };
   get(...params: unknown[]): unknown;
   all(...params: unknown[]): unknown[];
-  raw(...params: unknown[]): { get: () => unknown[]; all: () => unknown[] };
+  raw(enable?: boolean): MockStatement;
   finalize(): void;
 }
 
@@ -25,6 +25,8 @@ class MockStatementImpl implements MockStatement {
   private sql: string;
   private db: MockDatabaseImpl;
   private finalized = false;
+  private boundParams: unknown[] = [];
+  private rawMode = false;
 
   constructor(sql: string, db: MockDatabaseImpl) {
     this.sql = sql;
@@ -32,29 +34,54 @@ class MockStatementImpl implements MockStatement {
   }
 
   bind(...params: unknown[]): MockStatement {
+    console.log('MOCK BIND:', params);
+    this.boundParams = params;
     return this;
   }
 
   run(...params: unknown[]): { changes: number; lastInsertRowid: bigint } {
     if (this.finalized) throw new Error("Statement finalized");
+    // Use provided params or fallback to bound params
+    const activeParams = params.length > 0 ? params : this.boundParams;
+    console.log('MOCK RUN inputs:', { params, bound: this.boundParams, active: activeParams });
+
     // Execute the SQL against the mock database
-    const result = this.db.executeSQL(this.sql, params);
+    const result = this.db.executeSQL(this.sql, activeParams);
     // Extract ID from result for lastInsertRowid
     let rowId = BigInt(1);
-    if (result && typeof result === "object" && "id" in result) {
-      const idStr = String(result.id);
-      // Try to extract numeric part, or use a hash
-      const numericPart = idStr.replace(/[^0-9]/g, "");
-      rowId = numericPart ? BigInt(numericPart) : BigInt(idStr.length || 1);
+    let changes = 0;
+
+    if (result && typeof result === "object") {
+      if ("id" in result) {
+        const idStr = String(result.id);
+        const numericPart = idStr.replace(/[^0-9]/g, "");
+        rowId = numericPart ? BigInt(numericPart) : BigInt(idStr.length || 1);
+      }
+      if ("changes" in result && typeof result.changes === "number") {
+        changes = result.changes;
+      }
     }
+
     // Store lastInsertRowid on the database instance
     (this.db as any).lastInsertRowid = rowId;
-    return { changes: 1, lastInsertRowid: rowId };
+    return { changes, lastInsertRowid: rowId };
   }
 
   get(...params: unknown[]): unknown {
     if (this.finalized) throw new Error("Statement finalized");
-    const result = this.db.querySQL(this.sql, params);
+    const activeParams = params.length > 0 ? params : this.boundParams;
+    console.log('MOCK GET inputs:', { params, bound: this.boundParams, active: activeParams });
+    const result = this.db.querySQL(this.sql, activeParams);
+
+    // Handle raw mode
+    if (this.rawMode) {
+      if (Array.isArray(result)) {
+        const row = result.length > 0 ? result[0] : undefined;
+        return row && typeof row === 'object' ? Object.values(row) : row;
+      }
+      return result && typeof result === 'object' ? Object.values(result) : result;
+    }
+
     // get() returns a single row (object) or undefined, not an array
     if (Array.isArray(result)) {
       return result.length > 0 ? result[0] : undefined;
@@ -64,30 +91,25 @@ class MockStatementImpl implements MockStatement {
 
   all(...params: unknown[]): unknown[] {
     if (this.finalized) throw new Error("Statement finalized");
-    const result = this.db.querySQL(this.sql, params);
-    return Array.isArray(result) ? result : result ? [result] : [];
+    const activeParams = params.length > 0 ? params : this.boundParams;
+    console.log('MOCK ALL inputs:', { params, bound: this.boundParams, active: activeParams });
+    const result = this.db.querySQL(this.sql, activeParams);
+
+    const rows = Array.isArray(result) ? result : result ? [result] : [];
+
+    // Handle raw mode
+    if (this.rawMode) {
+      return rows.map(row =>
+        row && typeof row === 'object' ? Object.values(row) : row
+      );
+    }
+
+    return rows;
   }
 
-  raw(...params: unknown[]): { get: () => unknown[]; all: () => unknown[] } {
-    if (this.finalized) throw new Error("Statement finalized");
-    const result = this.db.querySQL(this.sql, params);
-    // Helper to convert result to array of arrays
-    const toArrayOfArrays = () => {
-      if (Array.isArray(result)) {
-        return result.map((row) => {
-          if (typeof row === "object" && row !== null) {
-            return Object.values(row);
-          }
-          return [row];
-        });
-      }
-      return result ? [[result]] : [];
-    };
-    // raw() returns an object with get() and all() methods
-    return {
-      get: toArrayOfArrays,
-      all: toArrayOfArrays,
-    };
+  raw(enable: boolean = true): MockStatement {
+    this.rawMode = enable;
+    return this;
   }
 
   finalize(): void {
@@ -142,8 +164,9 @@ class MockDatabaseImpl extends EventEmitter implements MockDatabase {
   executeSQL(sql: string, params: unknown[]): Record<string, unknown> | null {
     const upperSQL = sql.toUpperCase().trim();
     if (upperSQL.startsWith("INSERT")) {
+      console.log('MOCK INSERT:', sql, params);
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'better-sqlite3.ts:142',message:'executeSQL INSERT',data:{sql:sql.substring(0,500),params:params.map(p=>typeof p==='object'?String(p):p),paramsLength:params.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'better-sqlite3.ts:142', message: 'executeSQL INSERT', data: { sql: sql.substring(0, 500), params: params.map(p => typeof p === 'object' ? String(p) : p), paramsLength: params.length }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'A' }) }).catch(() => { });
       // #endregion
       // Handle INSERT - Drizzle uses parameterized queries with ? placeholders
       const tableMatch = sql.match(/INTO\s+["']?(\w+)["']?/i);
@@ -152,26 +175,26 @@ class MockDatabaseImpl extends EventEmitter implements MockDatabase {
         if (!this.data.has(tableName)) {
           this.data.set(tableName, []);
         }
-        
+
         // Extract column names from SQL (Drizzle includes them)
         const columnsMatch = sql.match(/INTO\s+["']?\w+["']?\s*\(([^)]+)\)/i);
         const row: Record<string, unknown> = {};
-        
+
         if (columnsMatch) {
           // Named columns - parse column list
           const columns = columnsMatch[1]
             .split(",")
             .map(c => c.trim().replace(/["']/g, ""))
             .filter(c => c.length > 0);
-          
+
           // Extract VALUES clause to find null placeholders
           const valuesMatch = sql.match(/values\s*\(([^)]+)\)/i);
           let paramIndex = 0;
-          
+
           if (valuesMatch) {
             // Parse VALUES to identify which positions are null vs parameters
             const values = valuesMatch[1].split(",").map(v => v.trim());
-            
+
             columns.forEach((col, colIndex) => {
               const valueExpr = values[colIndex];
               // Check if this position is null (literal null, not a parameter)
@@ -189,9 +212,9 @@ class MockDatabaseImpl extends EventEmitter implements MockDatabase {
               row[col] = params[index] ?? null;
             });
           }
-          
+
           // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'better-sqlite3.ts:185',message:'executeSQL mapped row',data:{tableName,columns,row,expiresAtValue:row.expiresAt,expiresAtType:typeof row.expiresAt,paramIndex},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+          fetch('http://127.0.0.1:7242/ingest/48af193b-4a6b-47dc-bfb1-a9e7f5836380', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'better-sqlite3.ts:185', message: 'executeSQL mapped row', data: { tableName, columns, row, expiresAtValue: row.expiresAt, expiresAtType: typeof row.expiresAt, paramIndex }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'A' }) }).catch(() => { });
           // #endregion
         } else {
           // No column list - use positional params with generic names
@@ -199,13 +222,13 @@ class MockDatabaseImpl extends EventEmitter implements MockDatabase {
             row[`col${index}`] = param;
           });
         }
-        
+
         // Generate ID if not provided (Drizzle uses cuid2 which generates IDs)
         if (!row.id && tableName !== "sqlite_master") {
           // Use a simple ID generator
           row.id = `mock-${tableName}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
         }
-        
+
         const insertedRow = { ...row }; // Clone the row
         this.data.get(tableName)!.push(insertedRow);
         // Store the last inserted row for this table (for lastInsertRowid queries)
@@ -213,37 +236,104 @@ class MockDatabaseImpl extends EventEmitter implements MockDatabase {
         return insertedRow; // Return inserted row for .returning()
       }
     } else if (upperSQL.startsWith("DELETE")) {
+      console.log('MOCK DELETE:', sql, params);
       // Handle DELETE
       const tableMatch = sql.match(/FROM\s+["']?(\w+)["']?/i);
       if (tableMatch) {
         const tableName = tableMatch[1];
-        // If there's a WHERE clause, we'd need to filter, but for simplicity, clear all
-        // In real tests, this might need WHERE clause parsing
         if (params.length === 0) {
           this.data.set(tableName, []);
         } else {
-          // Simple WHERE id = ? handling
+          // Use applyWhereClause to find rows that MATCH the condition
+          // These are the rows to DELETE
           const existingData = this.data.get(tableName) || [];
-          const filtered = existingData.filter((row: any) => {
-            if (typeof row === "object" && row !== null) {
-              // Check if any field matches the param
-              return !Object.values(row).some(val => params.includes(val));
-            }
-            return true;
+          console.log('DELETE: Before applyWhereClause:', {
+            tableName,
+            existingDataCount: existingData.length,
+            existingData: existingData.map((r: any) => ({ id: r.id, sessionKey: r.sessionKey, expiresAt: r.expiresAt })),
+            sql,
+            params
           });
+          const rowsToDelete = this.applyWhereClause(existingData, sql, params) as unknown[];
+          console.log('DELETE: After applyWhereClause:', {
+            rowsToDeleteCount: rowsToDelete.length,
+            rowsToDelete: rowsToDelete.map((r: any) => ({ id: r.id, sessionKey: r.sessionKey, expiresAt: r.expiresAt }))
+          });
+
+          const idsToDelete = new Set(rowsToDelete.map((r: any) => r.id));
+
+          // Keep rows that are NOT in the deletion list
+          // We use ID if available, otherwise strict object equality
+          const filtered = existingData.filter((row: any) => {
+            if (row.id && idsToDelete.has(row.id)) return false;
+            return !rowsToDelete.includes(row);
+          });
+
+          const deletedCount = existingData.length - filtered.length;
+          console.log(`MOCK DELETE count: ${deletedCount}`);
           this.data.set(tableName, filtered);
+          return { changes: deletedCount };
         }
       }
+      return { changes: 0 };
     } else if (upperSQL.startsWith("UPDATE")) {
-      // Handle UPDATE (simplified)
+      console.log('MOCK UPDATE:', sql, params);
+      // Handle UPDATE
       const tableMatch = sql.match(/UPDATE\s+["']?(\w+)["']?/i);
       if (tableMatch) {
         const tableName = tableMatch[1];
         if (!this.data.has(tableName)) {
           this.data.set(tableName, []);
         }
-        // For simplicity, UPDATE is a no-op in mock (data stays the same)
-        // Real implementation would need SET clause parsing
+
+        const tableData = this.data.get(tableName) || [];
+
+        // Parse SET clause
+        const setClauseMatch = sql.match(/SET\s+(.+?)(?:\s+WHERE|$)/i);
+        if (setClauseMatch) {
+          const setClause = setClauseMatch[1];
+          const assignments = setClause.split(",").map(s => s.trim());
+
+          const setColumns: string[] = [];
+          for (const assignment of assignments) {
+            const colMatch = assignment.match(/["']?(\w+)["']?\s*=\s*\?/);
+            if (colMatch) {
+              setColumns.push(colMatch[1]);
+            }
+          }
+
+          // Parse WHERE clause
+          const whereMatch = sql.match(/WHERE\s+["']?(\w+)["']?(\."\w+")?\s*=\s*\?/i);
+          const setParamCount = setColumns.length;
+
+          if (whereMatch) {
+            let whereCol = whereMatch[1];
+            const whereClauseFull = sql.substring(sql.toUpperCase().indexOf("WHERE"));
+            const whereColMatch = whereClauseFull.match(/["']?(\w+)["']?\s*=\s*\?/);
+            if (whereColMatch) {
+              whereCol = whereColMatch[1];
+            }
+            const whereVal = params[setParamCount];
+
+            for (const row of tableData) {
+              // @ts-ignore
+              if (row[whereCol] === whereVal || String(row[whereCol]) === String(whereVal)) {
+                setColumns.forEach((col, index) => {
+                  // @ts-ignore
+                  row[col] = params[index];
+                });
+              }
+            }
+          } else {
+            for (const row of tableData) {
+              setColumns.forEach((col, index) => {
+                // @ts-ignore
+                row[col] = params[index];
+              });
+            }
+          }
+        }
+        this.data.set(tableName, tableData);
       }
     }
     return null;
@@ -252,6 +342,7 @@ class MockDatabaseImpl extends EventEmitter implements MockDatabase {
   querySQL(sql: string, params: unknown[]): unknown {
     const upperSQL = sql.toUpperCase().trim();
     if (upperSQL.startsWith("SELECT")) {
+      console.log('MOCK SELECT:', sql, params);
       // Handle sqlite_master queries (for table listing)
       if (sql.includes("sqlite_master")) {
         const tables: Array<{ name: string; type: string }> = [];
@@ -260,25 +351,26 @@ class MockDatabaseImpl extends EventEmitter implements MockDatabase {
         }
         return tables;
       }
-      
+
       // Handle regular table queries
       const tableMatch = sql.match(/FROM\s+["']?(\w+)["']?/i);
       if (tableMatch) {
         const tableName = tableMatch[1];
         let tableData = this.data.get(tableName) || [];
-        
+
         // Handle WHERE clauses with improved parsing
         if (sql.includes("WHERE") && params.length > 0) {
           tableData = this.applyWhereClause(tableData, sql, params);
         }
-        
+
         // Handle LIMIT clause
         const limitMatch = sql.match(/LIMIT\s+(\d+)/i);
         if (limitMatch) {
           const limit = parseInt(limitMatch[1], 10);
           tableData = tableData.slice(0, limit);
         }
-        
+
+        console.log('MOCK SELECT RESULT count:', tableData.length);
         return tableData;
       }
     }
@@ -301,39 +393,99 @@ class MockDatabaseImpl extends EventEmitter implements MockDatabase {
   ): unknown[] {
     let filtered = data;
     let paramIndex = 0;
+    console.log('DEBUG: applyWhereClause params:', params);
 
     // Handle multiple WHERE conditions (AND/OR)
-    const whereClause = sql.match(/WHERE\s+(.+?)(?:\s+ORDER\s+BY|\s+LIMIT|$)/i);
+    // Use 's' flag to allow . to match newlines in case of multi-line SQL
+    const whereClause = sql.match(/WHERE\s+(.+?)(?:\s+ORDER\s+BY|\s+LIMIT|$)/is);
     if (!whereClause) {
+      if (sql.toUpperCase().includes("WHERE")) {
+        console.log(`DEBUG: Failed to extract WHERE clause from: ${sql}`);
+      }
       return filtered;
     }
 
     const conditions = whereClause[1];
-    
+
     // Split by AND (simple case - no parentheses)
     const andConditions = conditions.split(/\s+AND\s+/i);
-    
+
     for (const condition of andConditions) {
       const trimmed = condition.trim();
-      
+      console.log(`DEBUG: Processing condition: '${trimmed}'`);
+
+      // Helper to extract column name handling optional table prefix "Table"."Column"
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const getColName = (match: RegExpMatchArray) => match[2] || match[1];
+
+      // Original simple regex for standard columns: "id" or "Table"."id"
+      const colRegex = /(?:["']?\w+["']?\.)?["']?(\w+)["']?/;
+
+      // Specialized regex for CAST expressions used in inequalities
+      // Matches: CAST("Table"."expiresAt" AS INTEGER)
+      // Group 1 is the column name
+      const castColRegex = /(?:CAST\s*\(\s*)?(?:.*?\.)?["']?(\w+)["']?(?:\s+AS\s+\w+\s*\))?/;
+
       // Handle column = ?
-      const eqMatch = trimmed.match(/^["']?(\w+)["']?\s*=\s*\?/i);
+      // Handle column = ?
+      const eqMatch = trimmed.match(/^(.*?)\s*=\s*\?/);
       if (eqMatch && paramIndex < params.length) {
-        const columnName = eqMatch[1];
+        // Manually parse column name to handle Table.Column and Quotes robustly
+        let rawCol = eqMatch[1].trim();
+        // Remove CAST wrapping if present
+        if (rawCol.toUpperCase().startsWith("CAST(") && rawCol.toUpperCase().includes(" AS ")) {
+          const inner = rawCol.match(/CAST\s*\((.+?)\s+AS/i);
+          if (inner) rawCol = inner[1];
+        }
+
+        // Remove quotes and table prefix
+        // Handle "Table"."Column" or Table.Column or "Column"
+        const parts = rawCol.split('.');
+        const colName = parts[parts.length - 1].replace(/^["']|["']$/g, '');
+
+        const columnName = colName;
         const paramValue = params[paramIndex++];
+
         filtered = filtered.filter((row: any) => {
           if (typeof row === "object" && row !== null) {
             const rowValue = row[columnName];
-            return rowValue === paramValue || 
-                   String(rowValue) === String(paramValue);
+            return rowValue === paramValue || String(rowValue) === String(paramValue);
           }
           return false;
         });
         continue;
       }
-      
+
+      // Handle column < ? (for expiresAt, supports CAST)
+      const ltMatch = trimmed.match(new RegExp(`^${castColRegex.source}\\s*<\\s*\\?`, 'i'));
+      if (ltMatch && paramIndex < params.length) {
+        const columnName = ltMatch[1];
+        const paramValue = params[paramIndex++];
+        filtered = filtered.filter((row: any) => {
+          if (typeof row === "object" && row !== null) {
+            return Number(row[columnName]) < Number(paramValue);
+          }
+          return false;
+        });
+        continue;
+      }
+
+      // Handle column > ?
+      const gtMatch = trimmed.match(new RegExp(`^${colRegex.source}\\s*>\\s*\\?`, 'i'));
+      if (gtMatch && paramIndex < params.length) {
+        const columnName = gtMatch[1];
+        const paramValue = params[paramIndex++];
+        filtered = filtered.filter((row: any) => {
+          if (typeof row === "object" && row !== null) {
+            return Number(row[columnName]) > Number(paramValue);
+          }
+          return false;
+        });
+        continue;
+      }
+
       // Handle column IN (?, ?, ?)
-      const inMatch = trimmed.match(/^["']?(\w+)["']?\s+IN\s*\(([^)]+)\)/i);
+      const inMatch = trimmed.match(new RegExp(`^${colRegex.source}\\s+IN\\s*\\(([^)]+)\\)`, 'i'));
       if (inMatch) {
         const columnName = inMatch[1];
         const placeholders = inMatch[2].match(/\?/g);
@@ -345,7 +497,7 @@ class MockDatabaseImpl extends EventEmitter implements MockDatabase {
           filtered = filtered.filter((row: any) => {
             if (typeof row === "object" && row !== null) {
               const rowValue = row[columnName];
-              return inValues.some(val => 
+              return inValues.some(val =>
                 rowValue === val || String(rowValue) === String(val)
               );
             }
@@ -354,9 +506,9 @@ class MockDatabaseImpl extends EventEmitter implements MockDatabase {
           continue;
         }
       }
-      
+
       // Handle column IS NULL
-      const isNullMatch = trimmed.match(/^["']?(\w+)["']?\s+IS\s+NULL/i);
+      const isNullMatch = trimmed.match(new RegExp(`^${colRegex.source}\\s+IS\\s+NULL`, 'i'));
       if (isNullMatch) {
         const columnName = isNullMatch[1];
         filtered = filtered.filter((row: any) => {
@@ -367,9 +519,9 @@ class MockDatabaseImpl extends EventEmitter implements MockDatabase {
         });
         continue;
       }
-      
+
       // Handle column IS NOT NULL
-      const isNotNullMatch = trimmed.match(/^["']?(\w+)["']?\s+IS\s+NOT\s+NULL/i);
+      const isNotNullMatch = trimmed.match(new RegExp(`^${colRegex.source}\\s+IS\\s+NOT\\s+NULL`, 'i'));
       if (isNotNullMatch) {
         const columnName = isNotNullMatch[1];
         filtered = filtered.filter((row: any) => {
@@ -380,24 +532,8 @@ class MockDatabaseImpl extends EventEmitter implements MockDatabase {
         });
         continue;
       }
-      
-      // Handle column != ? or column <>
-      const neMatch = trimmed.match(/^["']?(\w+)["']?\s*(?:!=|<>)\s*\?/i);
-      if (neMatch && paramIndex < params.length) {
-        const columnName = neMatch[1];
-        const paramValue = params[paramIndex++];
-        filtered = filtered.filter((row: any) => {
-          if (typeof row === "object" && row !== null) {
-            const rowValue = row[columnName];
-            return rowValue !== paramValue && 
-                   String(rowValue) !== String(paramValue);
-          }
-          return false;
-        });
-        continue;
-      }
     }
-    
+
     return filtered;
   }
 
@@ -417,4 +553,3 @@ const MockDatabase = MockDatabaseImpl as any;
 
 export default MockDatabase;
 export { MockDatabaseImpl };
-

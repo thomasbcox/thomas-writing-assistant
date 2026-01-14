@@ -13,7 +13,7 @@ import {
 import { createTestDb, migrateTestDb, closeTestDb } from "../../utils/db";
 import type { DatabaseInstance } from "~/server/db";
 import { contextSession } from "~/server/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { LLMClient } from "~/server/services/llm/client";
 
 describe("contextSession", () => {
@@ -22,8 +22,8 @@ describe("contextSession", () => {
   beforeEach(async () => {
     testDb = createTestDb();
     await migrateTestDb(testDb);
-    // Clean up any leftover sessions from previous tests
-    await cleanupExpiredSessions(testDb);
+    // Note: Commented out auto-cleanup as it interferes with expiration tests
+    // await cleanupExpiredSessions(testDb);
   });
 
   afterEach(async () => {
@@ -181,24 +181,17 @@ describe("contextSession", () => {
         [],
         undefined, // ttlMs - use default
         mockLLMClient, // Pass llmClient for automatic caching
+        true, // awaitCacheCreation - wait for cache creation in tests
       );
 
       expect(session).toBeDefined();
-      
-      // Wait for async cache creation to complete
-      // Retry a few times since cache creation is fire-and-forget
-      let updatedSession = await getContextSession(testDb, "test-session-auto-cache");
-      let attempts = 0;
-      while (!updatedSession?.externalCacheId && attempts < 20) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        updatedSession = await getContextSession(testDb, "test-session-auto-cache");
-        attempts++;
-      }
-      
+
       // Verify cache creation was attempted
       expect(mockGeminiProvider.createContextCache).toHaveBeenCalled();
-      
-      // Verify cache was stored in database
+
+      // Verify cache was stored in database (no retry needed since we awaited)
+      const updatedSession = await getContextSession(testDb, "test-session-auto-cache");
+
       expect(updatedSession?.externalCacheId).toBe("cachedContents/auto-123");
     });
 
@@ -225,7 +218,7 @@ describe("contextSession", () => {
 
       // Wait a bit
       await new Promise((resolve) => setTimeout(resolve, 100));
-      
+
       // Verify no cache was created (no mock provider means no createContextCache call)
       const session = await getContextSession(testDb, "test-session-no-cache");
       expect(session?.externalCacheId).toBeUndefined();
@@ -254,7 +247,7 @@ describe("contextSession", () => {
 
       // Wait a bit
       await new Promise((resolve) => setTimeout(resolve, 100));
-      
+
       // Verify no cache was created
       const session = await getContextSession(testDb, "test-session-openai");
       expect(session?.externalCacheId).toBeUndefined();
@@ -371,27 +364,36 @@ describe("contextSession", () => {
 
   describe("cleanupExpiredSessions", () => {
     it("should delete expired sessions", async () => {
-      // Create expired session
-      await getOrCreateContextSession(
-        testDb,
-        "expired-session",
-        "openai",
-        "gpt-4o-mini",
-        [{ role: "user", content: "Test" }],
-        [], // conceptIds
-        1, // 1ms TTL
-      );
+      // Directly insert an expired session (bypassing getOrCreate which has inline cleanup)
+      const expiredSeconds = Math.floor((Date.now() - 5000) / 1000); // 5 seconds ago
+      await testDb.insert(contextSession).values({
+        id: "expired-session-id",
+        sessionKey: "expired-session-test-1",
+        provider: "openai",
+        model: "gpt-4o-mini",
+        contextMessages: JSON.stringify([{ role: "user", content: "Test" }]),
+        conceptIds: null,
+        externalCacheId: null,
+        cacheExpiresAt: null,
+        expiresAt: sql`${expiredSeconds}`,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
 
-      // Create non-expired session
-      await getOrCreateContextSession(
-        testDb,
-        "active-session",
-        "openai",
-        "gpt-4o-mini",
-        [{ role: "user", content: "Test" }],
-        [], // conceptIds
-        60000, // 1 minute TTL
-      );
+      // Create non-expired session manually to avoid side effects
+      await testDb.insert(contextSession).values({
+        id: "active-session-id",
+        sessionKey: "active-session",
+        provider: "openai",
+        model: "gpt-4o-mini",
+        contextMessages: JSON.stringify([{ role: "user", content: "Test" }]),
+        conceptIds: null,
+        externalCacheId: null,
+        cacheExpiresAt: null,
+        expiresAt: sql`${Math.floor((Date.now() + 60000) / 1000)}`, // Expires in 1 min
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
 
       // Wait for expiration
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -399,7 +401,7 @@ describe("contextSession", () => {
       const deleted = await cleanupExpiredSessions(testDb);
       expect(deleted).toBeGreaterThan(0);
 
-      const expired = await getContextSession(testDb, "expired-session");
+      const expired = await getContextSession(testDb, "expired-session-test-1");
       expect(expired).toBeNull();
 
       const active = await getContextSession(testDb, "active-session");
